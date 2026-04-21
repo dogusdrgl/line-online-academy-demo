@@ -501,18 +501,31 @@ function ensureLogoutButton() {
 }
 
 function ensureSidebarMember(user) {
-  if (!user?.id || getAllMembers().some((member) => member.id === user.id)) {
+  if (!user?.id) {
     return;
   }
 
-  ephemeralMembers.push({
+  const existingIndex = ephemeralMembers.findIndex((member) => member.id === user.id);
+  const nextMember = {
     id: user.id,
     name: user.name,
     roleId: user.roleId,
+    avatarImage: user.avatarImage || null,
     avatarClass: user.roleId === "guest" ? "amber" : "green",
     group: "Cevrim Ici",
-    subtitle: user.roleId === "guest" ? "Misafir" : "Ogrenci"
-  });
+    subtitle: getRole(user.roleId)?.name || (user.roleId === "guest" ? "Misafir" : "Uye"),
+    isOnline: true
+  };
+
+  if (existingIndex >= 0) {
+    ephemeralMembers[existingIndex] = {
+      ...ephemeralMembers[existingIndex],
+      ...nextMember
+    };
+    return;
+  }
+
+  ephemeralMembers.push(nextMember);
 }
 
 function withTimeout(promise, label = "Supabase istegi") {
@@ -591,12 +604,13 @@ function getAllMembers() {
 function getVisibleMembers() {
   return getAllMembers().map((member) => {
     const role = getRole(member.roleId);
+    const isOnline = Boolean(member.isOnline || member.bot);
 
     return {
       ...member,
-      group: member.isOnline || member.bot ? role?.name || "Uye" : "Cevrimdisi",
+      group: isOnline ? role?.name || "Uye" : "Cevrimdisi",
       roleName: role ? role.name : "Rol Yok",
-      subtitle: member.isOnline || member.bot ? member.subtitle || (role ? role.name : "Uye") : "Cevrimdisi",
+      subtitle: member.bot ? member.subtitle : isOnline ? role?.name || "Uye" : "Cevrimdisi",
       roleOrder: role?.order ?? 99
     };
   });
@@ -629,10 +643,13 @@ function renderMembersSidebar() {
           const subtitleClass = member.roleId === "admin" || member.roleId === "guest" ? "role green" : "";
           const roleColor = getRole(member.roleId)?.color || "#f1a126";
           const offlineClass = member.isOnline || member.bot ? "" : " offline";
+          const avatarStyle = member.avatarImage
+            ? `background: center / cover no-repeat url("${member.avatarImage}")`
+            : `background: ${escapeHtml(roleColor)}`;
 
           return `
             <div class="member-row${offlineClass}">
-              <div class="avatar ${member.avatarClass}" style="background: ${escapeHtml(roleColor)}">${initials}</div>
+              <div class="avatar ${member.avatarClass}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
               <div class="member-meta">
                 <strong>${member.name}</strong>
                 <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${member.subtitle}</p>
@@ -1201,7 +1218,8 @@ function updateIdentity(name, roleId, options = {}) {
   ensureSidebarMember({
     id: authState.userId,
     name: authState.name,
-    roleId: authState.roleId
+    roleId: authState.roleId,
+    avatarImage: authState.avatarImage
   });
 
   profileName.textContent = displayName;
@@ -1349,6 +1367,13 @@ async function saveProfileChanges() {
     });
   }
 
+  ensureSidebarMember({
+    id: authState.userId,
+    name: nextName,
+    roleId: authState.roleId,
+    avatarImage: nextProfile.avatarImage
+  });
+  renderMembersSidebar();
   closeProfileModal();
 }
 

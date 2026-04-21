@@ -260,7 +260,7 @@ button {
 .content-area {
   padding: 0;
   height: 100vh;
-  overflow: auto;
+  overflow: hidden;
   background: var(--surface-main);
 }
 
@@ -640,8 +640,9 @@ button {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
-  height: calc(100vh - 72px);
+  height: calc(100vh - 65px);
   min-height: 0;
+  overflow: hidden;
 }
 
 .channel-chat {
@@ -650,8 +651,27 @@ button {
   gap: 8px;
   min-height: 0;
   overflow-y: auto;
-  padding: 10px 6px 16px 0;
+  padding: 10px 4px 16px 0;
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 160, 98, 0.38) transparent;
+}
+
+.channel-chat::-webkit-scrollbar {
+  width: 6px;
+}
+
+.channel-chat::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.channel-chat::-webkit-scrollbar-thumb {
+  background: rgba(215, 160, 98, 0.42);
+  border-radius: 999px;
+}
+
+.channel-chat::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 174, 109, 0.62);
 }
 
 .chat-message {
