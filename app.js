@@ -50,6 +50,7 @@ const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
     ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
     : null;
+const SUPABASE_TIMEOUT_MS = 3500;
 
 let authState = {
   mode: "visitor",
@@ -175,6 +176,17 @@ function formatMessageTime(value) {
   });
 }
 
+function withTimeout(promise, label = "Supabase istegi") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(`${label} zaman asimina ugradi.`));
+      }, SUPABASE_TIMEOUT_MS);
+    })
+  ]);
+}
+
 function currentPermissions() {
   if (!authState.roleId) {
     return [];
@@ -298,12 +310,19 @@ async function upsertAppUser(user) {
     return;
   }
 
-  await supabaseClient.from("app_users").upsert({
-    id: user.id,
-    display_name: user.displayName,
-    role_id: user.roleId,
-    is_guest: user.roleId === "guest"
-  });
+  try {
+    await withTimeout(
+      supabaseClient.from("app_users").upsert({
+        id: user.id,
+        display_name: user.displayName,
+        role_id: user.roleId,
+        is_guest: user.roleId === "guest"
+      }),
+      "Kullanici kaydi"
+    );
+  } catch (error) {
+    console.warn("Supabase kullanici kaydi atlandi:", error.message);
+  }
 }
 
 async function loadPersistedMessages() {
@@ -311,12 +330,24 @@ async function loadPersistedMessages() {
     return;
   }
 
-  const { data, error } = await supabaseClient
-    .from("messages")
-    .select("*")
-    .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
-    .order("created_at", { ascending: true })
-    .limit(200);
+  let response;
+
+  try {
+    response = await withTimeout(
+      supabaseClient
+        .from("messages")
+        .select("*")
+        .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
+        .order("created_at", { ascending: true })
+        .limit(200),
+      "Mesajlari yukleme"
+    );
+  } catch (error) {
+    console.warn("Supabase mesajlari yuklenemedi:", error.message);
+    return;
+  }
+
+  const { data, error } = response;
 
   if (error) {
     console.warn("Supabase mesajlari yuklenemedi:", error.message);
@@ -478,24 +509,37 @@ function initializeTextChannelComposers() {
       const roleLabel = currentRole ? currentRole.name : "Uye";
 
       if (supabaseClient) {
-        const { data, error } = await supabaseClient
-          .from("messages")
-          .insert({
-            channel_id: panelId,
-            author_id: authState.userId,
+        try {
+          const { data, error } = await withTimeout(
+            supabaseClient
+              .from("messages")
+              .insert({
+                channel_id: panelId,
+                author_id: authState.userId,
+                author_name: authState.name,
+                author_role: roleLabel,
+                content: text
+              })
+              .select()
+              .single(),
+            "Mesaj kaydi"
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          addChatMessage(panelId, data);
+        } catch (error) {
+          console.warn("Supabase mesaj kaydi basarisiz, yerel mesaj eklendi:", error.message);
+          addChatMessage(panelId, {
+            id: `local-${Date.now()}`,
             author_name: authState.name,
             author_role: roleLabel,
-            content: text
-          })
-          .select()
-          .single();
-
-        if (error) {
-          window.alert(`Mesaj kaydedilemedi: ${error.message}`);
-          return;
+            content: text,
+            created_at: new Date().toISOString()
+          });
         }
-
-        addChatMessage(panelId, data);
       } else {
         addChatMessage(panelId, {
           id: `local-${Date.now()}`,
@@ -560,10 +604,32 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
   const password = signInPassword.value.trim();
 
   if (supabaseClient) {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
+    let response;
+
+    try {
+      response = await withTimeout(
+        supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        }),
+        "Giris"
+      );
+    } catch (error) {
+      window.alert("Supabase'e ulasilamadi. Simdilik demo kullanici olarak devam ediliyor.");
+      const memberId = `member-${Date.now()}`;
+      ephemeralMembers.push({
+        id: memberId,
+        name: "Line Uyesi",
+        roleId: "student",
+        avatarClass: "green",
+        group: "Cevrim Ici",
+        subtitle: "Ogrenci"
+      });
+      finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
+      return;
+    }
+
+    const { data, error } = response;
 
     if (error) {
       window.alert(`Giris basarisiz: ${error.message}`);
@@ -599,15 +665,37 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
   if (supabaseClient) {
     const signUpEmail = document.getElementById("signup-email").value.trim().toLowerCase();
     const signUpPassword = document.getElementById("signup-password").value.trim();
-    const { data, error } = await supabaseClient.auth.signUp({
-      email: signUpEmail,
-      password: signUpPassword,
-      options: {
-        data: {
-          display_name: signUpDisplayName
-        }
-      }
-    });
+    let response;
+
+    try {
+      response = await withTimeout(
+        supabaseClient.auth.signUp({
+          email: signUpEmail,
+          password: signUpPassword,
+          options: {
+            data: {
+              display_name: signUpDisplayName
+            }
+          }
+        }),
+        "Uye olma"
+      );
+    } catch (error) {
+      window.alert("Supabase'e ulasilamadi. Simdilik demo kullanici olarak devam ediliyor.");
+      const memberId = `member-${slugify(signUpDisplayName)}-${Date.now()}`;
+      ephemeralMembers.push({
+        id: memberId,
+        name: signUpDisplayName,
+        roleId: "student",
+        avatarClass: "green",
+        group: "Cevrim Ici",
+        subtitle: "Ogrenci"
+      });
+      finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
+      return;
+    }
+
+    const { data, error } = response;
 
     if (error) {
       window.alert(`Uye olma basarisiz: ${error.message}`);
