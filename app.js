@@ -302,6 +302,15 @@ function writeLocalMessages(messages) {
   }
 }
 
+function forgetMessage(messageId) {
+  if (!messageId) {
+    return;
+  }
+
+  writeLocalMessages(readLocalMessages().filter((message) => message.id !== messageId));
+  renderedMessageIds.delete(messageId);
+}
+
 function rememberMessage(panelId, message) {
   if (!message?.id || !TEXT_CHANNEL_VIEWS.has(panelId)) {
     return;
@@ -400,6 +409,10 @@ function hasPermission(permission) {
   return currentPermissions().includes(permission);
 }
 
+function isAdminUser() {
+  return hasPermission("admin_access");
+}
+
 function canAccessView(viewId) {
   if (PUBLIC_VIEWS.has(viewId)) {
     return true;
@@ -492,6 +505,99 @@ function renderMembersSidebar() {
     .join("");
 }
 
+function scrollChatToBottom(chat) {
+  window.requestAnimationFrame(() => {
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+
+function removeChatMessage(messageId) {
+  if (!messageId) {
+    return;
+  }
+
+  const messageLine = document.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+  const chatMessage = messageLine?.closest(".chat-message");
+  messageLine?.remove();
+  forgetMessage(messageId);
+
+  if (chatMessage && !chatMessage.querySelector(".message-line")) {
+    chatMessage.remove();
+  }
+}
+
+async function deleteChatMessage(messageId) {
+  if (!messageId || !isAdminUser()) {
+    return;
+  }
+
+  removeChatMessage(messageId);
+
+  if (supabaseClient && !messageId.startsWith("local-")) {
+    try {
+      const { error } = await withTimeout(
+        supabaseClient.from("messages").delete().eq("id", messageId),
+        "Mesaj silme"
+      );
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.warn("Supabase mesaj silme basarisiz:", error.message);
+    }
+  }
+}
+
+function attachDeleteHandlers(scope) {
+  scope.querySelectorAll("[data-delete-message]").forEach((button) => {
+    if (button.dataset.deleteBound === "true") {
+      return;
+    }
+    button.dataset.deleteBound = "true";
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      deleteChatMessage(button.dataset.deleteMessage);
+    });
+  });
+}
+
+function refreshChatAdminControls() {
+  document.querySelectorAll(".message-line").forEach((line) => {
+    const messageId = line.dataset.messageId;
+    const existingButton = line.querySelector(".message-delete");
+
+    if (!isAdminUser() || !messageId) {
+      existingButton?.remove();
+      return;
+    }
+
+    if (!existingButton) {
+      const button = document.createElement("button");
+      button.className = "message-delete";
+      button.type = "button";
+      button.dataset.deleteMessage = messageId;
+      button.setAttribute("aria-label", "Mesaji sil");
+      button.textContent = "Sil";
+      line.appendChild(button);
+    }
+  });
+
+  attachDeleteHandlers(document);
+}
+
+function createMessageLine(message) {
+  const line = document.createElement("div");
+  line.className = "message-line";
+  line.dataset.messageId = message.id || "";
+  line.innerHTML = `
+    <p>${escapeHtml(message.content)}</p>
+    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">Sil</button>` : ""}
+  `;
+  attachDeleteHandlers(line);
+  return line;
+}
+
 function addChatMessage(panelId, message) {
   if (message.id && renderedMessageIds.has(message.id)) {
     return;
@@ -505,29 +611,40 @@ function addChatMessage(panelId, message) {
 
   const roleLabel = message.author_role || "Uye";
   const authorName = message.author_name || "Uye";
+  const authorKey = message.author_id || authorName;
   const timestamp = message.created_at ? formatMessageTime(message.created_at) : formatMessageTime(new Date());
+  const lastMessage = chat.lastElementChild;
+  const shouldGroup =
+    lastMessage?.classList.contains("chat-message") &&
+    lastMessage.dataset.authorKey === authorKey;
 
-  const chatMessage = document.createElement("article");
-  chatMessage.className = "chat-message";
-  chatMessage.innerHTML = `
-    <div class="avatar red">${escapeHtml(authorName.slice(0, 1).toUpperCase())}</div>
-    <div class="chat-body">
-      <div class="chat-meta">
-        <strong>${escapeHtml(authorName)}</strong>
-        <span>Bugun ${timestamp}</span>
+  if (shouldGroup) {
+    lastMessage.querySelector(".message-stack")?.appendChild(createMessageLine(message));
+  } else {
+    const chatMessage = document.createElement("article");
+    chatMessage.className = "chat-message";
+    chatMessage.dataset.authorKey = authorKey;
+    chatMessage.innerHTML = `
+      <div class="avatar red">${escapeHtml(authorName.slice(0, 1).toUpperCase())}</div>
+      <div class="chat-body">
+        <div class="chat-meta">
+          <strong>${escapeHtml(authorName)}</strong>
+          <span>Bugun ${timestamp}</span>
+          <small class="chat-role-note">${escapeHtml(roleLabel)}</small>
+        </div>
+        <div class="message-stack"></div>
       </div>
-      <p>${escapeHtml(message.content)}</p>
-      <small class="chat-role-note">${escapeHtml(roleLabel)}</small>
-    </div>
-  `;
-
-  chat.appendChild(chatMessage);
+    `;
+    chatMessage.querySelector(".message-stack").appendChild(createMessageLine(message));
+    chat.appendChild(chatMessage);
+  }
 
   if (message.id) {
     renderedMessageIds.add(message.id);
   }
 
   rememberMessage(panelId, message);
+  scrollChatToBottom(chat);
 }
 
 function loadLocalMessages() {
@@ -631,12 +748,18 @@ function subscribeToMessages() {
     .on(
       "postgres_changes",
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "messages"
       },
       (payload) => {
-        addChatMessage(payload.new.channel_id, payload.new);
+        if (payload.eventType === "INSERT") {
+          addChatMessage(payload.new.channel_id, payload.new);
+        }
+
+        if (payload.eventType === "DELETE") {
+          removeChatMessage(payload.old.id);
+        }
       }
     )
     .subscribe();
@@ -757,6 +880,7 @@ function updateIdentity(name, roleId, options = {}) {
     saveSession(session);
   }
 
+  refreshChatAdminControls();
   renderMembersSidebar();
 }
 
@@ -803,6 +927,7 @@ function resetIdentity() {
     authOpenButton.textContent = "Giris Yap";
   }
 
+  refreshChatAdminControls();
   const activePanel = document.querySelector(".view-panel.active");
   if (activePanel && !PUBLIC_VIEWS.has(activePanel.id)) {
     setActiveView("dashboard", "Anasayfa");
