@@ -44,7 +44,7 @@ const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
 const guestCardSignin = document.getElementById("guest-card-signin");
 const guestCardSignup = document.getElementById("guest-card-signup");
-const logoutButton = document.getElementById("logout-button");
+let logoutButton = document.getElementById("logout-button");
 const membersGroups = document.getElementById("members-groups");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
@@ -240,6 +240,20 @@ function clearSavedSession() {
   } catch (error) {
     console.warn("Oturum temizlenemedi:", error.message);
   }
+}
+
+function ensureLogoutButton() {
+  if (logoutButton || !identityCard) {
+    return logoutButton;
+  }
+
+  logoutButton = document.createElement("button");
+  logoutButton.className = "logout-button";
+  logoutButton.type = "button";
+  logoutButton.id = "logout-button";
+  logoutButton.textContent = "Cikis Yap";
+  identityCard.appendChild(logoutButton);
+  return logoutButton;
 }
 
 function ensureSidebarMember(user) {
@@ -541,6 +555,7 @@ function updateIdentity(name, roleId, options = {}) {
   profileRole.textContent = role ? role.name : "Uye";
   profileAvatar.textContent = name.slice(0, 1).toUpperCase();
 
+  ensureLogoutButton();
   guestCard.classList.add("hidden");
   identityCard.classList.remove("hidden");
 
@@ -556,6 +571,15 @@ function updateIdentity(name, roleId, options = {}) {
 }
 
 function finishAuth(name, roleId, options = {}) {
+  if (options.userId) {
+    saveSession({
+      mode: options.mode || (roleId === "guest" ? "guest" : "member"),
+      name,
+      roleId,
+      userId: options.userId
+    });
+  }
+
   updateIdentity(name, roleId, options);
   closeAuthModal();
 
@@ -942,8 +966,10 @@ if (guestCardSignup) {
   });
 }
 
-if (logoutButton) {
-  logoutButton.addEventListener("click", async () => {
+const ensuredLogoutButton = ensureLogoutButton();
+
+if (ensuredLogoutButton) {
+  ensuredLogoutButton.addEventListener("click", async () => {
     if (supabaseClient) {
       try {
         await withTimeout(supabaseClient.auth.signOut(), "Cikis");
