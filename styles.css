@@ -767,20 +767,22 @@ button {
 }
 
 .message-delete {
-  opacity: 0;
+  opacity: 0.55;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 94, 94, 0.14);
-  color: #ffb0a8;
+  background: rgba(255, 94, 94, 0.16);
+  color: #ffc0b8;
   padding: 5px 8px;
   cursor: pointer;
   font-size: 0.72rem;
   transition: 160ms ease;
+  font-weight: 700;
 }
 
 .message-line:hover .message-delete,
 .message-delete:focus-visible {
   opacity: 1;
+  background: rgba(255, 94, 94, 0.26);
 }
 
 .voice-channel-view .panel-header,

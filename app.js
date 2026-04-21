@@ -236,7 +236,17 @@ function initializeAdminState() {
       color: role.color || fallbackRole?.color || "#f1a126"
     });
   });
-  roles = Array.from(roleMap.values());
+  roles = Array.from(roleMap.values()).map((role) => {
+    if (role.id !== "admin") {
+      return role;
+    }
+
+    return {
+      ...role,
+      permissions: Array.from(new Set([...(role.permissions || []), "view_channels", "send_messages", "join_voice", "admin_access"]))
+    };
+  });
+  saveRoles();
 
   const savedAccess = readJson(LOCAL_ACCESS_KEY, {});
   viewAccess = {
@@ -410,7 +420,7 @@ function hasPermission(permission) {
 }
 
 function isAdminUser() {
-  return hasPermission("admin_access");
+  return authState.roleId === "admin" || hasPermission("admin_access");
 }
 
 function canAccessView(viewId) {
