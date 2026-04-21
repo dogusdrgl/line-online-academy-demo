@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LINE Online Academy</title>
+    <link rel="icon" type="image/png" href="./assets/logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="channel-sidebar">
+        <div class="brand-header">
+          <div class="brand-lockup">
+            <img src="./assets/logo.png" alt="LINE Online Academy logosu" class="sidebar-logo" />
+          </div>
+          <button class="icon-button" aria-label="Menu">⋮</button>
+        </div>
+
+        <nav class="channel-groups">
+          <section>
+            <button class="channel-item page-link active" data-view="dashboard">📄 Anasayfa</button>
+            <button class="channel-item page-link" data-view="about">📄 Hakkimizda</button>
+          </section>
+
+          <section>
+            <p class="group-title filled">🔥 Lobi</p>
+            <button class="channel-item text-channel" data-view="contact">💬 iletisim</button>
+            <button class="channel-item text-channel" data-view="support">💬 destek soru&cevap</button>
+            <button class="channel-item voice" data-view="waiting-room">bekleme odasi</button>
+            <button class="channel-item voice" data-view="meeting-room">gorusme odasi</button>
+          </section>
+
+          <section>
+            <p class="group-title filled">📚 Yonetim</p>
+            <button class="channel-item text-channel" data-view="admin-chat">💬 yonetim sohbet</button>
+            <button class="channel-item voice" data-view="admin-room">yonetim odasi</button>
+            <button class="channel-item text-channel" data-view="trainer-chat">💬 egitmen sohbet</button>
+            <button class="channel-item voice" data-view="trainer-room">egitmen odasi</button>
+            <button class="channel-item voice" data-view="board-room">toplanti salonu</button>
+          </section>
+
+          <section>
+            <p class="group-title filled">🏫 Siniflar</p>
+            <button class="channel-item voice" data-view="class-1">sinif 1</button>
+            <button class="channel-item voice" data-view="class-2">sinif 2</button>
+            <button class="channel-item voice" data-view="class-3">sinif 3</button>
+            <button class="channel-item voice" data-view="class-4">sinif 4</button>
+          </section>
+
+          <section>
+            <p class="group-title filled">🥣 Kantin</p>
+            <button class="channel-item text-channel" data-view="canteen-chat">💬 sohbet</button>
+            <button class="channel-item voice" data-view="table-1">masa 1</button>
+            <button class="channel-item voice" data-view="table-2">masa 2</button>
+            <button class="channel-item voice" data-view="vip-loca">loca</button>
+          </section>
+
+          <section>
+            <p class="group-title filled">📚 Kutuphane</p>
+            <button class="channel-item text-channel" data-view="piano-notes">💬 piyano notalari</button>
+            <button class="channel-item text-channel" data-view="guitar-notes">💬 gitar notalari</button>
+            <button class="channel-item text-channel" data-view="drum-notes">💬 bateri notalari</button>
+            <button class="channel-item text-channel subtle" data-view="other-notes">💬 diger</button>
+          </section>
+        </nav>
+
+      </aside>
+
+      <main class="content-area">
+        <header class="topbar">
+          <div class="topbar-channel">
+            <span class="channel-symbol">#</span>
+            <div>
+              <p class="eyebrow">Line Online Academy</p>
+              <h2 id="view-title">📄 Anasayfa</h2>
+            </div>
+          </div>
+          <div class="topbar-meta">
+            <span class="meta-pill">Tek Kampus</span>
+            <span class="meta-pill search-pill">Arama</span>
+            <button class="meta-auth-button" id="open-auth-modal" type="button">Giris Yap</button>
+          </div>
+        </header>
+
+        <section id="dashboard" class="view-panel active">
+          <div class="hero-card">
+            <div>
+              <p class="eyebrow">Hos Geldin</p>
+              <h3>Online muzigi topluluk hissiyle bulusturan kampus</h3>
+              <p>
+                Line Online Academy, Discord akisini taniyip egitim ihtiyacina gore
+                yeniden duzenlenmis tek kampus yapisiyla calisir. Ogrenciler siniflara,
+                etut odalarina ve materyallere ayni deneyim icinde ulasir.
+              </p>
+            </div>
+            <div class="hero-stats">
+              <div>
+                <strong>42</strong>
+                <span>Aktif Ogrenci</span>
+              </div>
+              <div>
+                <strong>6</strong>
+                <span>Bugunku Ders</span>
+              </div>
+              <div>
+                <strong>3</strong>
+                <span>Canli Oda</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-layout">
+            <article class="info-card">
+              <p class="section-kicker">Akis</p>
+              <h4>Bugun okulde neler oluyor?</h4>
+              <ul class="feed-list">
+                <li>18:00 sinif 1 odasinda temel ritim dersi basliyor.</li>
+                <li>19:30 gorusme odasinda yeni ogrenci tanisma gorusmeleri var.</li>
+                <li>21:00 kantin alaninda serbest etut ve topluluk bulusmasi acik.</li>
+              </ul>
+            </article>
+
+            <article class="info-card">
+              <p class="section-kicker">Ozellikler</p>
+              <h4>Bu yapida neleri kurabiliriz?</h4>
+              <ul class="feature-list">
+                <li>Tek kampus yapisinda sabit kanal ve oda hiyerarsisi</li>
+                <li>Canli ders odalari, ekran paylasimi, kamera ve mikrofon</li>
+                <li>Sinif bazli materyal paylasimi ve not kutuphanesi</li>
+                <li>Ogretmen-ogrenci iletisim ve yonetim alanlari</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="about" class="view-panel">
+          <div class="channel-intro">
+            <div class="channel-intro-mark">#</div>
+            <div class="channel-intro-copy">
+              <p class="eyebrow">Marka Kimligi</p>
+              <h3>Welcome to #hakkimizda.</h3>
+              <p>
+                Burasi Line Online Academy'nin giris noktasi. Kampusun tonu, topluluk
+                yaklasimi ve premium egitim deneyimi burada baslar; kullanici ilk anda
+                bir sunucuda degil, ozel tasarlanmis bir dijital okulda oldugunu hisseder.
+              </p>
+            </div>
+            <div class="logo-badge">
+              <img src="./assets/logo.png" alt="LINE Online Academy" class="hero-logo" />
+              <small>ONLINE ACADEMY</small>
+            </div>
+          </div>
+          <div class="about-layout">
+            <article class="feature-panel statement-panel">
+              <div class="message-head">
+                <div class="avatar amber">LA</div>
+                <div>
+                  <strong>Line Academy</strong>
+                  <p>Aciklama • Sabit Mesaj</p>
+                </div>
+              </div>
+              <div class="statement-visual"></div>
+              <div class="statement-card">
+                <span>Kampus Tasarimi</span>
+                <strong>Topluluk, ders ve oda deneyimi tek omurgada</strong>
+                <p>
+                  Sol tarafta yapisal navigasyon, merkezde icerik ve etkilesim, sagda
+                  ise kisi ve kimlik alani bulunur. Bu denge Discord hissini korurken
+                  urunu daha premium ve kurumsal hale getirir.
+                </p>
+              </div>
+            </article>
+            <div class="insight-column">
+              <article class="info-card">
+                <p class="section-kicker">Vizyon</p>
+                <h4>Her ders bir oda, her oda bir topluluk</h4>
+                <p>
+                  Ogrenci sinifina girer, materyaline ulasir, hocasiyla gorusur ve
+                  toplulukla ayni akista kalir. Arayuz bu gecisi hizlandirmak icin
+                  olabildigince tanidik ve net tasarlandi.
+                </p>
+              </article>
+              <article class="info-card">
+                <p class="section-kicker">Deneyim</p>
+                <h4>Discord hissi, okul mantigi</h4>
+                <p>
+                  Solda kanal bazli okul haritasi, ortada aktif ders veya bilgi sayfasi,
+                  sagda ise roller ve anlik kullanici listesi bulunur. Bu iskelet ileride
+                  tam canli ders sistemine kolayca donusebilir.
+                </p>
+              </article>
+              <div class="composer-shell">
+                <span>Line Online Academy icinde gezin...</span>
+                <div class="composer-actions">
+                  <span>+</span>
+                  <span>GIF</span>
+                  <span>☺</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="contact" class="view-panel text-channel-view" data-channel-name="#iletisim">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Lobi</p>
+              <h3>Iletisim</h3>
+            </div>
+            <button class="ghost-button">Yeni Duyuru</button>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar amber">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Bugun 17:04</span>
+                </div>
+                <p>Hos geldin. Bu kanal genel iletisim, duyuru ve yonlendirme akisi icin kullaniliyor.</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar blue">SA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Sanal Asistan</strong>
+                  <span>Bugun 17:12</span>
+                </div>
+                <p>Yeni gelen ogrenciler buradan okul akisini, ders takvimini ve odalara erisim bilgisini ogrenebilir.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#iletisim kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="support" class="view-panel text-channel-view" data-channel-name="#destek-soru-cevap">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Lobi</p>
+              <h3>Destek Soru & Cevap</h3>
+            </div>
+            <button class="ghost-button">Soru Olustur</button>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar coral">EZ</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Ezgi</strong>
+                  <span>Bugun 16:48</span>
+                </div>
+                <p>Sinif 2 ses odasina telefondan girerken mikrofon izni istemedi, nasil duzeltebilirim?</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar blue">SA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Sanal Asistan</strong>
+                  <span>Bugun 16:52</span>
+                </div>
+                <p>Tarayici ayarlarindan site izinlerini kontrol etmeni oneririm. Gerekirse sana adim adim yardimci olayim.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#destek-soru-cevap kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="waiting-room" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Canli Oda</p>
+              <h3>Bekleme Odasi</h3>
+            </div>
+            <div class="room-badges">
+              <span>Sesli</span>
+              <span>Kontrollu Giris</span>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Derse alinmayi bekleyen ogrenciler</h4>
+                <p>Ogrenciler burada toplanir, moderator uygun oldugunda ilgili sinifa veya gorusme odasina yonlendirilir.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Siradaki Yayin</span>
+                <strong>19:30 Demo Ders</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Bekleyenler</span>
+                <strong>3 katilimci</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="meeting-room" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Canli Oda</p>
+              <h3>Gorusme Odasi</h3>
+            </div>
+            <div class="room-badges">
+              <span>Ses + Video</span>
+              <span>Kayit</span>
+            </div>
+          </div>
+          <div class="room-layout">
+            <div class="stage-video">
+              <div class="video-label">Gorusme yayini</div>
+              <div class="video-box">
+                <p>Kamera yayini burada gorunecek</p>
+                <button id="camera-button" class="accent-button">Kamerayi Ac</button>
+                <video id="camera-preview" autoplay playsinline muted></video>
+              </div>
+            </div>
+            <div class="lesson-panel">
+              <article class="lesson-card">
+                <span>Kullanim</span>
+                <strong>Tanisma ve birebir gorusme</strong>
+                <p>Yeni ogrenci kabul gorusmeleri, demo dersler ve bireysel yonlendirme icin kullanilabilir.</p>
+              </article>
+              <article class="lesson-card">
+                <span>Sonraki Asama</span>
+                <strong>Gercek coklu oda altyapisi</strong>
+                <p>WebRTC + signaling katmani ile birden fazla kullanicinin ayni anda baglandigi gercek oda deneyimine gecebiliriz.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="admin-chat" class="view-panel text-channel-view" data-channel-name="#yonetim-sohbet">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Yonetim</p>
+              <h3>Yonetim Sohbet</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar red">D</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Dogus</strong>
+                  <span>Bugun 15:08</span>
+                </div>
+                <p>Bu hafta yeni gelen ogrenciler icin demo ders slotlarini netlestirelim.</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar green">DL</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Dilara</strong>
+                  <span>Bugun 15:11</span>
+                </div>
+                <p>Pazartesi ve Carsamba aksamlari bosluk var, mentor takvimine isleyebilirim.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#yonetim-sohbet kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="admin-room" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Yonetim</p>
+              <h3>Yonetim Odasi</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Yonetim sesli toplantisi</h4>
+                <p>Haftalik planlama, ekip koordinasyonu ve karar toplantilari icin ayrilan ozel ses odasi.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Aktif Konusmaci</span>
+                <strong>Dogus</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Durum</span>
+                <strong>Hazir</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="trainer-chat" class="view-panel text-channel-view" data-channel-name="#egitmen-sohbet">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Yonetim</p>
+              <h3>Egitmen Sohbet</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar green">DL</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Dilara</strong>
+                  <span>Bugun 14:21</span>
+                </div>
+                <p>Bu haftaki piyano notalari kutuphaneye yuklendi, ogrencileri yonlendirebiliriz.</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar amber">MN</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Mert</strong>
+                  <span>Bugun 14:32</span>
+                </div>
+                <p>Bateri sinifi icin yeni ritim egzersizi de yarin eklenecek.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#egitmen-sohbet kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="trainer-room" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Yonetim</p>
+              <h3>Egitmen Odasi</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Egitmen koordinasyon odasi</h4>
+                <p>Ders oncesi hizli planlama, materyal kontrolu ve ogrenci gecisleri burada konusulur.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Aktif Oda</span>
+                <strong>2 egitmen</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Baglanti</span>
+                <strong>Sesli</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="board-room" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Yonetim</p>
+              <h3>Toplanti Salonu</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Toplanti saloni</h4>
+                <p>Buyuk ekip toplantilari, canli duyurular ve toplu yonetim gorusmeleri icin ana sesli alan.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Kapasite</span>
+                <strong>25 kisi</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Ozellik</span>
+                <strong>Kayit + ekran</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="class-1" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Siniflar</p>
+              <h3>Sinif 1</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Sinif 1 ses odasi</h4>
+                <p>Baslangic seviye ogrenciler icin canli ders, yoklama ve sesli uygulama odasi.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Ders Konusu</span>
+                <strong>Temel Ritim</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Katilimci</span>
+                <strong>8 kisi</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="class-2" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Siniflar</p>
+              <h3>Sinif 2</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Sinif 2 ses odasi</h4>
+                <p>Orta seviye calisma grubu icin haftalik ders ve soru-cevap akisi burada yurur.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Seviye</span>
+                <strong>Orta</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Moderator</span>
+                <strong>Dilara</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="class-3" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Siniflar</p>
+              <h3>Sinif 3</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Sinif 3 ses odasi</h4>
+                <p>Performans odakli repertuvar calismasi ve birebir geri bildirimler icin ayrilan oda.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Mod</span>
+                <strong>Canli Etut</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Kayit</span>
+                <strong>Aktif</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="class-4" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Siniflar</p>
+              <h3>Sinif 4</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Sinif 4 ses odasi</h4>
+                <p>Ust seviye grup calismalari ve ozel atolyeler icin premium sesli oda.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Tip</span>
+                <strong>Masterclass</strong>
+              </article>
+              <article class="voice-side-card">
+                <span>Giris</span>
+                <strong>Onayli</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="canteen-chat" class="view-panel text-channel-view" data-channel-name="#sohbet">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kantin</p>
+              <h3>Sohbet</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar coral">EZ</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Ezgi</strong>
+                  <span>Bugun 18:05</span>
+                </div>
+                <p>Bugunku vokal dersi cok keyifliydi. Nefes calismasi notlarini da paylasir misiniz?</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar amber">MN</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Mert</strong>
+                  <span>Bugun 18:07</span>
+                </div>
+                <p>Ben de kaydi tekrar dinleyecegim. Sonra etut odasina gecip calisalim.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#sohbet kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="table-1" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kantin</p>
+              <h3>Masa 1</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Masa 1 ses odasi</h4>
+                <p>Kucuk grup sesli sohbet ve mini etutlar icin acik masa odasi.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Masa Tipi</span>
+                <strong>Serbest</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="table-2" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kantin</p>
+              <h3>Masa 2</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Masa 2 ses odasi</h4>
+                <p>Serbest calisma ve arkadas ortaminda sohbet etmek isteyen ogrenciler icin ikinci masa alani.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Durum</span>
+                <strong>Acik</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="vip-loca" class="view-panel room-panel voice-channel-view">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kantin</p>
+              <h3>Loca</h3>
+            </div>
+          </div>
+          <div class="voice-layout">
+            <div class="voice-stage-card">
+              <div class="voice-stage-icon">🔊</div>
+              <div>
+                <h4>Loca ses odasi</h4>
+                <p>Ozel bulusmalar, mentor gruplari ve premium topluluk etkinlikleri icin ayrilan alan.</p>
+              </div>
+            </div>
+            <div class="voice-side-list">
+              <article class="voice-side-card">
+                <span>Erisim</span>
+                <strong>Secili Roller</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="piano-notes" class="view-panel text-channel-view" data-channel-name="#piyano-notalari">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kutuphane</p>
+              <h3>Piyano Notalari</h3>
+            </div>
+          </div>
+          <div class="channel-chat library-chat">
+            <article class="chat-message">
+              <div class="avatar blue">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Dosya Paylasimi</span>
+                </div>
+                <p><strong>Temel Egzersiz Paketi</strong> yüklendi. Seviye 1 icin gam, arpej ve koordinasyon notalari ektedir.</p>
+              </div>
+            </article>
+            <article class="chat-message">
+              <div class="avatar blue">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Dosya Paylasimi</span>
+                </div>
+                <p><strong>Akor Gecisleri</strong> ve <strong>Performans Repertuvari</strong> kaynaklari da bu kanalda arsivlenir.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#piyano-notalari kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="guitar-notes" class="view-panel text-channel-view" data-channel-name="#gitar-notalari">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kutuphane</p>
+              <h3>Gitar Notalari</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar blue">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Kaynak</span>
+                </div>
+                <p>Bu kanal gitar kaynaklari, akor diyagramlari ve ritim kaliplari icin metin kanali olarak kullanilir.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#gitar-notalari kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="drum-notes" class="view-panel text-channel-view" data-channel-name="#bateri-notalari">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kutuphane</p>
+              <h3>Bateri Notalari</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar blue">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Kaynak</span>
+                </div>
+                <p>Groove, fill ve metronom temelli bateri etutleri bu metin kanalinda paylasilir.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#bateri-notalari kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="other-notes" class="view-panel text-channel-view" data-channel-name="#diger">
+          <div class="panel-header">
+            <div>
+              <p class="section-kicker">Kutuphane</p>
+              <h3>Diger</h3>
+            </div>
+          </div>
+          <div class="channel-chat">
+            <article class="chat-message">
+              <div class="avatar blue">LA</div>
+              <div class="chat-body">
+                <div class="chat-meta">
+                  <strong>Line Academy</strong>
+                  <span>Genel Arsiv</span>
+                </div>
+                <p>Genel muzik teorisi, kategori disi materyaller ve yedek dokumanlar bu metin kanalinda tutulur.</p>
+              </div>
+            </article>
+          </div>
+          <div class="message-composer">
+            <span>#diger kanalina yaz...</span>
+            <div class="composer-actions">
+              <span>+</span>
+              <span>GIF</span>
+              <span>☺</span>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <aside class="members-sidebar">
+        <div class="members-scroll">
+          <div class="members-topbar">
+            <h3>Kullanicilar</h3>
+            <span>LINE • TR</span>
+          </div>
+          <div id="members-groups"></div>
+        </div>
+        <div class="profile-stack">
+          <div class="profile-card guest-card" id="guest-card">
+            <div class="guest-card-copy">
+              <strong>Line Online Academy'ye katil</strong>
+              <p>Kanallara yazmak ve odalara baglanmak icin giris yap ya da hesap olustur.</p>
+            </div>
+            <div class="guest-card-actions">
+              <button class="auth-chip primary" type="button" id="guest-card-signin">Giris Yap</button>
+              <button class="auth-chip" type="button" id="guest-card-signup">Uye Ol</button>
+            </div>
+          </div>
+
+          <button class="profile-card identity-card hidden" id="identity-card" type="button">
+            <div class="profile-card-main">
+              <div class="avatar red" id="profile-avatar">D</div>
+              <div class="member-meta">
+                <strong id="profile-name">Dogus</strong>
+                <p class="role green" id="profile-role">Yonetim Misafir</p>
+              </div>
+            </div>
+            <div class="profile-card-actions">
+              <span>Profil ve Ozellestirme</span>
+              <div class="profile-shortcuts">
+                <span>Mic</span>
+                <span>Aud</span>
+                <span>Set</span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </aside>
+    </div>
+
+    <div class="auth-backdrop hidden" id="auth-backdrop">
+      <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <button class="auth-close" id="auth-close" type="button" aria-label="Pencereyi kapat">×</button>
+        <div class="auth-header">
+          <p class="eyebrow">Etkilesim icin giris gerekiyor</p>
+          <h3 id="auth-title">Line Online Academy'ye katil</h3>
+          <p id="auth-subtitle">
+            Bu alanda mesaj gondermek, sesli odalara katilmak ve siniflarla etkilesime
+            gecmek icin giris yapabilir ya da misafir olarak devam edebilirsin.
+          </p>
+        </div>
+
+        <div class="auth-tabs" id="auth-tabs">
+          <button class="auth-tab active" type="button" data-auth-tab="signin">Giris Yap</button>
+          <button class="auth-tab" type="button" data-auth-tab="signup">Uye Ol</button>
+        </div>
+
+        <div class="auth-panels" id="auth-panels">
+          <form class="auth-panel active" data-auth-panel="signin">
+            <label class="auth-field">
+              <span>E-posta</span>
+              <input type="email" id="signin-email" placeholder="ornek@mail.com" />
+            </label>
+            <label class="auth-field">
+              <span>Sifre</span>
+              <input type="password" id="signin-password" placeholder="••••••••" />
+            </label>
+            <button class="auth-primary" type="submit">Giris Yap</button>
+            <button class="auth-secondary" type="button" id="open-guest-inline">Misafir olarak devam et</button>
+          </form>
+
+          <form class="auth-panel" data-auth-panel="signup">
+            <label class="auth-field">
+              <span>Ad Soyad</span>
+              <input type="text" id="signup-name" placeholder="Adin Soyadin" />
+            </label>
+            <label class="auth-field">
+              <span>E-posta</span>
+              <input type="email" id="signup-email" placeholder="ornek@mail.com" />
+            </label>
+            <label class="auth-field">
+              <span>Sifre</span>
+              <input type="password" id="signup-password" placeholder="Guclu bir sifre" />
+            </label>
+            <button class="auth-primary" type="submit">Uye Ol ve Devam Et</button>
+            <button class="auth-secondary" type="button" id="open-guest-inline-signup">Misafir olarak devam et</button>
+          </form>
+        </div>
+
+        <form class="guest-screen hidden" id="guest-form">
+          <div class="guest-screen-head">
+            <p class="eyebrow">Misafir Girisi</p>
+            <h4>Size nasil hitap edelim?</h4>
+            <p class="guest-note">
+              Hemen katilabilmen icin sadece gecici bir isim istiyoruz. Daha sonra istersen hesap acabilirsin.
+            </p>
+          </div>
+          <label class="auth-field">
+            <span>Gecici Kullanici Adi</span>
+            <input type="text" id="guest-name" placeholder="Ornek: Elif" maxlength="24" />
+          </label>
+          <button class="auth-primary" type="submit">Misafir Olarak Devam Et</button>
+          <button class="auth-secondary" type="button" id="back-to-auth-options">Giris seceneklerine don</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
