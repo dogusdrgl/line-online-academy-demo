@@ -40,8 +40,20 @@ const signUpName = document.getElementById("signup-name");
 const profileName = document.getElementById("profile-name");
 const profileRole = document.getElementById("profile-role");
 const profileAvatar = document.getElementById("profile-avatar");
+const profileBackdrop = document.getElementById("profile-backdrop");
+const profileCloseButton = document.getElementById("profile-close");
+const profileDisplayNameInput = document.getElementById("profile-display-name");
+const profileImageInput = document.getElementById("profile-image-input");
+const profileEditorAvatar = document.getElementById("profile-editor-avatar");
+const profileEditorName = document.getElementById("profile-editor-name");
+const profileEditorRole = document.getElementById("profile-editor-role");
+const profileSaveButton = document.getElementById("profile-save");
+const profileRemoveImageButton = document.getElementById("profile-remove-image");
 const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
+const quickMicButton = document.getElementById("quick-mic");
+const quickAudioButton = document.getElementById("quick-audio");
+const quickCameraButton = document.getElementById("quick-camera");
 const guestCardSignin = document.getElementById("guest-card-signin");
 const guestCardSignup = document.getElementById("guest-card-signup");
 let logoutButton = document.getElementById("logout-button");
@@ -79,6 +91,8 @@ const LOCAL_ROLES_KEY = "line-online-academy-roles";
 const LOCAL_ACCESS_KEY = "line-online-academy-access";
 const LOCAL_MODERATION_KEY = "line-online-academy-moderation";
 const HIDDEN_STATIC_MESSAGES_KEY = "line-online-academy-hidden-static-messages";
+const LOCAL_PROFILE_KEY = "line-online-academy-profile";
+const LOCAL_CONTROLS_KEY = "line-online-academy-controls";
 
 let authState = {
   mode: "visitor",
@@ -87,7 +101,14 @@ let authState = {
   roleId: null,
   userId: null,
   isMuted: false,
-  isBanned: false
+  isBanned: false,
+  avatarImage: null
+};
+
+let controlState = {
+  mic: true,
+  audio: true,
+  camera: false
 };
 
 let pendingView = null;
@@ -415,6 +436,54 @@ function clearSavedSession() {
   } catch (error) {
     console.warn("Oturum temizlenemedi:", error.message);
   }
+}
+
+function readLocalProfile() {
+  return readJson(LOCAL_PROFILE_KEY, {});
+}
+
+function saveLocalProfile(profile) {
+  writeJson(LOCAL_PROFILE_KEY, {
+    ...readLocalProfile(),
+    ...profile
+  });
+}
+
+function readControlState() {
+  return {
+    mic: true,
+    audio: true,
+    camera: false,
+    ...readJson(LOCAL_CONTROLS_KEY, {})
+  };
+}
+
+function saveControlState() {
+  writeJson(LOCAL_CONTROLS_KEY, controlState);
+}
+
+function paintAvatar(element, name, image, fallbackColor = "#f1a126") {
+  if (!element) {
+    return;
+  }
+
+  element.textContent = image ? "" : (name || "U").slice(0, 1).toUpperCase();
+  element.style.background = image ? `center / cover no-repeat url("${image}")` : fallbackColor;
+}
+
+function updateQuickControl(button, isActive) {
+  if (!button) {
+    return;
+  }
+
+  button.classList.toggle("active", isActive);
+  button.classList.toggle("muted", !isActive);
+}
+
+function renderQuickControls() {
+  updateQuickControl(quickMicButton, controlState.mic);
+  updateQuickControl(quickAudioButton, controlState.audio);
+  updateQuickControl(quickCameraButton, controlState.camera);
 }
 
 function ensureLogoutButton() {
@@ -1105,23 +1174,28 @@ function closeAuthModal() {
 function updateIdentity(name, roleId, options = {}) {
   const role = getRole(roleId);
   const moderation = getUserModeration(options.userId);
+  const savedProfile = readLocalProfile();
+  const displayName = options.nameOverride || savedProfile.name || name;
+  const avatarImage = options.avatarImage ?? savedProfile.avatarImage ?? null;
   const session = {
     mode: options.mode || (roleId === "guest" ? "guest" : "member"),
-    name,
+    name: displayName,
     roleId,
     userId: options.userId || null,
     isMuted: options.isMuted ?? moderation.isMuted,
-    isBanned: options.isBanned ?? moderation.isBanned
+    isBanned: options.isBanned ?? moderation.isBanned,
+    avatarImage
   };
 
   authState = {
     mode: session.mode,
-    name,
+    name: displayName,
     role: role ? role.name : "Uye",
     roleId,
     userId: session.userId,
     isMuted: session.isMuted,
-    isBanned: session.isBanned
+    isBanned: session.isBanned,
+    avatarImage
   };
 
   ensureSidebarMember({
@@ -1130,11 +1204,10 @@ function updateIdentity(name, roleId, options = {}) {
     roleId: authState.roleId
   });
 
-  profileName.textContent = name;
+  profileName.textContent = displayName;
   profileRole.textContent = role ? role.name : "Uye";
   profileRole.style.color = role?.color || "";
-  profileAvatar.textContent = name.slice(0, 1).toUpperCase();
-  profileAvatar.style.background = role?.color || "";
+  paintAvatar(profileAvatar, displayName, avatarImage, role?.color || "#f1a126");
 
   ensureLogoutButton();
   guestCard.classList.add("hidden");
@@ -1192,7 +1265,8 @@ function resetIdentity() {
     roleId: null,
     userId: null,
     isMuted: false,
-    isBanned: false
+    isBanned: false,
+    avatarImage: null
   };
 
   clearSavedSession();
@@ -1223,8 +1297,59 @@ function restoreSavedSession() {
     userId: savedSession.userId,
     isMuted: savedSession.isMuted,
     isBanned: savedSession.isBanned,
+    avatarImage: savedSession.avatarImage,
     persist: false
   });
+}
+
+function openProfileModal() {
+  if (!profileBackdrop || authState.mode === "visitor") {
+    return;
+  }
+
+  const role = getRole(authState.roleId);
+  profileDisplayNameInput.value = authState.name;
+  profileEditorName.textContent = authState.name;
+  profileEditorRole.textContent = role ? role.name : "Uye";
+  profileEditorRole.style.color = role?.color || "";
+  paintAvatar(profileEditorAvatar, authState.name, authState.avatarImage, role?.color || "#f1a126");
+  profileBackdrop.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeProfileModal() {
+  profileBackdrop?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function saveProfileChanges() {
+  const nextName = profileDisplayNameInput.value.trim() || authState.name;
+  const nextProfile = {
+    name: nextName,
+    avatarImage: authState.avatarImage
+  };
+
+  saveLocalProfile(nextProfile);
+  updateIdentity(nextName, authState.roleId, {
+    mode: authState.mode,
+    userId: authState.userId,
+    isMuted: authState.isMuted,
+    isBanned: authState.isBanned,
+    avatarImage: nextProfile.avatarImage
+  });
+
+  if (supabaseClient && authState.userId) {
+    await upsertAppUser({
+      id: authState.userId,
+      displayName: nextName,
+      roleId: authState.roleId,
+      isMuted: authState.isMuted,
+      isBanned: authState.isBanned,
+      isOnline: true
+    });
+  }
+
+  closeProfileModal();
 }
 
 function openGuestInline() {
@@ -2143,6 +2268,82 @@ if (ensuredLogoutButton) {
   });
 }
 
+if (identityCard) {
+  identityCard.addEventListener("click", (event) => {
+    if (event.target.closest("button")) {
+      return;
+    }
+    openProfileModal();
+  });
+}
+
+if (profileCloseButton) {
+  profileCloseButton.addEventListener("click", closeProfileModal);
+}
+
+if (profileBackdrop) {
+  profileBackdrop.addEventListener("click", (event) => {
+    if (event.target === profileBackdrop) {
+      closeProfileModal();
+    }
+  });
+}
+
+if (profileDisplayNameInput) {
+  profileDisplayNameInput.addEventListener("input", () => {
+    const nextName = profileDisplayNameInput.value.trim() || authState.name;
+    profileEditorName.textContent = nextName;
+    paintAvatar(profileEditorAvatar, nextName, authState.avatarImage, getRole(authState.roleId)?.color || "#f1a126");
+  });
+}
+
+if (profileImageInput) {
+  profileImageInput.addEventListener("change", () => {
+    const file = profileImageInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      authState.avatarImage = reader.result;
+      paintAvatar(profileEditorAvatar, authState.name, authState.avatarImage, getRole(authState.roleId)?.color || "#f1a126");
+    });
+    reader.readAsDataURL(file);
+  });
+}
+
+if (profileRemoveImageButton) {
+  profileRemoveImageButton.addEventListener("click", () => {
+    authState.avatarImage = null;
+    if (profileImageInput) {
+      profileImageInput.value = "";
+    }
+    paintAvatar(profileEditorAvatar, profileDisplayNameInput.value.trim() || authState.name, null, getRole(authState.roleId)?.color || "#f1a126");
+  });
+}
+
+if (profileSaveButton) {
+  profileSaveButton.addEventListener("click", saveProfileChanges);
+}
+
+[
+  [quickMicButton, "mic"],
+  [quickAudioButton, "audio"],
+  [quickCameraButton, "camera"]
+].forEach(([button, key]) => {
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    controlState[key] = !controlState[key];
+    saveControlState();
+    renderQuickControls();
+  });
+});
+
 if (authBackdrop) {
   authBackdrop.addEventListener("click", (event) => {
     if (event.target === authBackdrop) {
@@ -2189,6 +2390,8 @@ if (cameraButton && cameraPreview) {
 }
 
 initializeAdminState();
+controlState = readControlState();
+renderQuickControls();
 renderMembersSidebar();
 initializeTextChannelComposers();
 initializeStaticMessageControls();

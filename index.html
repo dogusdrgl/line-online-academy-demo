@@ -897,17 +897,43 @@
               </div>
             </div>
             <div class="profile-card-actions">
-              <span>Profil ve Ozellestirme</span>
               <div class="profile-shortcuts">
-                <span>Mic</span>
-                <span>Aud</span>
-                <span>Set</span>
+                <button class="quick-control active" type="button" id="quick-mic" aria-label="Mikrofonu ac/kapat">🎙</button>
+                <button class="quick-control active" type="button" id="quick-audio" aria-label="Sesi ac/kapat">🎧</button>
+                <button class="quick-control" type="button" id="quick-camera" aria-label="Kamerayi ac/kapat">📷</button>
               </div>
             </div>
             <button class="logout-button" type="button" id="logout-button">Cikis Yap</button>
           </div>
         </div>
       </aside>
+    </div>
+
+    <div class="profile-backdrop hidden" id="profile-backdrop">
+      <div class="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+        <button class="auth-close" id="profile-close" type="button" aria-label="Profil penceresini kapat">x</button>
+        <p class="eyebrow">Profil</p>
+        <h3 id="profile-modal-title">Kimlik kartini duzenle</h3>
+        <div class="profile-editor-preview">
+          <div class="profile-editor-avatar" id="profile-editor-avatar">D</div>
+          <div>
+            <strong id="profile-editor-name">Dogus</strong>
+            <p id="profile-editor-role">Uye</p>
+          </div>
+        </div>
+        <label class="auth-field">
+          <span>Kullanici adi</span>
+          <input type="text" id="profile-display-name" maxlength="32" placeholder="Kullanici adin" />
+        </label>
+        <label class="auth-field">
+          <span>Profil resmi</span>
+          <input type="file" id="profile-image-input" accept="image/*" />
+        </label>
+        <div class="profile-modal-actions">
+          <button class="auth-secondary" type="button" id="profile-remove-image">Resmi Kaldir</button>
+          <button class="auth-primary" type="button" id="profile-save">Kaydet</button>
+        </div>
+      </div>
     </div>
 
     <div class="auth-backdrop hidden" id="auth-backdrop">
@@ -1046,7 +1072,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase-config.js?v=20260421-14"></script>
-    <script src="./app.js?v=20260421-14"></script>
+    <script src="./supabase-config.js?v=20260421-15"></script>
+    <script src="./app.js?v=20260421-15"></script>
   </body>
 </html>

@@ -1092,7 +1092,7 @@ button {
 .profile-card {
   position: relative;
   margin: 0;
-  padding: 11px 12px;
+  padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: rgba(35, 36, 42, 0.98);
@@ -1100,6 +1100,7 @@ button {
   text-align: left;
   transition: 180ms ease;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
 }
 
 .profile-card:hover {
@@ -1114,38 +1115,38 @@ button {
 }
 
 .profile-card-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.profile-card-actions > span {
-  max-width: 92px;
-  font-size: 0.74rem;
-  color: #ddd8d2;
-  line-height: 1.25;
-}
-
 .profile-shortcuts {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
-.profile-shortcuts span {
+.quick-control {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 9px;
+  height: 34px;
+  border: 0;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   color: #d8dde7;
-  font-size: 0.78rem;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.quick-control.active {
+  background: rgba(95, 209, 95, 0.14);
+  color: #8cff8c;
+}
+
+.quick-control.muted {
+  background: rgba(255, 94, 94, 0.12);
+  color: #ffb0a8;
 }
 
 .logout-button {
@@ -1162,6 +1163,75 @@ button {
 
 .logout-button:hover {
   background: rgba(241, 161, 38, 0.14);
+}
+
+.profile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 8, 10, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.profile-modal {
+  position: relative;
+  width: min(100%, 460px);
+  padding: 26px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(241, 161, 38, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(44, 46, 52, 0.98), rgba(31, 33, 38, 0.98));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+}
+
+.profile-modal h3 {
+  margin: 0 0 18px;
+  font-size: 1.7rem;
+  letter-spacing: -0.04em;
+}
+
+.profile-editor-preview {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.profile-editor-avatar {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: white;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.profile-editor-preview strong,
+.profile-editor-preview p {
+  display: block;
+  margin: 0;
+}
+
+.profile-editor-preview p {
+  margin-top: 4px;
+  color: var(--accent);
+}
+
+.profile-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .guest-card-copy strong {
