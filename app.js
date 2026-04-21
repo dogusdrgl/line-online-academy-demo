@@ -588,7 +588,7 @@ function refreshChatAdminControls() {
       button.type = "button";
       button.dataset.deleteMessage = messageId;
       button.setAttribute("aria-label", "Mesaji sil");
-      button.textContent = "Sil";
+      button.textContent = "🗑";
       line.appendChild(button);
     }
   });
@@ -602,7 +602,7 @@ function createMessageLine(message) {
   line.dataset.messageId = message.id || "";
   line.innerHTML = `
     <p>${escapeHtml(message.content)}</p>
-    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">Sil</button>` : ""}
+    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">🗑</button>` : ""}
   `;
   attachDeleteHandlers(line);
   return line;

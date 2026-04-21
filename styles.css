@@ -695,11 +695,11 @@ button {
 .message-line {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 30px;
   gap: 8px;
   align-items: start;
   min-height: 28px;
-  padding: 2px 8px 2px 0;
+  padding: 2px 4px 2px 0;
   border-radius: 8px;
 }
 
@@ -767,22 +767,31 @@ button {
 }
 
 .message-delete {
-  opacity: 0.55;
+  opacity: 0;
   border: 0;
-  border-radius: 8px;
-  background: rgba(255, 94, 94, 0.16);
-  color: #ffc0b8;
-  padding: 5px 8px;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(20, 21, 25, 0.88);
+  color: #cfd3dc;
+  padding: 0;
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 0.86rem;
   transition: 160ms ease;
-  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
 .message-line:hover .message-delete,
 .message-delete:focus-visible {
   opacity: 1;
-  background: rgba(255, 94, 94, 0.26);
+}
+
+.message-delete:hover {
+  background: rgba(255, 94, 94, 0.18);
+  color: #ffb0a8;
+  transform: translateY(-1px);
 }
 
 .voice-channel-view .panel-header,
