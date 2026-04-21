@@ -655,6 +655,7 @@ button {
 }
 
 .chat-message {
+  position: relative;
   display: grid;
   grid-template-columns: 36px 1fr;
   gap: 12px;
@@ -784,8 +785,15 @@ button {
 }
 
 .message-line:hover .message-delete,
+.chat-message:hover .static-message-delete,
 .message-delete:focus-visible {
   opacity: 1;
+}
+
+.static-message-delete {
+  position: absolute;
+  right: 8px;
+  top: 10px;
 }
 
 .message-delete:hover {
@@ -1016,6 +1024,14 @@ button {
   align-items: center;
   gap: 9px;
   margin-bottom: 12px;
+}
+
+.member-row.offline {
+  opacity: 0.48;
+}
+
+.member-row.offline .avatar {
+  filter: grayscale(0.9);
 }
 
 .avatar {
@@ -1653,6 +1669,16 @@ button {
   gap: 5px;
   color: #aeb4bf;
   font-size: 0.74rem;
+}
+
+.role-order-input {
+  width: 62px;
+  min-height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: #111216;
+  color: var(--text);
+  padding: 0 8px;
 }
 
 .role-access-picker {

@@ -78,6 +78,7 @@ const LOCAL_SESSION_KEY = "line-online-academy-session";
 const LOCAL_ROLES_KEY = "line-online-academy-roles";
 const LOCAL_ACCESS_KEY = "line-online-academy-access";
 const LOCAL_MODERATION_KEY = "line-online-academy-moderation";
+const HIDDEN_STATIC_MESSAGES_KEY = "line-online-academy-hidden-static-messages";
 
 let authState = {
   mode: "visitor",
@@ -97,6 +98,7 @@ const defaultRoles = [
     id: "admin",
     name: "Admin",
     color: "#ef4444",
+    order: 1,
     permissions: ["view_channels", "send_messages", "join_voice", "admin_access"],
     system: true
   },
@@ -104,6 +106,7 @@ const defaultRoles = [
     id: "teacher",
     name: "Ogretmen",
     color: "#f1a126",
+    order: 2,
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
@@ -111,6 +114,7 @@ const defaultRoles = [
     id: "student",
     name: "Ogrenci",
     color: "#5b6dff",
+    order: 3,
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
@@ -118,6 +122,7 @@ const defaultRoles = [
     id: "guest",
     name: "Misafir",
     color: "#59d85f",
+    order: 4,
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
@@ -125,6 +130,7 @@ const defaultRoles = [
     id: "assistant",
     name: "Asistan",
     color: "#8b7cf6",
+    order: 5,
     permissions: ["view_channels"],
     system: true
   }
@@ -133,6 +139,7 @@ const defaultRoles = [
 let roles = [];
 let viewAccess = {};
 let adminKnownUsers = [];
+let directoryUsers = [];
 
 const members = [
   {
@@ -238,7 +245,8 @@ function initializeAdminState() {
     roleMap.set(role.id, {
       ...fallbackRole,
       ...role,
-      color: role.color || fallbackRole?.color || "#f1a126"
+      color: role.color || fallbackRole?.color || "#f1a126",
+      order: Number.isFinite(Number(role.order)) ? Number(role.order) : fallbackRole?.order || 99
     });
   });
   roles = Array.from(roleMap.values()).map((role) => {
@@ -300,6 +308,14 @@ function setUserModeration(userId, updates) {
 
 function getRole(roleId) {
   return roles.find((role) => role.id === roleId);
+}
+
+function getSortedRoles() {
+  return [...roles].sort((firstRole, secondRole) => {
+    const firstOrder = Number(firstRole.order ?? 99);
+    const secondOrder = Number(secondRole.order ?? 99);
+    return firstOrder - secondOrder || firstRole.name.localeCompare(secondRole.name, "tr");
+  });
 }
 
 function slugify(text) {
@@ -481,24 +497,38 @@ function canAccessView(viewId) {
 }
 
 function getAllMembers() {
-  return [...members, ...ephemeralMembers];
+  const merged = new Map();
+
+  [...members, ...directoryUsers].forEach((member) => {
+    if (!member.id || member.roleId === "guest") {
+      return;
+    }
+    merged.set(member.id, member);
+  });
+
+  ephemeralMembers.forEach((member) => {
+    if (!member.id) {
+      return;
+    }
+    merged.set(member.id, {
+      ...member,
+      isOnline: true
+    });
+  });
+
+  return Array.from(merged.values());
 }
 
 function getVisibleMembers() {
   return getAllMembers().map((member) => {
     const role = getRole(member.roleId);
-    const group =
-      role?.id === "admin"
-        ? "Yonetici"
-        : member.bot
-          ? "Asistan"
-          : "Cevrim Ici";
 
     return {
       ...member,
-      group,
+      group: member.isOnline || member.bot ? role?.name || "Uye" : "Cevrimdisi",
       roleName: role ? role.name : "Rol Yok",
-      subtitle: member.bot ? member.subtitle : member.subtitle || (role ? role.name : "Uye")
+      subtitle: member.isOnline || member.bot ? member.subtitle || (role ? role.name : "Uye") : "Cevrimdisi",
+      roleOrder: role?.order ?? 99
     };
   });
 }
@@ -510,7 +540,10 @@ function renderMembersSidebar() {
     return accumulator;
   }, {});
 
-  const order = ["Yonetici", "Asistan", "Cevrim Ici"];
+  const order = [
+    ...getSortedRoles().map((role) => role.name),
+    "Cevrimdisi"
+  ];
 
   membersGroups.innerHTML = order
     .filter((group) => grouped[group]?.length)
@@ -526,9 +559,10 @@ function renderMembersSidebar() {
 
           const subtitleClass = member.roleId === "admin" || member.roleId === "guest" ? "role green" : "";
           const roleColor = getRole(member.roleId)?.color || "#f1a126";
+          const offlineClass = member.isOnline || member.bot ? "" : " offline";
 
           return `
-            <div class="member-row">
+            <div class="member-row${offlineClass}">
               <div class="avatar ${member.avatarClass}" style="background: ${escapeHtml(roleColor)}">${initials}</div>
               <div class="member-meta">
                 <strong>${member.name}</strong>
@@ -631,6 +665,52 @@ function refreshChatAdminControls() {
   attachDeleteHandlers(document);
 }
 
+function hideStaticMessage(staticId) {
+  if (!staticId) {
+    return;
+  }
+
+  const hiddenMessages = new Set(readJson(HIDDEN_STATIC_MESSAGES_KEY, []));
+  hiddenMessages.add(staticId);
+  writeJson(HIDDEN_STATIC_MESSAGES_KEY, Array.from(hiddenMessages));
+  document.querySelector(`[data-static-message-id="${CSS.escape(staticId)}"]`)?.remove();
+}
+
+function initializeStaticMessageControls() {
+  const hiddenMessages = new Set(readJson(HIDDEN_STATIC_MESSAGES_KEY, []));
+  document.querySelectorAll(".channel-chat .chat-message").forEach((message, index) => {
+    if (message.querySelector(".message-stack")) {
+      return;
+    }
+
+    const panel = message.closest(".view-panel");
+    const staticId = message.dataset.staticMessageId || `${panel?.id || "panel"}-static-${index}`;
+    message.dataset.staticMessageId = staticId;
+
+    if (hiddenMessages.has(staticId)) {
+      message.remove();
+      return;
+    }
+
+    if (message.querySelector(".static-message-delete")) {
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.className = "static-message-delete message-delete";
+    button.type = "button";
+    button.textContent = "🗑";
+    button.setAttribute("aria-label", "Sabit mesaji temizle");
+    button.addEventListener("click", () => {
+      if (!isAdminUser()) {
+        return;
+      }
+      hideStaticMessage(staticId);
+    });
+    message.querySelector(".chat-body")?.appendChild(button);
+  });
+}
+
 function createMessageLine(message) {
   const line = document.createElement("div");
   line.className = "message-line";
@@ -711,7 +791,9 @@ async function upsertAppUser(user) {
         role_id: user.roleId,
         is_guest: user.roleId === "guest",
         is_muted: user.isMuted || false,
-        is_banned: user.isBanned || false
+        is_banned: user.isBanned || false,
+        is_online: user.isOnline || false,
+        last_seen: new Date().toISOString()
       }),
       "Kullanici kaydi"
     );
@@ -728,7 +810,9 @@ async function upsertAppUser(user) {
           id: user.id,
           display_name: user.displayName,
           role_id: user.roleId,
-          is_guest: user.roleId === "guest"
+          is_guest: user.roleId === "guest",
+          is_online: user.isOnline || false,
+          last_seen: new Date().toISOString()
         }),
         "Temel kullanici kaydi"
       );
@@ -794,6 +878,94 @@ async function getStoredUserProfile(userId) {
       console.warn("Kullanici rolu okunamadi:", fallbackError.message);
       return getUserModeration(userId);
     }
+  }
+}
+
+async function loadDirectoryUsers() {
+  if (!supabaseClient) {
+    renderMembersSidebar();
+    return;
+  }
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("id, display_name, role_id, is_guest, is_muted, is_banned, is_online, last_seen")
+        .eq("is_guest", false)
+        .order("created_at", { ascending: true })
+        .limit(120),
+      "Uye dizinini yukleme"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    directoryUsers = (data || []).map((user) => ({
+      id: user.id,
+      name: user.display_name || "Isimsiz Uye",
+      roleId: user.role_id || "student",
+      avatarClass: "blue",
+      subtitle: user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
+      isOnline: Boolean(user.is_online),
+      isMuted: Boolean(user.is_muted),
+      isBanned: Boolean(user.is_banned),
+      isGuest: Boolean(user.is_guest)
+    }));
+  } catch (error) {
+    console.warn("Uye dizini yuklenemedi:", error.message);
+
+    try {
+      const { data, error: fallbackError } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .select("id, display_name, role_id, is_guest")
+          .eq("is_guest", false)
+          .order("created_at", { ascending: true })
+          .limit(120),
+        "Temel uye dizinini yukleme"
+      );
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      directoryUsers = (data || []).map((user) => ({
+        id: user.id,
+        name: user.display_name || "Isimsiz Uye",
+        roleId: user.role_id || "student",
+        avatarClass: "blue",
+        subtitle: "Cevrimdisi",
+        isOnline: false,
+        isGuest: Boolean(user.is_guest)
+      }));
+    } catch (fallbackError) {
+      console.warn("Temel uye dizini yuklenemedi:", fallbackError.message);
+    }
+  }
+
+  renderMembersSidebar();
+}
+
+async function updatePresence(isOnline) {
+  if (!supabaseClient || !authState.userId || authState.roleId === "guest") {
+    return;
+  }
+
+  try {
+    await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .update({
+          is_online: isOnline,
+          last_seen: new Date().toISOString()
+        })
+        .eq("id", authState.userId),
+      "Cevrim ici durumu"
+    );
+  } catch (error) {
+    console.warn("Cevrim ici durumu kaydedilemedi:", error.message);
   }
 }
 
@@ -977,7 +1149,10 @@ function updateIdentity(name, roleId, options = {}) {
   }
 
   refreshChatAdminControls();
+  initializeStaticMessageControls();
   renderMembersSidebar();
+  updatePresence(true);
+  loadDirectoryUsers();
 }
 
 function finishAuth(name, roleId, options = {}) {
@@ -1009,6 +1184,7 @@ function finishAuth(name, roleId, options = {}) {
 }
 
 function resetIdentity() {
+  updatePresence(false);
   authState = {
     mode: "visitor",
     name: "Ziyaretci",
@@ -1343,12 +1519,16 @@ function renderAdminRoles() {
           </div>
           ${role.system ? "" : `<button class="role-delete" type="button" data-delete-role="${role.id}">Sil</button>`}
         </div>
-        <div class="role-editor-tools">
-          <label>
-            <span>Renk</span>
-            <input type="color" data-role-color="${role.id}" value="${escapeHtml(role.color || "#f1a126")}" />
-          </label>
-          <label class="mini-check">
+    <div class="role-editor-tools">
+      <label>
+        <span>Renk</span>
+        <input type="color" data-role-color="${role.id}" value="${escapeHtml(role.color || "#f1a126")}" />
+      </label>
+      <label>
+        <span>Sira</span>
+        <input class="role-order-input" type="number" min="1" max="99" data-role-order="${role.id}" value="${Number(role.order ?? 99)}" />
+      </label>
+      <label class="mini-check">
             <input type="checkbox" data-role-admin="${role.id}" ${role.permissions.includes("admin_access") ? "checked" : ""} ${role.id === "admin" ? "disabled" : ""} />
             Admin yetkisi
           </label>
@@ -1387,6 +1567,19 @@ function renderAdminRoles() {
       if (swatch) {
         swatch.style.background = role.color;
       }
+    });
+  });
+
+  adminRolesList.querySelectorAll("[data-role-order]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const role = getRole(input.dataset.roleOrder);
+      if (!role) {
+        return;
+      }
+      role.order = Number(input.value) || 99;
+      saveRoles();
+      renderMembersSidebar();
+      renderAdminRoles();
     });
   });
 
@@ -1773,7 +1966,8 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
       displayName,
       roleId,
       isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned
+      isBanned: storedProfile.isBanned,
+      isOnline: true
     });
     finishAuth(displayName, roleId, {
       mode: "member",
@@ -1852,7 +2046,8 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       displayName: signUpDisplayName,
       roleId,
       isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned
+      isBanned: storedProfile.isBanned,
+      isOnline: true
     });
     finishAuth(signUpDisplayName, roleId, {
       mode: "member",
@@ -1996,7 +2191,13 @@ if (cameraButton && cameraPreview) {
 initializeAdminState();
 renderMembersSidebar();
 initializeTextChannelComposers();
+initializeStaticMessageControls();
 restoreSavedSession();
+loadDirectoryUsers();
 loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();
+
+window.addEventListener("beforeunload", () => {
+  updatePresence(false);
+});
