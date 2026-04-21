@@ -51,6 +51,7 @@ const supabaseClient =
     ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
     : null;
 const SUPABASE_TIMEOUT_MS = 3500;
+const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
 
 let authState = {
   mode: "visitor",
@@ -174,6 +175,43 @@ function formatMessageTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function readLocalMessages() {
+  try {
+    const rawMessages = window.localStorage.getItem(LOCAL_MESSAGES_KEY);
+    return rawMessages ? JSON.parse(rawMessages) : [];
+  } catch (error) {
+    console.warn("Yerel mesaj arsivi okunamadi:", error.message);
+    return [];
+  }
+}
+
+function writeLocalMessages(messages) {
+  try {
+    window.localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(messages.slice(-300)));
+  } catch (error) {
+    console.warn("Yerel mesaj arsivi yazilamadi:", error.message);
+  }
+}
+
+function rememberMessage(panelId, message) {
+  if (!message?.id || !TEXT_CHANNEL_VIEWS.has(panelId)) {
+    return;
+  }
+
+  const messages = readLocalMessages();
+  if (messages.some((item) => item.id === message.id)) {
+    return;
+  }
+
+  writeLocalMessages([
+    ...messages,
+    {
+      ...message,
+      channel_id: message.channel_id || panelId
+    }
+  ]);
 }
 
 function withTimeout(promise, label = "Supabase istegi") {
@@ -303,6 +341,14 @@ function addChatMessage(panelId, message) {
   if (message.id) {
     renderedMessageIds.add(message.id);
   }
+
+  rememberMessage(panelId, message);
+}
+
+function loadLocalMessages() {
+  readLocalMessages()
+    .filter((message) => TEXT_CHANNEL_VIEWS.has(message.channel_id))
+    .forEach((message) => addChatMessage(message.channel_id, message));
 }
 
 async function upsertAppUser(user) {
@@ -534,6 +580,7 @@ function initializeTextChannelComposers() {
           console.warn("Supabase mesaj kaydi basarisiz, yerel mesaj eklendi:", error.message);
           addChatMessage(panelId, {
             id: `local-${Date.now()}`,
+            channel_id: panelId,
             author_name: authState.name,
             author_role: roleLabel,
             content: text,
@@ -543,6 +590,7 @@ function initializeTextChannelComposers() {
       } else {
         addChatMessage(panelId, {
           id: `local-${Date.now()}`,
+          channel_id: panelId,
           author_name: authState.name,
           author_role: roleLabel,
           content: text,
@@ -832,5 +880,6 @@ if (cameraButton && cameraPreview) {
 
 renderMembersSidebar();
 initializeTextChannelComposers();
+loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();
