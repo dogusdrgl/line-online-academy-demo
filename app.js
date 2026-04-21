@@ -20,6 +20,7 @@ const PERMISSION_OPTIONS = [
 const channelButtons = document.querySelectorAll(".channel-item");
 const viewPanels = document.querySelectorAll(".view-panel");
 const viewTitle = document.getElementById("view-title");
+const messageSearchInput = document.getElementById("message-search");
 const cameraButton = document.getElementById("camera-button");
 const cameraPreview = document.getElementById("camera-preview");
 const authBackdrop = document.getElementById("auth-backdrop");
@@ -1146,6 +1147,7 @@ function showAccessDenied(label) {
 
   getAccessDeniedPanel().classList.add("active");
   viewTitle.textContent = label || "Yetkisiz Alan";
+  updateSearchVisibility("access-denied");
 }
 
 function setActiveView(nextView, label) {
@@ -1160,6 +1162,55 @@ function setActiveView(nextView, label) {
   if (label) {
     viewTitle.textContent = label;
   }
+
+  updateSearchVisibility(nextView);
+}
+
+function updateSearchVisibility(viewId) {
+  if (!messageSearchInput) {
+    return;
+  }
+
+  const isTextChannel = TEXT_CHANNEL_VIEWS.has(viewId);
+  messageSearchInput.classList.toggle("hidden", !isTextChannel);
+  messageSearchInput.value = "";
+  clearSearchHighlights();
+}
+
+function clearSearchHighlights() {
+  document.querySelectorAll(".message-line.search-hit").forEach((line) => {
+    line.classList.remove("search-hit");
+  });
+}
+
+function searchActiveChannel() {
+  if (!messageSearchInput) {
+    return;
+  }
+
+  const query = messageSearchInput.value.trim().toLowerCase();
+  clearSearchHighlights();
+
+  if (!query) {
+    return;
+  }
+
+  const activePanel = document.querySelector(".view-panel.active.text-channel-view");
+  const chat = activePanel?.querySelector(".channel-chat");
+  const lines = Array.from(activePanel?.querySelectorAll(".message-line, .chat-message") || []);
+  const foundLine = lines.find((line) => line.textContent.toLowerCase().includes(query));
+
+  if (!foundLine || !chat) {
+    messageSearchInput.classList.add("search-empty");
+    window.setTimeout(() => messageSearchInput.classList.remove("search-empty"), 450);
+    return;
+  }
+
+  foundLine.classList.add("search-hit");
+  chat.scrollTo({
+    top: foundLine.offsetTop - chat.offsetTop - 40,
+    behavior: "smooth"
+  });
 }
 
 function setAuthTab(nextTab) {
@@ -2047,6 +2098,20 @@ authTabs.forEach((tab) => {
   });
 });
 
+if (messageSearchInput) {
+  messageSearchInput.addEventListener("input", () => {
+    window.clearTimeout(messageSearchInput.searchTimer);
+    messageSearchInput.searchTimer = window.setTimeout(searchActiveChannel, 180);
+  });
+
+  messageSearchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchActiveChannel();
+    }
+  });
+}
+
 if (openGuestInlineButton) {
   openGuestInlineButton.addEventListener("click", openGuestInline);
 }
@@ -2417,6 +2482,7 @@ if (cameraButton && cameraPreview) {
 initializeAdminState();
 controlState = readControlState();
 renderQuickControls();
+updateSearchVisibility("dashboard");
 renderMembersSidebar();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
