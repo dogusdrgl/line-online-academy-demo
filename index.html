@@ -995,18 +995,30 @@
           <div class="admin-panel-head">
             <div>
               <p class="eyebrow">Admin</p>
-              <h3>Roller ve erisimler</h3>
+              <h3>Kontrol merkezi</h3>
             </div>
             <button class="auth-secondary compact" type="button" id="admin-refresh-users">Uyeleri Yenile</button>
           </div>
 
-          <div class="admin-grid">
-            <section class="admin-card">
-              <h4>Uyeler</h4>
-              <p class="admin-muted">Kayitli kullanicilara rol ata.</p>
-              <div class="admin-list" id="admin-users-list"></div>
-            </section>
+          <div class="admin-tabs">
+            <button class="admin-tab active" type="button" data-admin-page="members">Uyeler</button>
+            <button class="admin-tab" type="button" data-admin-page="roles">Roller</button>
+          </div>
 
+          <div class="admin-page active" id="admin-members-page" data-admin-panel-page="members">
+            <section class="admin-card wide">
+              <div class="admin-section-head">
+                <div>
+                  <h4>Uye Listesi</h4>
+                  <p class="admin-muted">Uyeleri gor, rol ata, sustur veya sunucudan uzaklastir.</p>
+                </div>
+              </div>
+              <div class="admin-list members-admin-list" id="admin-users-list"></div>
+            </section>
+          </div>
+
+          <div class="admin-page" id="admin-roles-page" data-admin-panel-page="roles">
+            <div class="admin-grid">
             <section class="admin-card role-builder-card">
               <h4>Rol Olustur</h4>
               <p class="admin-muted">Role isim, renk ve girebilecegi alanlari sec.</p>
@@ -1027,13 +1039,14 @@
               <p class="admin-muted">Mevcut rolleri, renklerini ve kanal erisimlerini buradan duzenle.</p>
               <div class="admin-list role-list" id="admin-roles-list"></div>
             </section>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase-config.js?v=20260421-11"></script>
-    <script src="./app.js?v=20260421-11"></script>
+    <script src="./supabase-config.js?v=20260421-13"></script>
+    <script src="./app.js?v=20260421-13"></script>
   </body>
 </html>

@@ -55,6 +55,8 @@ const adminLock = document.getElementById("admin-lock");
 const adminPanel = document.getElementById("admin-panel");
 const adminUsersList = document.getElementById("admin-users-list");
 const adminRolesList = document.getElementById("admin-roles-list");
+const adminTabButtons = document.querySelectorAll("[data-admin-page]");
+const adminPages = document.querySelectorAll("[data-admin-panel-page]");
 const adminViewSelect = document.getElementById("admin-view-select");
 const adminAccessRoles = document.getElementById("admin-access-roles");
 const adminRefreshUsersButton = document.getElementById("admin-refresh-users");
@@ -75,13 +77,16 @@ const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
 const LOCAL_SESSION_KEY = "line-online-academy-session";
 const LOCAL_ROLES_KEY = "line-online-academy-roles";
 const LOCAL_ACCESS_KEY = "line-online-academy-access";
+const LOCAL_MODERATION_KEY = "line-online-academy-moderation";
 
 let authState = {
   mode: "visitor",
   name: "Ziyaretci",
   role: "Ziyaretci",
   roleId: null,
-  userId: null
+  userId: null,
+  isMuted: false,
+  isBanned: false
 };
 
 let pendingView = null;
@@ -261,6 +266,36 @@ function saveRoles() {
 
 function saveAccess() {
   writeJson(LOCAL_ACCESS_KEY, viewAccess);
+}
+
+function readModeration() {
+  return readJson(LOCAL_MODERATION_KEY, {});
+}
+
+function saveModeration(moderation) {
+  writeJson(LOCAL_MODERATION_KEY, moderation);
+}
+
+function getUserModeration(userId) {
+  if (!userId) {
+    return { isMuted: false, isBanned: false };
+  }
+
+  return {
+    isMuted: false,
+    isBanned: false,
+    ...(readModeration()[userId] || {})
+  };
+}
+
+function setUserModeration(userId, updates) {
+  const moderation = readModeration();
+  moderation[userId] = {
+    ...getUserModeration(userId),
+    ...updates
+  };
+  saveModeration(moderation);
+  return moderation[userId];
 }
 
 function getRole(roleId) {
@@ -674,7 +709,9 @@ async function upsertAppUser(user) {
         id: user.id,
         display_name: user.displayName,
         role_id: user.roleId,
-        is_guest: user.roleId === "guest"
+        is_guest: user.roleId === "guest",
+        is_muted: user.isMuted || false,
+        is_banned: user.isBanned || false
       }),
       "Kullanici kaydi"
     );
@@ -685,34 +722,78 @@ async function upsertAppUser(user) {
 
     return true;
   } catch (error) {
-    console.warn("Supabase kullanici kaydi atlandi:", error.message);
+    try {
+      const { error: fallbackError } = await withTimeout(
+        supabaseClient.from("app_users").upsert({
+          id: user.id,
+          display_name: user.displayName,
+          role_id: user.roleId,
+          is_guest: user.roleId === "guest"
+        }),
+        "Temel kullanici kaydi"
+      );
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      return true;
+    } catch (fallbackError) {
+      console.warn("Supabase kullanici kaydi atlandi:", fallbackError.message || error.message);
+    }
     return false;
   }
 }
 
-async function getStoredUserRole(userId) {
+async function getStoredUserProfile(userId) {
   if (!supabaseClient || !userId) {
-    return null;
+    return {};
   }
 
   try {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("role_id")
+        .select("role_id, is_muted, is_banned")
         .eq("id", userId)
         .maybeSingle(),
-      "Kullanici rolunu okuma"
+      "Kullanici profilini okuma"
     );
 
     if (error) {
       throw error;
     }
 
-    return data?.role_id || null;
+    return {
+      roleId: data?.role_id || null,
+      isMuted: data?.is_muted || false,
+      isBanned: data?.is_banned || false
+    };
   } catch (error) {
-    console.warn("Kullanici rolu okunamadi:", error.message);
-    return null;
+    console.warn("Kullanici profili okunamadi:", error.message);
+
+    try {
+      const { data, error: fallbackError } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .select("role_id")
+          .eq("id", userId)
+          .maybeSingle(),
+        "Kullanici rolunu okuma"
+      );
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+
+      return {
+        roleId: data?.role_id || null,
+        ...getUserModeration(userId)
+      };
+    } catch (fallbackError) {
+      console.warn("Kullanici rolu okunamadi:", fallbackError.message);
+      return getUserModeration(userId);
+    }
   }
 }
 
@@ -851,11 +932,14 @@ function closeAuthModal() {
 
 function updateIdentity(name, roleId, options = {}) {
   const role = getRole(roleId);
+  const moderation = getUserModeration(options.userId);
   const session = {
     mode: options.mode || (roleId === "guest" ? "guest" : "member"),
     name,
     roleId,
-    userId: options.userId || null
+    userId: options.userId || null,
+    isMuted: options.isMuted ?? moderation.isMuted,
+    isBanned: options.isBanned ?? moderation.isBanned
   };
 
   authState = {
@@ -863,7 +947,9 @@ function updateIdentity(name, roleId, options = {}) {
     name,
     role: role ? role.name : "Uye",
     roleId,
-    userId: session.userId
+    userId: session.userId,
+    isMuted: session.isMuted,
+    isBanned: session.isBanned
   };
 
   ensureSidebarMember({
@@ -900,7 +986,9 @@ function finishAuth(name, roleId, options = {}) {
       mode: options.mode || (roleId === "guest" ? "guest" : "member"),
       name,
       roleId,
-      userId: options.userId
+      userId: options.userId,
+      isMuted: options.isMuted || false,
+      isBanned: options.isBanned || false
     });
   }
 
@@ -926,7 +1014,9 @@ function resetIdentity() {
     name: "Ziyaretci",
     role: "Ziyaretci",
     roleId: null,
-    userId: null
+    userId: null,
+    isMuted: false,
+    isBanned: false
   };
 
   clearSavedSession();
@@ -955,6 +1045,8 @@ function restoreSavedSession() {
   updateIdentity(savedSession.name, savedSession.roleId, {
     mode: savedSession.mode,
     userId: savedSession.userId,
+    isMuted: savedSession.isMuted,
+    isBanned: savedSession.isBanned,
     persist: false
   });
 }
@@ -1000,6 +1092,17 @@ function initializeTextChannelComposers() {
 
       if (!hasPermission("send_messages")) {
         window.alert("Bu rol mesaj gonderme yetkisine sahip degil.");
+        return;
+      }
+
+      if (authState.isBanned) {
+        window.alert("Bu hesabin sunucu erisimi kapatilmis.");
+        resetIdentity();
+        return;
+      }
+
+      if (authState.isMuted) {
+        window.alert("Bu hesap susturuldugu icin mesaj gonderemez.");
         return;
       }
 
@@ -1070,7 +1173,8 @@ async function loadAdminUsers() {
     id: member.id,
     display_name: member.name,
     role_id: member.roleId,
-    is_guest: member.roleId === "guest"
+    is_guest: member.roleId === "guest",
+    ...getUserModeration(member.id)
   }));
 
   if (!supabaseClient) {
@@ -1094,7 +1198,14 @@ async function loadAdminUsers() {
     }
 
     const merged = new Map(localUsers.map((user) => [user.id, user]));
-    (data || []).forEach((user) => merged.set(user.id, user));
+    (data || []).forEach((user) => {
+      const moderation = getUserModeration(user.id);
+      merged.set(user.id, {
+        ...user,
+        isMuted: user.is_muted ?? moderation.isMuted,
+        isBanned: user.is_banned ?? moderation.isBanned
+      });
+    });
     adminKnownUsers = Array.from(merged.values());
     renderAdminUsers();
   } catch (error) {
@@ -1121,22 +1232,57 @@ function renderAdminUsers() {
   }
 
   adminUsersList.innerHTML = adminKnownUsers
-    .map((user) => `
-      <div class="admin-row">
-        <div>
-          <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
-          <small>${escapeHtml(user.id)}${user.is_guest ? " - Misafir" : ""}</small>
-        </div>
-        <select data-admin-user-role="${escapeHtml(user.id)}">
-          ${renderRoleOptions(user.role_id || "student")}
-        </select>
-      </div>
-    `)
+    .map((user) => {
+      const moderation = {
+        isMuted: user.isMuted ?? user.is_muted ?? false,
+        isBanned: user.isBanned ?? user.is_banned ?? false
+      };
+      const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : "Aktif";
+      return `
+        <article class="member-admin-card ${moderation.isBanned ? "is-banned" : ""}">
+          <div class="member-admin-main">
+            <div class="member-admin-avatar">${escapeHtml((user.display_name || "U").slice(0, 1).toUpperCase())}</div>
+            <div>
+              <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
+              <small>${escapeHtml(user.id)}${user.is_guest ? " - Misafir" : ""}</small>
+              <span class="member-status">${statusText}</span>
+            </div>
+          </div>
+          <div class="member-admin-controls">
+            <select data-admin-user-role="${escapeHtml(user.id)}">
+              ${renderRoleOptions(user.role_id || "student")}
+            </select>
+            <button class="member-action" type="button" data-user-mute="${escapeHtml(user.id)}">
+              ${moderation.isMuted ? "Susturmayi Kaldir" : "Sustur"}
+            </button>
+            <button class="member-action danger" type="button" data-user-ban="${escapeHtml(user.id)}">
+              ${moderation.isBanned ? "Geri Al" : "Sunucudan At"}
+            </button>
+          </div>
+        </article>
+      `;
+    })
     .join("");
 
   adminUsersList.querySelectorAll("[data-admin-user-role]").forEach((select) => {
     select.addEventListener("change", async () => {
       await assignUserRole(select.dataset.adminUserRole, select.value);
+    });
+  });
+
+  adminUsersList.querySelectorAll("[data-user-mute]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const userId = button.dataset.userMute;
+      const user = adminKnownUsers.find((item) => item.id === userId);
+      moderateUser(userId, { isMuted: !(user?.isMuted ?? user?.is_muted ?? false) });
+    });
+  });
+
+  adminUsersList.querySelectorAll("[data-user-ban]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const userId = button.dataset.userBan;
+      const user = adminKnownUsers.find((item) => item.id === userId);
+      moderateUser(userId, { isBanned: !(user?.isBanned ?? user?.is_banned ?? false) });
     });
   });
 }
@@ -1355,6 +1501,59 @@ async function assignUserRole(userId, roleId) {
   renderAdminUsers();
 }
 
+async function moderateUser(userId, updates) {
+  const updatedModeration = setUserModeration(userId, updates);
+
+  adminKnownUsers = adminKnownUsers.map((user) => (
+    user.id === userId
+      ? {
+          ...user,
+          isMuted: updatedModeration.isMuted,
+          isBanned: updatedModeration.isBanned,
+          is_muted: updatedModeration.isMuted,
+          is_banned: updatedModeration.isBanned
+        }
+      : user
+  ));
+
+  if (authState.userId === userId) {
+    if (updatedModeration.isBanned) {
+      window.alert("Bu hesap sunucudan atildi.");
+      resetIdentity();
+    } else {
+      updateIdentity(authState.name, authState.roleId, {
+        mode: authState.mode,
+        userId: authState.userId,
+        isMuted: updatedModeration.isMuted,
+        isBanned: updatedModeration.isBanned
+      });
+    }
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .update({
+            is_muted: updatedModeration.isMuted,
+            is_banned: updatedModeration.isBanned
+          })
+          .eq("id", userId),
+        "Uye moderasyonu"
+      );
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.warn("Supabase moderasyon kaydi atlandi:", error.message);
+    }
+  }
+
+  renderAdminUsers();
+}
+
 function openAdminModal() {
   if (!adminBackdrop) {
     return;
@@ -1409,6 +1608,16 @@ channelButtons.forEach((button) => {
 if (adminMenuButton) {
   adminMenuButton.addEventListener("click", openAdminModal);
 }
+
+adminTabButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextPage = button.dataset.adminPage;
+    adminTabButtons.forEach((tab) => tab.classList.toggle("active", tab === button));
+    adminPages.forEach((page) => {
+      page.classList.toggle("active", page.dataset.adminPanelPage === nextPage);
+    });
+  });
+});
 
 if (adminCloseButton) {
   adminCloseButton.addEventListener("click", closeAdminModal);
@@ -1551,14 +1760,27 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
     }
 
     const displayName = data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi";
-    const storedRole = await getStoredUserRole(data.user.id);
-    const roleId = storedRole || "student";
+    const storedProfile = await getStoredUserProfile(data.user.id);
+    const roleId = storedProfile.roleId || "student";
+
+    if (storedProfile.isBanned) {
+      window.alert("Bu hesap sunucudan atildigi icin giris yapamaz.");
+      return;
+    }
+
     await upsertAppUser({
       id: data.user.id,
       displayName,
-      roleId
+      roleId,
+      isMuted: storedProfile.isMuted,
+      isBanned: storedProfile.isBanned
     });
-    finishAuth(displayName, roleId, { mode: "member", userId: data.user.id });
+    finishAuth(displayName, roleId, {
+      mode: "member",
+      userId: data.user.id,
+      isMuted: storedProfile.isMuted,
+      isBanned: storedProfile.isBanned
+    });
     return;
   }
 
@@ -1623,14 +1845,21 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       return;
     }
 
-    const storedRole = await getStoredUserRole(data.user.id);
-    const roleId = storedRole || "student";
+    const storedProfile = await getStoredUserProfile(data.user.id);
+    const roleId = storedProfile.roleId || "student";
     await upsertAppUser({
       id: data.user.id,
       displayName: signUpDisplayName,
-      roleId
+      roleId,
+      isMuted: storedProfile.isMuted,
+      isBanned: storedProfile.isBanned
     });
-    finishAuth(signUpDisplayName, roleId, { mode: "member", userId: data.user.id });
+    finishAuth(signUpDisplayName, roleId, {
+      mode: "member",
+      userId: data.user.id,
+      isMuted: storedProfile.isMuted,
+      isBanned: storedProfile.isBanned
+    });
     return;
   }
 

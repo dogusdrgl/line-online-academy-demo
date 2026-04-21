@@ -1403,6 +1403,46 @@ button {
   letter-spacing: -0.04em;
 }
 
+.admin-tabs {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.admin-tab {
+  border: 0;
+  min-width: 120px;
+  height: 38px;
+  border-radius: 11px;
+  background: transparent;
+  color: #b8bdc6;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.admin-tab.active {
+  background: linear-gradient(135deg, rgba(241, 161, 38, 0.92), rgba(210, 138, 63, 0.92));
+  color: #241305;
+}
+
+.admin-page {
+  display: none;
+}
+
+.admin-page.active {
+  display: block;
+}
+
+.admin-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+
 .admin-grid {
   grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.1fr);
 }
@@ -1417,6 +1457,108 @@ button {
 
 .role-builder-card {
   border-color: rgba(241, 161, 38, 0.18);
+}
+
+.members-admin-list {
+  gap: 12px;
+}
+
+.member-admin-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.member-admin-card.is-banned {
+  opacity: 0.72;
+  border-color: rgba(255, 94, 94, 0.18);
+}
+
+.member-admin-main {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.member-admin-avatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), #d08b3c);
+  color: #241305;
+  font-weight: 800;
+}
+
+.member-admin-main strong,
+.member-admin-main small,
+.member-status {
+  display: block;
+}
+
+.member-admin-main small {
+  color: #aeb4bf;
+  margin-top: 3px;
+  word-break: break-all;
+}
+
+.member-status {
+  width: fit-content;
+  margin-top: 7px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(95, 209, 95, 0.12);
+  color: #8cff8c;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.member-admin-card.is-banned .member-status {
+  background: rgba(255, 94, 94, 0.13);
+  color: #ffb0a8;
+}
+
+.member-admin-controls {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.member-admin-controls select {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: #121318;
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.member-action {
+  border: 0;
+  min-height: 38px;
+  border-radius: 11px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.075);
+  color: #e1e4ea;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.member-action:hover {
+  background: rgba(241, 161, 38, 0.14);
+}
+
+.member-action.danger {
+  background: rgba(255, 94, 94, 0.12);
+  color: #ffb0a8;
 }
 
 .role-create {
@@ -1526,6 +1668,11 @@ button {
 @media (max-width: 900px) {
   .admin-grid,
   .role-list {
+    grid-template-columns: 1fr;
+  }
+
+  .member-admin-card,
+  .member-admin-controls {
     grid-template-columns: 1fr;
   }
 
