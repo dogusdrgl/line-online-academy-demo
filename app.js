@@ -45,6 +45,11 @@ const identityCard = document.getElementById("identity-card");
 const guestCardSignin = document.getElementById("guest-card-signin");
 const guestCardSignup = document.getElementById("guest-card-signup");
 const membersGroups = document.getElementById("members-groups");
+const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
+const supabaseClient =
+  window.supabase && supabaseConfig.url && supabaseConfig.anonKey
+    ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
+    : null;
 
 let authState = {
   mode: "visitor",
@@ -55,6 +60,7 @@ let authState = {
 };
 
 let pendingView = null;
+const renderedMessageIds = new Set();
 
 const roles = [
   {
@@ -149,6 +155,26 @@ function slugify(text) {
     .replace(/^-+|-+$/g, "");
 }
 
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (char) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    };
+    return entities[char];
+  });
+}
+
+function formatMessageTime(value) {
+  return new Date(value).toLocaleTimeString("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 function currentPermissions() {
   if (!authState.roleId) {
     return [];
@@ -229,6 +255,96 @@ function renderMembersSidebar() {
       `;
     })
     .join("");
+}
+
+function addChatMessage(panelId, message) {
+  if (message.id && renderedMessageIds.has(message.id)) {
+    return;
+  }
+
+  const panel = document.getElementById(panelId);
+  const chat = panel?.querySelector(".channel-chat");
+  if (!chat) {
+    return;
+  }
+
+  const roleLabel = message.author_role || "Uye";
+  const authorName = message.author_name || "Uye";
+  const timestamp = message.created_at ? formatMessageTime(message.created_at) : formatMessageTime(new Date());
+
+  const chatMessage = document.createElement("article");
+  chatMessage.className = "chat-message";
+  chatMessage.innerHTML = `
+    <div class="avatar red">${escapeHtml(authorName.slice(0, 1).toUpperCase())}</div>
+    <div class="chat-body">
+      <div class="chat-meta">
+        <strong>${escapeHtml(authorName)}</strong>
+        <span>Bugun ${timestamp}</span>
+      </div>
+      <p>${escapeHtml(message.content)}</p>
+      <small class="chat-role-note">${escapeHtml(roleLabel)}</small>
+    </div>
+  `;
+
+  chat.appendChild(chatMessage);
+
+  if (message.id) {
+    renderedMessageIds.add(message.id);
+  }
+}
+
+async function upsertAppUser(user) {
+  if (!supabaseClient || !user?.id) {
+    return;
+  }
+
+  await supabaseClient.from("app_users").upsert({
+    id: user.id,
+    display_name: user.displayName,
+    role_id: user.roleId,
+    is_guest: user.roleId === "guest"
+  });
+}
+
+async function loadPersistedMessages() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("messages")
+    .select("*")
+    .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
+    .order("created_at", { ascending: true })
+    .limit(200);
+
+  if (error) {
+    console.warn("Supabase mesajlari yuklenemedi:", error.message);
+    return;
+  }
+
+  data.forEach((message) => addChatMessage(message.channel_id, message));
+}
+
+function subscribeToMessages() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  supabaseClient
+    .channel("line-online-academy-messages")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages"
+      },
+      (payload) => {
+        addChatMessage(payload.new.channel_id, payload.new);
+      }
+    )
+    .subscribe();
 }
 
 function setActiveView(nextView, label) {
@@ -336,13 +452,11 @@ function initializeTextChannelComposers() {
   });
 
   document.querySelectorAll(".composer-form").forEach((form) => {
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
       const panelId = form.dataset.composerView;
-      const panel = document.getElementById(panelId);
       const input = form.querySelector(".composer-input");
-      const chat = panel.querySelector(".channel-chat");
 
       if (authState.mode === "visitor") {
         pendingView = panelId;
@@ -360,30 +474,39 @@ function initializeTextChannelComposers() {
         return;
       }
 
-      const timestamp = new Date().toLocaleTimeString("tr-TR", {
-        hour: "2-digit",
-        minute: "2-digit"
-      });
-
       const currentRole = getRole(authState.roleId);
       const roleLabel = currentRole ? currentRole.name : "Uye";
-      const chatMessage = document.createElement("article");
-      chatMessage.className = "chat-message";
-      chatMessage.innerHTML = `
-        <div class="avatar red">${authState.name.slice(0, 1).toUpperCase()}</div>
-        <div class="chat-body">
-          <div class="chat-meta">
-            <strong>${authState.name}</strong>
-            <span>Bugun ${timestamp}</span>
-          </div>
-          <p>${text}</p>
-          <small class="chat-role-note">${roleLabel}</small>
-        </div>
-      `;
 
-      chat.appendChild(chatMessage);
+      if (supabaseClient) {
+        const { data, error } = await supabaseClient
+          .from("messages")
+          .insert({
+            channel_id: panelId,
+            author_id: authState.userId,
+            author_name: authState.name,
+            author_role: roleLabel,
+            content: text
+          })
+          .select()
+          .single();
+
+        if (error) {
+          window.alert(`Mesaj kaydedilemedi: ${error.message}`);
+          return;
+        }
+
+        addChatMessage(panelId, data);
+      } else {
+        addChatMessage(panelId, {
+          id: `local-${Date.now()}`,
+          author_name: authState.name,
+          author_role: roleLabel,
+          content: text,
+          created_at: new Date().toISOString()
+        });
+      }
+
       input.value = "";
-      chat.scrollIntoView({ block: "end", behavior: "smooth" });
     });
   });
 }
@@ -430,11 +553,32 @@ if (backToAuthOptionsButton) {
   });
 }
 
-document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", (event) => {
+document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const email = signInEmail.value.trim().toLowerCase();
   const password = signInPassword.value.trim();
+
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      window.alert(`Giris basarisiz: ${error.message}`);
+      return;
+    }
+
+    const displayName = data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi";
+    await upsertAppUser({
+      id: data.user.id,
+      displayName,
+      roleId: "student"
+    });
+    finishAuth(displayName, "student", { mode: "member", userId: data.user.id });
+    return;
+  }
 
   const memberId = `member-${Date.now()}`;
   ephemeralMembers.push({
@@ -448,9 +592,42 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
   finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
 });
 
-document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", (event) => {
+document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", async (event) => {
   event.preventDefault();
   const signUpDisplayName = signUpName.value.trim() || "Yeni Uye";
+
+  if (supabaseClient) {
+    const signUpEmail = document.getElementById("signup-email").value.trim().toLowerCase();
+    const signUpPassword = document.getElementById("signup-password").value.trim();
+    const { data, error } = await supabaseClient.auth.signUp({
+      email: signUpEmail,
+      password: signUpPassword,
+      options: {
+        data: {
+          display_name: signUpDisplayName
+        }
+      }
+    });
+
+    if (error) {
+      window.alert(`Uye olma basarisiz: ${error.message}`);
+      return;
+    }
+
+    if (!data.session) {
+      window.alert("Uyelik olustu. Supabase ayarina gore e-posta onayi gerekebilir; lutfen e-postani kontrol et.");
+      return;
+    }
+
+    await upsertAppUser({
+      id: data.user.id,
+      displayName: signUpDisplayName,
+      roleId: "student"
+    });
+    finishAuth(signUpDisplayName, "student", { mode: "member", userId: data.user.id });
+    return;
+  }
+
   const memberId = `member-${slugify(signUpDisplayName)}-${Date.now()}`;
   ephemeralMembers.push({
     id: memberId,
@@ -463,7 +640,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
   finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
 });
 
-guestForm.addEventListener("submit", (event) => {
+guestForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const guestName = guestNameInput.value.trim();
@@ -473,14 +650,24 @@ guestForm.addEventListener("submit", (event) => {
   }
 
   const guestId = `guest-${slugify(guestName)}-${Date.now()}`;
-  ephemeralMembers.push({
+  const guestUser = {
     id: guestId,
     name: guestName,
     roleId: "guest",
     avatarClass: "amber",
     group: "Cevrim Ici",
     subtitle: "Misafir"
-  });
+  };
+
+  ephemeralMembers.push(guestUser);
+
+  if (supabaseClient) {
+    await upsertAppUser({
+      id: guestId,
+      displayName: guestName,
+      roleId: "guest"
+    });
+  }
 
   finishAuth(guestName, "guest", { mode: "guest", userId: guestId });
 });
@@ -557,3 +744,5 @@ if (cameraButton && cameraPreview) {
 
 renderMembersSidebar();
 initializeTextChannelComposers();
+loadPersistedMessages();
+subscribeToMessages();
