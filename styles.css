@@ -1134,6 +1134,161 @@ button {
   backdrop-filter: blur(14px);
 }
 
+.admin-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(6, 7, 10, 0.72);
+  backdrop-filter: blur(16px);
+}
+
+.admin-modal {
+  position: relative;
+  width: min(980px, 100%);
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(241, 161, 38, 0.13), transparent 30%),
+    linear-gradient(180deg, rgba(36, 38, 44, 0.99), rgba(22, 23, 27, 0.99));
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.5);
+}
+
+.admin-lock {
+  max-width: 460px;
+}
+
+.admin-lock h3,
+.admin-panel-head h3,
+.admin-card h4 {
+  margin: 0;
+}
+
+.admin-muted {
+  color: #b8bdc6;
+  line-height: 1.5;
+}
+
+.admin-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-card {
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-card.wide {
+  grid-column: 1 / -1;
+}
+
+.admin-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.admin-row strong {
+  display: block;
+}
+
+.admin-row small {
+  color: #abb1bb;
+}
+
+.admin-row select,
+.role-create input,
+.auth-field select {
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #121318;
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.role-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.mini-check,
+.role-access-grid label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8dde7;
+  font-size: 0.86rem;
+}
+
+.role-access-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+
+.role-delete {
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 94, 94, 0.12);
+  color: #ffb0a8;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.compact {
+  width: auto;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.access-denied-card {
+  max-width: 580px;
+  margin: 12vh auto 0;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(241, 161, 38, 0.2);
+  background:
+    radial-gradient(circle at top left, rgba(241, 161, 38, 0.15), transparent 30%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow);
+}
+
+.access-denied-card h3 {
+  margin: 8px 0;
+}
+
 .auth-modal {
   position: relative;
   width: min(100%, 480px);

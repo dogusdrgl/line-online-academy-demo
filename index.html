@@ -977,8 +977,67 @@
       </div>
     </div>
 
+    <div class="admin-backdrop hidden" id="admin-backdrop">
+      <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+        <button class="auth-close" id="admin-close" type="button" aria-label="Admin panelini kapat">x</button>
+        <div class="admin-lock" id="admin-lock">
+          <p class="eyebrow">Yonetim Paneli</p>
+          <h3 id="admin-title">Line Academy kontrol odasi</h3>
+          <p class="admin-muted">Rolleri, uyeleri ve kanal erisimlerini buradan hizlica duzenleyebilirsin.</p>
+          <label class="auth-field">
+            <span>Admin sifresi</span>
+            <input type="password" id="admin-password" placeholder="Sifre" />
+          </label>
+          <button class="auth-primary" type="button" id="admin-unlock">Paneli Ac</button>
+        </div>
+
+        <div class="admin-panel hidden" id="admin-panel">
+          <div class="admin-panel-head">
+            <div>
+              <p class="eyebrow">Admin</p>
+              <h3>Roller ve erisimler</h3>
+            </div>
+            <button class="auth-secondary compact" type="button" id="admin-refresh-users">Uyeleri Yenile</button>
+          </div>
+
+          <div class="admin-grid">
+            <section class="admin-card">
+              <h4>Uyeler</h4>
+              <p class="admin-muted">Kayitli kullanicilara rol ata.</p>
+              <div class="admin-list" id="admin-users-list"></div>
+            </section>
+
+            <section class="admin-card">
+              <h4>Roller</h4>
+              <p class="admin-muted">Yeni rol ekle, admin yetkisi ver veya sil.</p>
+              <div class="role-create">
+                <input type="text" id="new-role-name" placeholder="Orn: Ogretmen" maxlength="24" />
+                <label class="mini-check">
+                  <input type="checkbox" id="new-role-admin" />
+                  Admin
+                </label>
+                <button class="auth-primary compact" type="button" id="create-role-button">Ekle</button>
+              </div>
+              <div class="admin-list" id="admin-roles-list"></div>
+            </section>
+
+            <section class="admin-card wide">
+              <h4>Sayfa Erisimleri</h4>
+              <p class="admin-muted">Kanallar gorunur kalir; yetkisi olmayan kullanici iceri giremez.</p>
+              <label class="auth-field">
+                <span>Kanal / sayfa</span>
+                <select id="admin-view-select"></select>
+              </label>
+              <div class="role-access-grid" id="admin-access-roles"></div>
+              <button class="auth-primary" type="button" id="save-access-button">Erisimi Kaydet</button>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase-config.js?v=20260421-5"></script>
-    <script src="./app.js?v=20260421-5"></script>
+    <script src="./supabase-config.js?v=20260421-7"></script>
+    <script src="./app.js?v=20260421-7"></script>
   </body>
 </html>

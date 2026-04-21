@@ -46,14 +46,33 @@ const guestCardSignin = document.getElementById("guest-card-signin");
 const guestCardSignup = document.getElementById("guest-card-signup");
 let logoutButton = document.getElementById("logout-button");
 const membersGroups = document.getElementById("members-groups");
+const adminMenuButton = document.getElementById("admin-menu-button") || document.querySelector(".brand-header .icon-button");
+const adminBackdrop = document.getElementById("admin-backdrop");
+const adminCloseButton = document.getElementById("admin-close");
+const adminPasswordInput = document.getElementById("admin-password");
+const adminUnlockButton = document.getElementById("admin-unlock");
+const adminLock = document.getElementById("admin-lock");
+const adminPanel = document.getElementById("admin-panel");
+const adminUsersList = document.getElementById("admin-users-list");
+const adminRolesList = document.getElementById("admin-roles-list");
+const adminViewSelect = document.getElementById("admin-view-select");
+const adminAccessRoles = document.getElementById("admin-access-roles");
+const adminRefreshUsersButton = document.getElementById("admin-refresh-users");
+const newRoleNameInput = document.getElementById("new-role-name");
+const newRoleAdminInput = document.getElementById("new-role-admin");
+const createRoleButton = document.getElementById("create-role-button");
+const saveAccessButton = document.getElementById("save-access-button");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
     ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
     : null;
 const SUPABASE_TIMEOUT_MS = 3500;
+const ADMIN_PASSWORD = "Line5367";
 const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
 const LOCAL_SESSION_KEY = "line-online-academy-session";
+const LOCAL_ROLES_KEY = "line-online-academy-roles";
+const LOCAL_ACCESS_KEY = "line-online-academy-access";
 
 let authState = {
   mode: "visitor",
@@ -66,10 +85,16 @@ let authState = {
 let pendingView = null;
 const renderedMessageIds = new Set();
 
-const roles = [
+const defaultRoles = [
   {
     id: "admin",
     name: "Admin",
+    permissions: ["view_channels", "send_messages", "join_voice", "admin_access"],
+    system: true
+  },
+  {
+    id: "teacher",
+    name: "Ogretmen",
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
@@ -92,6 +117,10 @@ const roles = [
     system: true
   }
 ];
+
+let roles = [];
+let viewAccess = {};
+let adminKnownUsers = [];
 
 const members = [
   {
@@ -147,6 +176,68 @@ const members = [
 ];
 
 const ephemeralMembers = [];
+
+function getChannelOptions() {
+  return Array.from(channelButtons)
+    .map((button) => ({
+      id: button.dataset.view,
+      label: button.textContent.trim()
+    }))
+    .filter((item) => item.id && !PUBLIC_VIEWS.has(item.id));
+}
+
+function getDefaultAccess() {
+  const allRoleIds = defaultRoles.map((role) => role.id);
+  const restrictedToStaff = ["admin-chat", "admin-room", "trainer-chat", "trainer-room", "board-room"];
+  const access = {};
+
+  getChannelOptions().forEach((channel) => {
+    access[channel.id] = restrictedToStaff.includes(channel.id)
+      ? ["admin", "teacher"]
+      : allRoleIds;
+  });
+
+  return access;
+}
+
+function readJson(key, fallback) {
+  try {
+    const rawValue = window.localStorage.getItem(key);
+    return rawValue ? JSON.parse(rawValue) : fallback;
+  } catch (error) {
+    console.warn(`${key} okunamadi:`, error.message);
+    return fallback;
+  }
+}
+
+function writeJson(key, value) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`${key} kaydedilemedi:`, error.message);
+  }
+}
+
+function initializeAdminState() {
+  const savedRoles = readJson(LOCAL_ROLES_KEY, null);
+  const roleMap = new Map(defaultRoles.map((role) => [role.id, role]));
+  (savedRoles || []).forEach((role) => roleMap.set(role.id, role));
+  roles = Array.from(roleMap.values());
+
+  const savedAccess = readJson(LOCAL_ACCESS_KEY, {});
+  viewAccess = {
+    ...getDefaultAccess(),
+    ...savedAccess
+  };
+}
+
+function saveRoles() {
+  writeJson(LOCAL_ROLES_KEY, roles);
+}
+
+function saveAccess() {
+  writeJson(LOCAL_ACCESS_KEY, viewAccess);
+}
 
 function getRole(roleId) {
   return roles.find((role) => role.id === roleId);
@@ -295,6 +386,28 @@ function hasPermission(permission) {
   return currentPermissions().includes(permission);
 }
 
+function canAccessView(viewId) {
+  if (PUBLIC_VIEWS.has(viewId)) {
+    return true;
+  }
+
+  if (authState.mode === "visitor" || !authState.roleId) {
+    return false;
+  }
+
+  const role = getRole(authState.roleId);
+  if (!role?.permissions.includes("view_channels")) {
+    return false;
+  }
+
+  if (role.permissions.includes("admin_access")) {
+    return true;
+  }
+
+  const allowedRoles = viewAccess[viewId];
+  return !allowedRoles || allowedRoles.includes(authState.roleId);
+}
+
 function getAllMembers() {
   return [...members, ...ephemeralMembers];
 }
@@ -435,6 +548,32 @@ async function upsertAppUser(user) {
   }
 }
 
+async function getStoredUserRole(userId) {
+  if (!supabaseClient || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("role_id")
+        .eq("id", userId)
+        .maybeSingle(),
+      "Kullanici rolunu okuma"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.role_id || null;
+  } catch (error) {
+    console.warn("Kullanici rolu okunamadi:", error.message);
+    return null;
+  }
+}
+
 async function loadPersistedMessages() {
   if (!supabaseClient) {
     return;
@@ -488,12 +627,46 @@ function subscribeToMessages() {
     .subscribe();
 }
 
+function getAccessDeniedPanel() {
+  let panel = document.getElementById("access-denied");
+  if (panel) {
+    return panel;
+  }
+
+  panel = document.createElement("section");
+  panel.id = "access-denied";
+  panel.className = "view-panel";
+  panel.innerHTML = `
+    <div class="access-denied-card">
+      <p class="eyebrow">Erisim Engellendi</p>
+      <h3>Bu sayfayi goruntuleme yetkiniz yoktur.</h3>
+      <p>Bu oda icin uygun role sahip degilsin. Gerekirse yonetici bu kanalin erisim ayarini panelden degistirebilir.</p>
+    </div>
+  `;
+
+  document.querySelector(".content-area")?.appendChild(panel);
+  return panel;
+}
+
+function showAccessDenied(label) {
+  channelButtons.forEach((button) => {
+    button.classList.toggle("active", button.textContent.trim() === label);
+  });
+
+  document.querySelectorAll(".view-panel").forEach((panel) => {
+    panel.classList.remove("active");
+  });
+
+  getAccessDeniedPanel().classList.add("active");
+  viewTitle.textContent = label || "Yetkisiz Alan";
+}
+
 function setActiveView(nextView, label) {
   channelButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.view === nextView);
   });
 
-  viewPanels.forEach((panel) => {
+  document.querySelectorAll(".view-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === nextView);
   });
 
@@ -588,7 +761,11 @@ function finishAuth(name, roleId, options = {}) {
     const nextLabel = nextButton ? nextButton.textContent.trim() : "";
     const targetView = pendingView;
     pendingView = null;
-    setActiveView(targetView, nextLabel);
+    if (canAccessView(targetView)) {
+      setActiveView(targetView, nextLabel);
+    } else {
+      showAccessDenied(nextLabel);
+    }
   }
 }
 
@@ -736,6 +913,243 @@ function initializeTextChannelComposers() {
   });
 }
 
+async function loadAdminUsers() {
+  const localUsers = getAllMembers().map((member) => ({
+    id: member.id,
+    display_name: member.name,
+    role_id: member.roleId,
+    is_guest: member.roleId === "guest"
+  }));
+
+  if (!supabaseClient) {
+    adminKnownUsers = localUsers;
+    renderAdminUsers();
+    return;
+  }
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("id, display_name, role_id, is_guest, created_at")
+        .order("created_at", { ascending: false })
+        .limit(100),
+      "Uyeleri yukleme"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const merged = new Map(localUsers.map((user) => [user.id, user]));
+    (data || []).forEach((user) => merged.set(user.id, user));
+    adminKnownUsers = Array.from(merged.values());
+    renderAdminUsers();
+  } catch (error) {
+    console.warn("Uyeler yuklenemedi:", error.message);
+    adminKnownUsers = localUsers;
+    renderAdminUsers();
+  }
+}
+
+function renderRoleOptions(selectedRoleId) {
+  return roles
+    .map((role) => `<option value="${role.id}" ${role.id === selectedRoleId ? "selected" : ""}>${escapeHtml(role.name)}</option>`)
+    .join("");
+}
+
+function renderAdminUsers() {
+  if (!adminUsersList) {
+    return;
+  }
+
+  if (!adminKnownUsers.length) {
+    adminUsersList.innerHTML = '<p class="admin-muted">Henuz kayitli uye bulunamadi.</p>';
+    return;
+  }
+
+  adminUsersList.innerHTML = adminKnownUsers
+    .map((user) => `
+      <div class="admin-row">
+        <div>
+          <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
+          <small>${escapeHtml(user.id)}${user.is_guest ? " - Misafir" : ""}</small>
+        </div>
+        <select data-admin-user-role="${escapeHtml(user.id)}">
+          ${renderRoleOptions(user.role_id || "student")}
+        </select>
+      </div>
+    `)
+    .join("");
+
+  adminUsersList.querySelectorAll("[data-admin-user-role]").forEach((select) => {
+    select.addEventListener("change", async () => {
+      await assignUserRole(select.dataset.adminUserRole, select.value);
+    });
+  });
+}
+
+function renderAdminRoles() {
+  if (!adminRolesList) {
+    return;
+  }
+
+  adminRolesList.innerHTML = roles
+    .map((role) => `
+      <div class="admin-row">
+        <div>
+          <strong>${escapeHtml(role.name)}</strong>
+          <label class="mini-check">
+            <input type="checkbox" data-role-admin="${role.id}" ${role.permissions.includes("admin_access") ? "checked" : ""} ${role.id === "admin" ? "disabled" : ""} />
+            Admin yetkisi
+          </label>
+        </div>
+        ${role.system ? "<small>Sistem</small>" : `<button class="role-delete" type="button" data-delete-role="${role.id}">Sil</button>`}
+      </div>
+    `)
+    .join("");
+
+  adminRolesList.querySelectorAll("[data-role-admin]").forEach((checkbox) => {
+    checkbox.addEventListener("change", () => {
+      const role = getRole(checkbox.dataset.roleAdmin);
+      if (!role || role.id === "admin") {
+        return;
+      }
+
+      role.permissions = checkbox.checked
+        ? Array.from(new Set([...role.permissions, "admin_access"]))
+        : role.permissions.filter((permission) => permission !== "admin_access");
+      saveRoles();
+      renderAdminRoles();
+      renderMembersSidebar();
+    });
+  });
+
+  adminRolesList.querySelectorAll("[data-delete-role]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const roleId = button.dataset.deleteRole;
+      roles = roles.filter((role) => role.id !== roleId);
+      Object.keys(viewAccess).forEach((viewId) => {
+        viewAccess[viewId] = (viewAccess[viewId] || []).filter((allowedRoleId) => allowedRoleId !== roleId);
+      });
+      saveRoles();
+      saveAccess();
+      renderAdminPanel();
+    });
+  });
+}
+
+function renderAdminViewSelect() {
+  if (!adminViewSelect) {
+    return;
+  }
+
+  const currentValue = adminViewSelect.value;
+  adminViewSelect.innerHTML = getChannelOptions()
+    .map((channel) => `<option value="${channel.id}">${escapeHtml(channel.label)}</option>`)
+    .join("");
+
+  if (currentValue && viewAccess[currentValue]) {
+    adminViewSelect.value = currentValue;
+  }
+}
+
+function renderAccessRoles() {
+  if (!adminAccessRoles || !adminViewSelect) {
+    return;
+  }
+
+  const selectedView = adminViewSelect.value;
+  const allowedRoles = viewAccess[selectedView] || roles.map((role) => role.id);
+  adminAccessRoles.innerHTML = roles
+    .map((role) => `
+      <label>
+        <input type="checkbox" value="${role.id}" ${allowedRoles.includes(role.id) ? "checked" : ""} />
+        ${escapeHtml(role.name)}
+      </label>
+    `)
+    .join("");
+}
+
+function renderAdminPanel() {
+  renderAdminUsers();
+  renderAdminRoles();
+  renderAdminViewSelect();
+  renderAccessRoles();
+}
+
+async function assignUserRole(userId, roleId) {
+  adminKnownUsers = adminKnownUsers.map((user) => (
+    user.id === userId ? { ...user, role_id: roleId } : user
+  ));
+
+  [...members, ...ephemeralMembers].forEach((member) => {
+    if (member.id === userId) {
+      member.roleId = roleId;
+      member.subtitle = getRole(roleId)?.name || member.subtitle;
+    }
+  });
+
+  if (authState.userId === userId) {
+    updateIdentity(authState.name, roleId, {
+      mode: authState.mode,
+      userId: authState.userId
+    });
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .update({ role_id: roleId })
+          .eq("id", userId),
+        "Rol atama"
+      );
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.warn("Supabase rol atamasi kaydedilemedi:", error.message);
+    }
+  }
+
+  renderMembersSidebar();
+  renderAdminUsers();
+}
+
+function openAdminModal() {
+  if (!adminBackdrop) {
+    return;
+  }
+
+  adminBackdrop.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  adminLock?.classList.remove("hidden");
+  adminPanel?.classList.add("hidden");
+  adminPasswordInput.value = "";
+  adminPasswordInput.focus();
+}
+
+function closeAdminModal() {
+  adminBackdrop?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function unlockAdminPanel() {
+  if (adminPasswordInput.value !== ADMIN_PASSWORD) {
+    window.alert("Admin sifresi hatali.");
+    adminPasswordInput.focus();
+    return;
+  }
+
+  adminLock?.classList.add("hidden");
+  adminPanel?.classList.remove("hidden");
+  await loadAdminUsers();
+  renderAdminPanel();
+}
+
 channelButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const nextView = button.dataset.view;
@@ -747,14 +1161,96 @@ channelButtons.forEach((button) => {
       return;
     }
 
-    if (!hasPermission("view_channels") && !PUBLIC_VIEWS.has(nextView)) {
-      window.alert("Bu alana erismek icin uygun role sahip degilsin.");
+    if (!canAccessView(nextView)) {
+      showAccessDenied(label);
       return;
     }
 
     setActiveView(nextView, label);
   });
 });
+
+if (adminMenuButton) {
+  adminMenuButton.addEventListener("click", openAdminModal);
+}
+
+if (adminCloseButton) {
+  adminCloseButton.addEventListener("click", closeAdminModal);
+}
+
+if (adminBackdrop) {
+  adminBackdrop.addEventListener("click", (event) => {
+    if (event.target === adminBackdrop) {
+      closeAdminModal();
+    }
+  });
+}
+
+if (adminUnlockButton) {
+  adminUnlockButton.addEventListener("click", unlockAdminPanel);
+}
+
+if (adminPasswordInput) {
+  adminPasswordInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      unlockAdminPanel();
+    }
+  });
+}
+
+if (adminRefreshUsersButton) {
+  adminRefreshUsersButton.addEventListener("click", loadAdminUsers);
+}
+
+if (adminViewSelect) {
+  adminViewSelect.addEventListener("change", renderAccessRoles);
+}
+
+if (saveAccessButton) {
+  saveAccessButton.addEventListener("click", () => {
+    const selectedView = adminViewSelect.value;
+    const selectedRoles = Array.from(adminAccessRoles.querySelectorAll("input:checked")).map((input) => input.value);
+    viewAccess[selectedView] = selectedRoles;
+    saveAccess();
+    window.alert("Erisim ayari kaydedildi.");
+  });
+}
+
+if (createRoleButton) {
+  createRoleButton.addEventListener("click", () => {
+    const roleName = newRoleNameInput.value.trim();
+    if (!roleName) {
+      newRoleNameInput.focus();
+      return;
+    }
+
+    const roleId = slugify(roleName) || `role-${Date.now()}`;
+    if (roles.some((role) => role.id === roleId)) {
+      window.alert("Bu isimde bir rol zaten var.");
+      return;
+    }
+
+    roles.push({
+      id: roleId,
+      name: roleName,
+      permissions: newRoleAdminInput.checked
+        ? ["view_channels", "send_messages", "join_voice", "admin_access"]
+        : ["view_channels", "send_messages", "join_voice"],
+      system: false
+    });
+
+    getChannelOptions().forEach((channel) => {
+      viewAccess[channel.id] ||= [];
+      viewAccess[channel.id].push(roleId);
+    });
+
+    saveRoles();
+    saveAccess();
+    newRoleNameInput.value = "";
+    newRoleAdminInput.checked = false;
+    renderAdminPanel();
+  });
+}
 
 authTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -818,12 +1314,14 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
     }
 
     const displayName = data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi";
+    const storedRole = await getStoredUserRole(data.user.id);
+    const roleId = storedRole || "student";
     await upsertAppUser({
       id: data.user.id,
       displayName,
-      roleId: "student"
+      roleId
     });
-    finishAuth(displayName, "student", { mode: "member", userId: data.user.id });
+    finishAuth(displayName, roleId, { mode: "member", userId: data.user.id });
     return;
   }
 
@@ -888,12 +1386,14 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       return;
     }
 
+    const storedRole = await getStoredUserRole(data.user.id);
+    const roleId = storedRole || "student";
     await upsertAppUser({
       id: data.user.id,
       displayName: signUpDisplayName,
-      roleId: "student"
+      roleId
     });
-    finishAuth(signUpDisplayName, "student", { mode: "member", userId: data.user.id });
+    finishAuth(signUpDisplayName, roleId, { mode: "member", userId: data.user.id });
     return;
   }
 
@@ -1027,6 +1527,7 @@ if (cameraButton && cameraPreview) {
   });
 }
 
+initializeAdminState();
 renderMembersSidebar();
 initializeTextChannelComposers();
 restoreSavedSession();
