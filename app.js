@@ -59,6 +59,8 @@ const adminViewSelect = document.getElementById("admin-view-select");
 const adminAccessRoles = document.getElementById("admin-access-roles");
 const adminRefreshUsersButton = document.getElementById("admin-refresh-users");
 const newRoleNameInput = document.getElementById("new-role-name");
+const newRoleColorInput = document.getElementById("new-role-color");
+const newRoleAccess = document.getElementById("new-role-access");
 const newRoleAdminInput = document.getElementById("new-role-admin");
 const createRoleButton = document.getElementById("create-role-button");
 const saveAccessButton = document.getElementById("save-access-button");
@@ -89,30 +91,35 @@ const defaultRoles = [
   {
     id: "admin",
     name: "Admin",
+    color: "#ef4444",
     permissions: ["view_channels", "send_messages", "join_voice", "admin_access"],
     system: true
   },
   {
     id: "teacher",
     name: "Ogretmen",
+    color: "#f1a126",
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
   {
     id: "student",
     name: "Ogrenci",
+    color: "#5b6dff",
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
   {
     id: "guest",
     name: "Misafir",
+    color: "#59d85f",
     permissions: ["view_channels", "send_messages", "join_voice"],
     system: true
   },
   {
     id: "assistant",
     name: "Asistan",
+    color: "#8b7cf6",
     permissions: ["view_channels"],
     system: true
   }
@@ -221,7 +228,14 @@ function writeJson(key, value) {
 function initializeAdminState() {
   const savedRoles = readJson(LOCAL_ROLES_KEY, null);
   const roleMap = new Map(defaultRoles.map((role) => [role.id, role]));
-  (savedRoles || []).forEach((role) => roleMap.set(role.id, role));
+  (savedRoles || []).forEach((role) => {
+    const fallbackRole = roleMap.get(role.id);
+    roleMap.set(role.id, {
+      ...fallbackRole,
+      ...role,
+      color: role.color || fallbackRole?.color || "#f1a126"
+    });
+  });
   roles = Array.from(roleMap.values());
 
   const savedAccess = readJson(LOCAL_ACCESS_KEY, {});
@@ -453,13 +467,14 @@ function renderMembersSidebar() {
             .toUpperCase();
 
           const subtitleClass = member.roleId === "admin" || member.roleId === "guest" ? "role green" : "";
+          const roleColor = getRole(member.roleId)?.color || "#f1a126";
 
           return `
             <div class="member-row">
-              <div class="avatar ${member.avatarClass}">${initials}</div>
+              <div class="avatar ${member.avatarClass}" style="background: ${escapeHtml(roleColor)}">${initials}</div>
               <div class="member-meta">
                 <strong>${member.name}</strong>
-                <p class="${subtitleClass}">${member.subtitle}</p>
+                <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${member.subtitle}</p>
               </div>
               ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
             </div>
@@ -726,7 +741,9 @@ function updateIdentity(name, roleId, options = {}) {
 
   profileName.textContent = name;
   profileRole.textContent = role ? role.name : "Uye";
+  profileRole.style.color = role?.color || "";
   profileAvatar.textContent = name.slice(0, 1).toUpperCase();
+  profileAvatar.style.background = role?.color || "";
 
   ensureLogoutButton();
   guestCard.classList.add("hidden");
@@ -989,6 +1006,46 @@ function renderAdminUsers() {
   });
 }
 
+function renderChannelCheckboxes(container, selectedViewIds = [], namePrefix = "access") {
+  if (!container) {
+    return;
+  }
+
+  const selectedSet = new Set(selectedViewIds);
+  container.innerHTML = getChannelOptions()
+    .map((channel) => `
+      <label>
+        <input type="checkbox" name="${namePrefix}" value="${channel.id}" ${selectedSet.has(channel.id) ? "checked" : ""} />
+        <span>${escapeHtml(channel.label)}</span>
+      </label>
+    `)
+    .join("");
+}
+
+function getViewsForRole(roleId) {
+  return getChannelOptions()
+    .filter((channel) => (viewAccess[channel.id] || []).includes(roleId))
+    .map((channel) => channel.id);
+}
+
+function setViewsForRole(roleId, selectedViewIds) {
+  const selectedSet = new Set(selectedViewIds);
+  getChannelOptions().forEach((channel) => {
+    const allowedRoles = new Set(viewAccess[channel.id] || []);
+    if (selectedSet.has(channel.id)) {
+      allowedRoles.add(roleId);
+    } else {
+      allowedRoles.delete(roleId);
+    }
+    viewAccess[channel.id] = Array.from(allowedRoles);
+  });
+  saveAccess();
+}
+
+function renderNewRoleAccess() {
+  renderChannelCheckboxes(newRoleAccess, getChannelOptions().map((channel) => channel.id), "new-role-access");
+}
+
 function renderAdminRoles() {
   if (!adminRolesList) {
     return;
@@ -996,18 +1053,61 @@ function renderAdminRoles() {
 
   adminRolesList.innerHTML = roles
     .map((role) => `
-      <div class="admin-row">
-        <div>
-          <strong>${escapeHtml(role.name)}</strong>
+      <article class="role-editor-card" data-role-card="${role.id}">
+        <div class="role-editor-head">
+          <div class="role-swatch" style="background: ${escapeHtml(role.color || "#f1a126")}"></div>
+          <div>
+            <strong>${escapeHtml(role.name)}</strong>
+            <small>${role.system ? "Sistem rolu" : "Ozel rol"}</small>
+          </div>
+          ${role.system ? "" : `<button class="role-delete" type="button" data-delete-role="${role.id}">Sil</button>`}
+        </div>
+        <div class="role-editor-tools">
+          <label>
+            <span>Renk</span>
+            <input type="color" data-role-color="${role.id}" value="${escapeHtml(role.color || "#f1a126")}" />
+          </label>
           <label class="mini-check">
             <input type="checkbox" data-role-admin="${role.id}" ${role.permissions.includes("admin_access") ? "checked" : ""} ${role.id === "admin" ? "disabled" : ""} />
             Admin yetkisi
           </label>
         </div>
-        ${role.system ? "<small>Sistem</small>" : `<button class="role-delete" type="button" data-delete-role="${role.id}">Sil</button>`}
-      </div>
+        <div class="access-picker role-access-picker" data-role-access="${role.id}"></div>
+      </article>
     `)
     .join("");
+
+  adminRolesList.querySelectorAll("[data-role-access]").forEach((container) => {
+    const roleId = container.dataset.roleAccess;
+    renderChannelCheckboxes(container, getViewsForRole(roleId), `role-access-${roleId}`);
+    container.querySelectorAll("input").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        const selectedViews = Array.from(container.querySelectorAll("input:checked")).map((input) => input.value);
+        setViewsForRole(roleId, selectedViews);
+      });
+    });
+  });
+
+  adminRolesList.querySelectorAll("[data-role-color]").forEach((input) => {
+    input.addEventListener("input", () => {
+      const role = getRole(input.dataset.roleColor);
+      if (!role) {
+        return;
+      }
+      role.color = input.value;
+      saveRoles();
+      renderMembersSidebar();
+      if (authState.roleId === role.id) {
+        profileRole.style.color = role.color;
+        profileAvatar.style.background = role.color;
+      }
+      const card = input.closest(".role-editor-card");
+      const swatch = card?.querySelector(".role-swatch");
+      if (swatch) {
+        swatch.style.background = role.color;
+      }
+    });
+  });
 
   adminRolesList.querySelectorAll("[data-role-admin]").forEach((checkbox) => {
     checkbox.addEventListener("change", () => {
@@ -1073,6 +1173,7 @@ function renderAccessRoles() {
 
 function renderAdminPanel() {
   renderAdminUsers();
+  renderNewRoleAccess();
   renderAdminRoles();
   renderAdminViewSelect();
   renderAccessRoles();
@@ -1233,20 +1334,21 @@ if (createRoleButton) {
     roles.push({
       id: roleId,
       name: roleName,
+      color: newRoleColorInput?.value || "#f1a126",
       permissions: newRoleAdminInput.checked
         ? ["view_channels", "send_messages", "join_voice", "admin_access"]
         : ["view_channels", "send_messages", "join_voice"],
       system: false
     });
 
-    getChannelOptions().forEach((channel) => {
-      viewAccess[channel.id] ||= [];
-      viewAccess[channel.id].push(roleId);
-    });
+    const selectedViews = Array.from(newRoleAccess?.querySelectorAll("input:checked") || []).map((input) => input.value);
+    setViewsForRole(roleId, selectedViews);
 
     saveRoles();
-    saveAccess();
     newRoleNameInput.value = "";
+    if (newRoleColorInput) {
+      newRoleColorInput.value = "#f1a126";
+    }
     newRoleAdminInput.checked = false;
     renderAdminPanel();
   });

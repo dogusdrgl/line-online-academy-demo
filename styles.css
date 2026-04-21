@@ -1289,6 +1289,192 @@ button {
   margin: 8px 0;
 }
 
+.admin-backdrop:not(.hidden) {
+  display: grid;
+  place-items: center;
+}
+
+.admin-modal {
+  width: min(1040px, calc(100vw - 36px));
+  max-height: calc(100vh - 44px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 28px;
+  border-color: rgba(241, 161, 38, 0.16);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(241, 161, 38, 0.18), transparent 30%),
+    radial-gradient(circle at 90% 12%, rgba(201, 146, 93, 0.12), transparent 28%),
+    linear-gradient(180deg, #292b31 0%, #191a1f 100%);
+}
+
+.admin-lock,
+.admin-panel {
+  padding: 28px;
+}
+
+.admin-lock {
+  width: min(500px, 100%);
+  margin: 0 auto;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.admin-lock h3 {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: -0.05em;
+}
+
+.admin-panel {
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+}
+
+.admin-panel-head {
+  position: sticky;
+  top: -28px;
+  z-index: 2;
+  padding: 4px 0 18px;
+  background: linear-gradient(180deg, #292b31 0%, rgba(41, 43, 49, 0.92) 78%, transparent 100%);
+}
+
+.admin-panel-head h3 {
+  font-size: 1.7rem;
+  letter-spacing: -0.04em;
+}
+
+.admin-grid {
+  grid-template-columns: minmax(260px, 0.9fr) minmax(360px, 1.1fr);
+}
+
+.admin-card {
+  border-color: rgba(255, 255, 255, 0.075);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.028)),
+    rgba(20, 21, 25, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.role-builder-card {
+  border-color: rgba(241, 161, 38, 0.18);
+}
+
+.role-create {
+  grid-template-columns: minmax(0, 1fr) 46px auto;
+  align-items: stretch;
+}
+
+.role-create input[type="color"],
+.role-editor-tools input[type="color"] {
+  width: 46px;
+  min-height: 40px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: #111216;
+  cursor: pointer;
+}
+
+.access-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0;
+  max-height: 230px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.access-picker label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d9dde5;
+  font-size: 0.82rem;
+}
+
+.access-picker input {
+  accent-color: var(--accent);
+}
+
+.role-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.role-editor-card {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.role-editor-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.role-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.045);
+}
+
+.role-editor-head strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.role-editor-head small {
+  color: #aeb4bf;
+}
+
+.role-editor-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.role-editor-tools label:not(.mini-check) {
+  display: grid;
+  gap: 5px;
+  color: #aeb4bf;
+  font-size: 0.74rem;
+}
+
+.role-access-picker {
+  grid-template-columns: 1fr;
+  max-height: 175px;
+  margin-bottom: 0;
+}
+
+.admin-list.role-list {
+  margin-top: 16px;
+}
+
+@media (max-width: 900px) {
+  .admin-grid,
+  .role-list {
+    grid-template-columns: 1fr;
+  }
+
+  .access-picker {
+    grid-template-columns: 1fr;
+  }
+}
+
 .auth-modal {
   position: relative;
   width: min(100%, 480px);

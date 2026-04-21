@@ -1007,29 +1007,25 @@
               <div class="admin-list" id="admin-users-list"></div>
             </section>
 
-            <section class="admin-card">
-              <h4>Roller</h4>
-              <p class="admin-muted">Yeni rol ekle, admin yetkisi ver veya sil.</p>
+            <section class="admin-card role-builder-card">
+              <h4>Rol Olustur</h4>
+              <p class="admin-muted">Role isim, renk ve girebilecegi alanlari sec.</p>
               <div class="role-create">
                 <input type="text" id="new-role-name" placeholder="Orn: Ogretmen" maxlength="24" />
+                <input type="color" id="new-role-color" value="#f1a126" aria-label="Rol rengi" />
                 <label class="mini-check">
                   <input type="checkbox" id="new-role-admin" />
                   Admin
                 </label>
-                <button class="auth-primary compact" type="button" id="create-role-button">Ekle</button>
               </div>
-              <div class="admin-list" id="admin-roles-list"></div>
+              <div class="access-picker" id="new-role-access"></div>
+              <button class="auth-primary" type="button" id="create-role-button">Rolu Olustur</button>
             </section>
 
             <section class="admin-card wide">
-              <h4>Sayfa Erisimleri</h4>
-              <p class="admin-muted">Kanallar gorunur kalir; yetkisi olmayan kullanici iceri giremez.</p>
-              <label class="auth-field">
-                <span>Kanal / sayfa</span>
-                <select id="admin-view-select"></select>
-              </label>
-              <div class="role-access-grid" id="admin-access-roles"></div>
-              <button class="auth-primary" type="button" id="save-access-button">Erisimi Kaydet</button>
+              <h4>Roller</h4>
+              <p class="admin-muted">Mevcut rolleri, renklerini ve kanal erisimlerini buradan duzenle.</p>
+              <div class="admin-list role-list" id="admin-roles-list"></div>
             </section>
           </div>
         </div>
@@ -1037,7 +1033,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./supabase-config.js?v=20260421-7"></script>
-    <script src="./app.js?v=20260421-7"></script>
+    <script src="./supabase-config.js?v=20260421-8"></script>
+    <script src="./app.js?v=20260421-8"></script>
   </body>
 </html>
