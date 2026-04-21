@@ -44,6 +44,7 @@ const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
 const guestCardSignin = document.getElementById("guest-card-signin");
 const guestCardSignup = document.getElementById("guest-card-signup");
+const logoutButton = document.getElementById("logout-button");
 const membersGroups = document.getElementById("members-groups");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
@@ -52,6 +53,7 @@ const supabaseClient =
     : null;
 const SUPABASE_TIMEOUT_MS = 3500;
 const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
+const LOCAL_SESSION_KEY = "line-online-academy-session";
 
 let authState = {
   mode: "visitor",
@@ -214,6 +216,47 @@ function rememberMessage(panelId, message) {
   ]);
 }
 
+function readSavedSession() {
+  try {
+    const rawSession = window.localStorage.getItem(LOCAL_SESSION_KEY);
+    return rawSession ? JSON.parse(rawSession) : null;
+  } catch (error) {
+    console.warn("Kayitli oturum okunamadi:", error.message);
+    return null;
+  }
+}
+
+function saveSession(session) {
+  try {
+    window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+  } catch (error) {
+    console.warn("Oturum kaydedilemedi:", error.message);
+  }
+}
+
+function clearSavedSession() {
+  try {
+    window.localStorage.removeItem(LOCAL_SESSION_KEY);
+  } catch (error) {
+    console.warn("Oturum temizlenemedi:", error.message);
+  }
+}
+
+function ensureSidebarMember(user) {
+  if (!user?.id || getAllMembers().some((member) => member.id === user.id)) {
+    return;
+  }
+
+  ephemeralMembers.push({
+    id: user.id,
+    name: user.name,
+    roleId: user.roleId,
+    avatarClass: user.roleId === "guest" ? "amber" : "green",
+    group: "Cevrim Ici",
+    subtitle: user.roleId === "guest" ? "Misafir" : "Ogrenci"
+  });
+}
+
 function withTimeout(promise, label = "Supabase istegi") {
   return Promise.race([
     promise,
@@ -353,11 +396,11 @@ function loadLocalMessages() {
 
 async function upsertAppUser(user) {
   if (!supabaseClient || !user?.id) {
-    return;
+    return false;
   }
 
   try {
-    await withTimeout(
+    const { error } = await withTimeout(
       supabaseClient.from("app_users").upsert({
         id: user.id,
         display_name: user.displayName,
@@ -366,8 +409,15 @@ async function upsertAppUser(user) {
       }),
       "Kullanici kaydi"
     );
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
   } catch (error) {
     console.warn("Supabase kullanici kaydi atlandi:", error.message);
+    return false;
   }
 }
 
@@ -466,14 +516,26 @@ function closeAuthModal() {
 
 function updateIdentity(name, roleId, options = {}) {
   const role = getRole(roleId);
-
-  authState = {
+  const session = {
     mode: options.mode || (roleId === "guest" ? "guest" : "member"),
     name,
-    role: role ? role.name : "Uye",
     roleId,
     userId: options.userId || null
   };
+
+  authState = {
+    mode: session.mode,
+    name,
+    role: role ? role.name : "Uye",
+    roleId,
+    userId: session.userId
+  };
+
+  ensureSidebarMember({
+    id: authState.userId,
+    name: authState.name,
+    roleId: authState.roleId
+  });
 
   profileName.textContent = name;
   profileRole.textContent = role ? role.name : "Uye";
@@ -484,6 +546,10 @@ function updateIdentity(name, roleId, options = {}) {
 
   if (authOpenButton) {
     authOpenButton.textContent = roleId === "guest" ? "Misafir Aktif" : "Hesabim";
+  }
+
+  if (options.persist !== false) {
+    saveSession(session);
   }
 
   renderMembersSidebar();
@@ -500,6 +566,44 @@ function finishAuth(name, roleId, options = {}) {
     pendingView = null;
     setActiveView(targetView, nextLabel);
   }
+}
+
+function resetIdentity() {
+  authState = {
+    mode: "visitor",
+    name: "Ziyaretci",
+    role: "Ziyaretci",
+    roleId: null,
+    userId: null
+  };
+
+  clearSavedSession();
+  identityCard.classList.add("hidden");
+  guestCard.classList.remove("hidden");
+
+  if (authOpenButton) {
+    authOpenButton.textContent = "Giris Yap";
+  }
+
+  const activePanel = document.querySelector(".view-panel.active");
+  if (activePanel && !PUBLIC_VIEWS.has(activePanel.id)) {
+    setActiveView("dashboard", "Anasayfa");
+  }
+
+  renderMembersSidebar();
+}
+
+function restoreSavedSession() {
+  const savedSession = readSavedSession();
+  if (!savedSession?.name || !savedSession.roleId || !savedSession.userId) {
+    return;
+  }
+
+  updateIdentity(savedSession.name, savedSession.roleId, {
+    mode: savedSession.mode,
+    userId: savedSession.userId,
+    persist: false
+  });
 }
 
 function openGuestInline() {
@@ -556,12 +660,17 @@ function initializeTextChannelComposers() {
 
       if (supabaseClient) {
         try {
+          const userSaved = await upsertAppUser({
+            id: authState.userId,
+            displayName: authState.name,
+            roleId: authState.roleId
+          });
           const { data, error } = await withTimeout(
             supabaseClient
               .from("messages")
               .insert({
                 channel_id: panelId,
-                author_id: authState.userId,
+                author_id: userSaved ? authState.userId : null,
                 author_name: authState.name,
                 author_role: roleLabel,
                 content: text
@@ -833,6 +942,20 @@ if (guestCardSignup) {
   });
 }
 
+if (logoutButton) {
+  logoutButton.addEventListener("click", async () => {
+    if (supabaseClient) {
+      try {
+        await withTimeout(supabaseClient.auth.signOut(), "Cikis");
+      } catch (error) {
+        console.warn("Supabase cikisi atlandi:", error.message);
+      }
+    }
+
+    resetIdentity();
+  });
+}
+
 if (authBackdrop) {
   authBackdrop.addEventListener("click", (event) => {
     if (event.target === authBackdrop) {
@@ -880,6 +1003,7 @@ if (cameraButton && cameraPreview) {
 
 renderMembersSidebar();
 initializeTextChannelComposers();
+restoreSavedSession();
 loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();

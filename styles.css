@@ -1023,14 +1023,12 @@ button {
   background: rgba(35, 36, 42, 0.98);
   color: var(--text);
   text-align: left;
-  cursor: pointer;
   transition: 180ms ease;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .profile-card:hover {
   background: rgba(43, 44, 50, 0.98);
-  transform: translateY(-1px);
 }
 
 .profile-card-main {
@@ -1073,6 +1071,22 @@ button {
   background: rgba(255, 255, 255, 0.08);
   color: #d8dde7;
   font-size: 0.78rem;
+}
+
+.logout-button {
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0c18a;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.logout-button:hover {
+  background: rgba(241, 161, 38, 0.14);
 }
 
 .guest-card-copy strong {
