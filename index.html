@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260422-7" />
   </head>
   <body>
     <div class="app-shell">
@@ -902,6 +902,10 @@
                 <button class="quick-control" type="button" id="quick-camera" aria-label="Kamerayi ac/kapat">📷</button>
               </div>
             </div>
+            <button class="messages-button" type="button" id="dm-inbox-button">
+              <span>Mesajlar</span>
+              <strong class="dm-unread-badge hidden" id="dm-unread-badge">0</strong>
+            </button>
             <button class="logout-button" type="button" id="logout-button">Cikis Yap</button>
           </div>
         </div>
@@ -938,6 +942,7 @@
     <div class="member-card-backdrop hidden" id="member-card-backdrop">
       <div class="member-card-modal" role="dialog" aria-modal="true" aria-labelledby="member-card-name">
         <button class="auth-close" id="member-card-close" type="button" aria-label="Uye kartini kapat">x</button>
+        <div class="member-card-banner"></div>
         <div class="member-card-hero">
           <div class="member-card-avatar" id="member-card-avatar">U</div>
           <div>
@@ -950,6 +955,17 @@
           <button class="auth-secondary hidden" type="button" id="member-mute-button">Sustur</button>
           <button class="auth-secondary danger hidden" type="button" id="member-ban-button">Sunucudan At</button>
         </div>
+      </div>
+    </div>
+
+    <div class="dm-inbox-backdrop hidden" id="dm-inbox-backdrop">
+      <div class="dm-inbox-modal" role="dialog" aria-modal="true" aria-labelledby="dm-inbox-title">
+        <button class="auth-close" id="dm-inbox-close" type="button" aria-label="Mesaj arsivini kapat">x</button>
+        <div class="dm-head">
+          <p class="eyebrow">Ozel Mesajlar</p>
+          <h3 id="dm-inbox-title">Mesaj kutusu</h3>
+        </div>
+        <div class="dm-inbox-list" id="dm-inbox-list"></div>
       </div>
     </div>
 
@@ -1105,6 +1121,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260422-5"></script>
-    <script src="./app.js?v=20260422-6"></script>
+    <script src="./app.js?v=20260422-7"></script>
   </body>
 </html>

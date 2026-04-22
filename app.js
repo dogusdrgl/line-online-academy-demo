@@ -58,6 +58,11 @@ const memberCardRole = document.getElementById("member-card-role");
 const memberMessageButton = document.getElementById("member-message-button");
 const memberMuteButton = document.getElementById("member-mute-button");
 const memberBanButton = document.getElementById("member-ban-button");
+const dmInboxButton = document.getElementById("dm-inbox-button");
+const dmUnreadBadge = document.getElementById("dm-unread-badge");
+const dmInboxBackdrop = document.getElementById("dm-inbox-backdrop");
+const dmInboxCloseButton = document.getElementById("dm-inbox-close");
+const dmInboxList = document.getElementById("dm-inbox-list");
 const dmBackdrop = document.getElementById("dm-backdrop");
 const dmCloseButton = document.getElementById("dm-close");
 const dmTitle = document.getElementById("dm-title");
@@ -110,6 +115,8 @@ const LOCAL_PROFILE_KEY = "line-online-academy-profile";
 const LOCAL_CONTROLS_KEY = "line-online-academy-controls";
 const LOCAL_NOTIFICATIONS_KEY = "line-online-academy-notifications";
 const LOCAL_DM_KEY = "line-online-academy-direct-messages";
+const LOCAL_DM_UNREAD_KEY = "line-online-academy-dm-unread";
+const LOCAL_DM_READ_KEY = "line-online-academy-dm-read";
 
 let authState = {
   mode: "visitor",
@@ -131,6 +138,10 @@ let controlState = {
 let pendingView = null;
 const renderedMessageIds = new Set();
 let notificationState = {};
+let dmUnreadState = {};
+let dmReadState = {};
+let dmInboxMessages = [];
+let dmInboxLoadedOnce = false;
 
 const defaultRoles = [
   {
@@ -417,7 +428,7 @@ function readLocalMessages() {
 
 function writeLocalMessages(messages) {
   try {
-    window.localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(messages.slice(-300)));
+    window.localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(messages.slice(-1000)));
   } catch (error) {
     console.warn("Yerel mesaj arsivi yazilamadi:", error.message);
   }
@@ -507,6 +518,76 @@ function loadNotificationState() {
 
 function saveNotificationState() {
   writeJson(LOCAL_NOTIFICATIONS_KEY, notificationState);
+}
+
+function loadDmUnreadState() {
+  dmUnreadState = readJson(LOCAL_DM_UNREAD_KEY, {});
+  dmReadState = readJson(LOCAL_DM_READ_KEY, {});
+}
+
+function saveDmUnreadState() {
+  writeJson(LOCAL_DM_UNREAD_KEY, dmUnreadState);
+}
+
+function saveDmReadState() {
+  writeJson(LOCAL_DM_READ_KEY, dmReadState);
+}
+
+function refreshDmUnreadFromMessages() {
+  if (!authState.userId) {
+    dmUnreadState = {};
+    saveDmUnreadState();
+    renderDmBadge();
+    return;
+  }
+
+  const nextUnread = {};
+  dmInboxMessages.forEach((message) => {
+    if (message.receiver_id !== authState.userId || message.sender_id === authState.userId) {
+      return;
+    }
+
+    const conversationId = message.conversation_id || getConversationId(message.sender_id, message.receiver_id);
+    const lastReadAt = dmReadState[conversationId] ? new Date(dmReadState[conversationId]).getTime() : 0;
+    const messageTime = message.created_at ? new Date(message.created_at).getTime() : Date.now();
+
+    if (messageTime > lastReadAt) {
+      nextUnread[conversationId] = (nextUnread[conversationId] || 0) + 1;
+    }
+  });
+
+  dmUnreadState = nextUnread;
+  saveDmUnreadState();
+  renderDmBadge();
+}
+
+function getTotalDmUnread() {
+  return Object.values(dmUnreadState).reduce((total, value) => total + Number(value || 0), 0);
+}
+
+function renderDmBadge() {
+  if (!dmUnreadBadge) {
+    return;
+  }
+
+  const totalUnread = getTotalDmUnread();
+  dmUnreadBadge.textContent = String(Math.min(totalUnread, 99));
+  dmUnreadBadge.classList.toggle("hidden", totalUnread === 0);
+  dmInboxButton?.classList.toggle("has-unread", totalUnread > 0);
+}
+
+function markDmRead(conversationId) {
+  if (!conversationId) {
+    return;
+  }
+
+  dmReadState[conversationId] = new Date().toISOString();
+  saveDmReadState();
+  delete dmUnreadState[conversationId];
+  saveDmUnreadState();
+  refreshDmUnreadFromMessages();
+  renderDmBadge();
+  renderDmInbox();
 }
 
 function getActiveViewId() {
@@ -774,6 +855,169 @@ function readLocalDirectMessages() {
 
 function writeLocalDirectMessages(messages) {
   writeJson(LOCAL_DM_KEY, messages.slice(-500));
+}
+
+function rememberLocalDirectMessage(message) {
+  if (!message?.id) {
+    return;
+  }
+
+  const messages = readLocalDirectMessages();
+  if (messages.some((item) => item.id === message.id)) {
+    return;
+  }
+
+  writeLocalDirectMessages([...messages, message]);
+}
+
+function getDmPeerId(message) {
+  return message.sender_id === authState.userId ? message.receiver_id : message.sender_id;
+}
+
+function getDmPeerName(message) {
+  return message.sender_id === authState.userId ? message.receiver_name : message.sender_name;
+}
+
+function buildDmConversations(messages) {
+  const conversations = new Map();
+
+  messages
+    .filter((message) => message.sender_id === authState.userId || message.receiver_id === authState.userId)
+    .forEach((message) => {
+      const conversationId = message.conversation_id || getConversationId(message.sender_id, message.receiver_id);
+      const existing = conversations.get(conversationId);
+      if (!existing || new Date(message.created_at) > new Date(existing.latest.created_at)) {
+        conversations.set(conversationId, {
+          conversationId,
+          peerId: getDmPeerId(message),
+          peerName: getDmPeerName(message) || "Uye",
+          latest: message
+        });
+      }
+    });
+
+  return Array.from(conversations.values()).sort(
+    (first, second) => new Date(second.latest.created_at) - new Date(first.latest.created_at)
+  );
+}
+
+function renderDmInbox() {
+  renderDmBadge();
+
+  if (!dmInboxList) {
+    return;
+  }
+
+  if (authState.mode === "visitor") {
+    dmInboxList.innerHTML = '<p class="admin-muted">Mesajlarini gormek icin giris yapmalisin.</p>';
+    return;
+  }
+
+  const conversations = buildDmConversations(dmInboxMessages);
+  dmInboxList.innerHTML = conversations.length
+    ? conversations.map((conversation) => {
+        const peer = findMemberById(conversation.peerId);
+        const name = peer?.name || conversation.peerName;
+        const role = getRole(peer?.roleId);
+        const unread = dmUnreadState[conversation.conversationId] || 0;
+        const latestText = conversation.latest.content || "";
+        const time = conversation.latest.created_at ? formatMessageTime(conversation.latest.created_at) : "";
+        const avatarStyle = peer?.avatarImage
+          ? `background: center / cover no-repeat url("${peer.avatarImage}")`
+          : `background: ${escapeHtml(role?.color || "#f1a126")}`;
+
+        return `
+          <button class="dm-inbox-item" type="button" data-dm-peer-id="${escapeHtml(conversation.peerId)}" data-dm-conversation-id="${escapeHtml(conversation.conversationId)}">
+            <div class="avatar ${escapeHtml(peer?.avatarClass || "")}" style='${avatarStyle}'>${peer?.avatarImage ? "" : escapeHtml(name.slice(0, 1).toUpperCase())}</div>
+            <div>
+              <strong>${escapeHtml(name)}</strong>
+              <p>${escapeHtml(latestText)}</p>
+            </div>
+            <span>${time}</span>
+            ${unread ? `<em>${Math.min(unread, 99)}</em>` : ""}
+          </button>
+        `;
+      }).join("")
+    : '<p class="admin-muted">Henuz ozel mesaj yok.</p>';
+
+  dmInboxList.querySelectorAll("[data-dm-peer-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const member =
+        findMemberById(button.dataset.dmPeerId) ||
+        {
+          id: button.dataset.dmPeerId,
+          name: button.querySelector("strong")?.textContent || "Uye",
+          roleId: "student"
+        };
+      markDmRead(button.dataset.dmConversationId);
+      closeDmInbox();
+      openDirectMessage(member);
+    });
+  });
+}
+
+async function loadDmInbox() {
+  if (!authState.userId) {
+    dmInboxMessages = [];
+    renderDmInbox();
+    return [];
+  }
+
+  if (supabaseClient) {
+    try {
+      const pageSize = 500;
+      const allMessages = [];
+      let from = 0;
+
+      while (true) {
+        const { data, error } = await withTimeout(
+          supabaseClient
+            .from("direct_messages")
+            .select("*")
+            .or(`sender_id.eq.${authState.userId},receiver_id.eq.${authState.userId}`)
+            .order("created_at", { ascending: true })
+            .range(from, from + pageSize - 1),
+          "Ozel mesaj arsivini yukleme"
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        allMessages.push(...(data || []));
+
+        if (!data || data.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+      }
+
+      const nextMessages = allMessages;
+      if (dmInboxLoadedOnce) {
+        const knownIds = new Set(dmInboxMessages.map((message) => message.id));
+        nextMessages
+          .filter((message) => message.id && !knownIds.has(message.id))
+          .forEach(registerDmNotification);
+      }
+
+      dmInboxMessages = nextMessages;
+      dmInboxLoadedOnce = true;
+      refreshDmUnreadFromMessages();
+      renderDmInbox();
+      return dmInboxMessages;
+    } catch (error) {
+      console.warn("Ozel mesaj arsivi Supabase'den yuklenemedi:", error.message);
+    }
+  }
+
+  dmInboxMessages = readLocalDirectMessages().filter(
+    (message) => message.sender_id === authState.userId || message.receiver_id === authState.userId
+  );
+  dmInboxLoadedOnce = true;
+  refreshDmUnreadFromMessages();
+  renderDmInbox();
+  return dmInboxMessages;
 }
 
 function renderMembersSidebar() {
@@ -1316,31 +1560,42 @@ async function loadPersistedMessages() {
     return;
   }
 
-  let response;
+  const pageSize = 1000;
+  let from = 0;
 
-  try {
-    response = await withTimeout(
-      supabaseClient
-        .from("messages")
-        .select("*")
-        .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
-        .order("created_at", { ascending: true })
-        .limit(200),
-      "Mesajlari yukleme"
-    );
-  } catch (error) {
-    console.warn("Supabase mesajlari yuklenemedi:", error.message);
-    return;
+  while (true) {
+    let response;
+
+    try {
+      response = await withTimeout(
+        supabaseClient
+          .from("messages")
+          .select("*")
+          .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
+          .order("created_at", { ascending: true })
+          .range(from, from + pageSize - 1),
+        "Mesajlari yukleme"
+      );
+    } catch (error) {
+      console.warn("Supabase mesajlari yuklenemedi:", error.message);
+      return;
+    }
+
+    const { data, error } = response;
+
+    if (error) {
+      console.warn("Supabase mesajlari yuklenemedi:", error.message);
+      return;
+    }
+
+    (data || []).forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
+
+    if (!data || data.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
   }
-
-  const { data, error } = response;
-
-  if (error) {
-    console.warn("Supabase mesajlari yuklenemedi:", error.message);
-    return;
-  }
-
-  data.forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
 function subscribeToMessages() {
@@ -1364,6 +1619,57 @@ function subscribeToMessages() {
 
         if (payload.eventType === "DELETE") {
           removeChatMessage(payload.old.id);
+        }
+      }
+    )
+    .subscribe();
+}
+
+function registerDmNotification(message) {
+  if (!message || !authState.userId || message.receiver_id !== authState.userId || message.sender_id === authState.userId) {
+    return;
+  }
+
+  const conversationId = message.conversation_id || getConversationId(message.sender_id, message.receiver_id);
+  const activeConversationId = activeDmMember ? getConversationId(authState.userId, activeDmMember.id) : null;
+
+  if (activeConversationId === conversationId && dmBackdrop && !dmBackdrop.classList.contains("hidden")) {
+    markDmRead(conversationId);
+    return;
+  }
+
+  refreshDmUnreadFromMessages();
+  renderDmInbox();
+}
+
+function subscribeToDirectMessages() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  supabaseClient
+    .channel("line-online-academy-direct-messages")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "direct_messages"
+      },
+      async (payload) => {
+        const message = payload.new;
+        if (!authState.userId || (message.sender_id !== authState.userId && message.receiver_id !== authState.userId)) {
+          return;
+        }
+
+        dmInboxMessages = [...dmInboxMessages.filter((item) => item.id !== message.id), message];
+        rememberLocalDirectMessage(message);
+        registerDmNotification(message);
+
+        if (activeDmMember && getConversationId(authState.userId, activeDmMember.id) === message.conversation_id) {
+          renderDirectMessages(await loadDirectMessages(activeDmMember));
+        } else {
+          renderDmInbox();
         }
       }
     )
@@ -1553,6 +1859,7 @@ function updateIdentity(name, roleId, options = {}) {
   trackRealtimePresence();
   updatePresence(true);
   loadDirectoryUsers();
+  loadDmInbox();
 }
 
 function finishAuth(name, roleId, options = {}) {
@@ -1600,6 +1907,9 @@ function resetIdentity() {
   clearSavedSession();
   identityCard.classList.add("hidden");
   guestCard.classList.remove("hidden");
+  dmInboxMessages = [];
+  dmInboxLoadedOnce = false;
+  renderDmInbox();
 
   if (authOpenButton) {
     authOpenButton.textContent = "Giris Yap";
@@ -2258,21 +2568,35 @@ async function loadDirectMessages(member) {
 
   if (supabaseClient) {
     try {
-      const { data, error } = await withTimeout(
-        supabaseClient
-          .from("direct_messages")
-          .select("*")
-          .eq("conversation_id", conversationId)
-          .order("created_at", { ascending: true })
-          .limit(100),
-        "Ozel mesajlari yukleme"
-      );
+      const pageSize = 500;
+      const allMessages = [];
+      let from = 0;
 
-      if (error) {
-        throw error;
+      while (true) {
+        const { data, error } = await withTimeout(
+          supabaseClient
+            .from("direct_messages")
+            .select("*")
+            .eq("conversation_id", conversationId)
+            .order("created_at", { ascending: true })
+            .range(from, from + pageSize - 1),
+          "Ozel mesajlari yukleme"
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        allMessages.push(...(data || []));
+
+        if (!data || data.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
       }
 
-      return data || [];
+      return allMessages;
     } catch (error) {
       console.warn("Ozel mesajlar Supabase'den yuklenemedi:", error.message);
     }
@@ -2304,6 +2628,7 @@ async function openDirectMessage(member) {
   }
 
   activeDmMember = member;
+  markDmRead(getConversationId(authState.userId, member.id));
   dmTitle.textContent = member.name;
   dmBackdrop.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -2315,6 +2640,22 @@ function closeDirectMessage() {
   dmBackdrop?.classList.add("hidden");
   document.body.classList.remove("modal-open");
   activeDmMember = null;
+}
+
+function openDmInbox() {
+  if (!dmInboxBackdrop || authState.mode === "visitor") {
+    openAuthModal("signin");
+    return;
+  }
+
+  loadDmInbox();
+  dmInboxBackdrop.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeDmInbox() {
+  dmInboxBackdrop?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
 }
 
 async function sendDirectMessage(content) {
@@ -2356,6 +2697,8 @@ async function sendDirectMessage(content) {
         throw error;
       }
 
+      dmInboxMessages = [...dmInboxMessages.filter((item) => item.id !== data.id), data];
+      renderDmInbox();
       renderDirectMessages(await loadDirectMessages(activeDmMember));
       return;
     } catch (error) {
@@ -2365,6 +2708,8 @@ async function sendDirectMessage(content) {
 
   const messages = readLocalDirectMessages();
   writeLocalDirectMessages([...messages, message]);
+  dmInboxMessages = [...dmInboxMessages.filter((item) => item.id !== message.id), message];
+  renderDmInbox();
   renderDirectMessages(await loadDirectMessages(activeDmMember));
 }
 
@@ -2887,6 +3232,25 @@ if (dmCloseButton) {
   dmCloseButton.addEventListener("click", closeDirectMessage);
 }
 
+if (dmInboxButton) {
+  dmInboxButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openDmInbox();
+  });
+}
+
+if (dmInboxCloseButton) {
+  dmInboxCloseButton.addEventListener("click", closeDmInbox);
+}
+
+if (dmInboxBackdrop) {
+  dmInboxBackdrop.addEventListener("click", (event) => {
+    if (event.target === dmInboxBackdrop) {
+      closeDmInbox();
+    }
+  });
+}
+
 if (dmBackdrop) {
   dmBackdrop.addEventListener("click", (event) => {
     if (event.target === dmBackdrop) {
@@ -2971,7 +3335,9 @@ controlState = readControlState();
 renderQuickControls();
 updateSearchVisibility("dashboard");
 loadNotificationState();
+loadDmUnreadState();
 renderNotifications();
+renderDmBadge();
 renderMembersSidebar();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
@@ -2980,7 +3346,14 @@ loadDirectoryUsers();
 loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();
+subscribeToDirectMessages();
 subscribeToPresence();
+
+window.setInterval(() => {
+  if (authState.userId) {
+    loadDmInbox();
+  }
+}, 15000);
 
 window.addEventListener("beforeunload", () => {
   untrackRealtimePresence();

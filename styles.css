@@ -1280,6 +1280,7 @@ button {
   color: #ffb0a8;
 }
 
+.messages-button,
 .logout-button {
   width: 100%;
   margin-top: 10px;
@@ -1290,6 +1291,36 @@ button {
   color: #f0c18a;
   cursor: pointer;
   font-weight: 700;
+}
+
+.messages-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4ede3;
+  padding: 0 12px;
+}
+
+.messages-button.has-unread {
+  background: rgba(241, 161, 38, 0.18);
+  color: #ffd59a;
+}
+
+.dm-unread-badge {
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ef5555;
+  color: white;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.dm-unread-badge.hidden {
+  display: none;
 }
 
 .logout-button:hover {
@@ -1366,6 +1397,7 @@ button {
 }
 
 .member-card-backdrop,
+.dm-inbox-backdrop,
 .dm-backdrop {
   position: fixed;
   inset: 0;
@@ -1378,6 +1410,7 @@ button {
 }
 
 .member-card-modal,
+.dm-inbox-modal,
 .dm-modal {
   position: relative;
   width: min(100%, 420px);
@@ -1390,20 +1423,34 @@ button {
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
 }
 
+.member-card-modal {
+  width: min(100%, 376px);
+  padding: 0 0 18px;
+  overflow: hidden;
+}
+
+.member-card-banner {
+  height: 126px;
+  background:
+    radial-gradient(circle at 82% 24%, rgba(241, 161, 38, 0.22), transparent 28%),
+    linear-gradient(135deg, #090a0d, #181a20 52%, #252831);
+}
+
 .member-card-hero {
   display: grid;
-  grid-template-columns: 62px 1fr;
-  gap: 14px;
-  align-items: center;
-  margin-bottom: 18px;
+  grid-template-columns: 74px 1fr;
+  gap: 16px;
+  align-items: end;
+  margin: -36px 18px 18px;
 }
 
 .member-card-avatar {
-  width: 62px;
-  height: 62px;
+  width: 74px;
+  height: 74px;
   display: grid;
   place-items: center;
-  border-radius: 20px;
+  border: 6px solid #202227;
+  border-radius: 50%;
   color: white;
   font-weight: 800;
 }
@@ -1415,7 +1462,7 @@ button {
 }
 
 .member-card-hero h3 {
-  font-size: 1.45rem;
+  font-size: 1.35rem;
 }
 
 .member-card-hero p {
@@ -1426,6 +1473,7 @@ button {
 .member-card-actions {
   display: grid;
   gap: 10px;
+  padding: 0 18px;
 }
 
 .auth-secondary.danger {
@@ -1435,6 +1483,73 @@ button {
 
 .dm-modal {
   width: min(100%, 520px);
+}
+
+.dm-inbox-modal {
+  width: min(100%, 440px);
+}
+
+.dm-inbox-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  margin-top: 16px;
+}
+
+.dm-inbox-item {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 38px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.055);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dm-inbox-item:hover {
+  background: rgba(255, 255, 255, 0.085);
+}
+
+.dm-inbox-item strong,
+.dm-inbox-item p {
+  display: block;
+  margin: 0;
+}
+
+.dm-inbox-item p {
+  max-width: 230px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #b8bec8;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dm-inbox-item span {
+  color: #8f96a3;
+  font-size: 0.72rem;
+}
+
+.dm-inbox-item em {
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ef5555;
+  color: white;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
 }
 
 .dm-messages {
