@@ -94,6 +94,7 @@ const LOCAL_MODERATION_KEY = "line-online-academy-moderation";
 const HIDDEN_STATIC_MESSAGES_KEY = "line-online-academy-hidden-static-messages";
 const LOCAL_PROFILE_KEY = "line-online-academy-profile";
 const LOCAL_CONTROLS_KEY = "line-online-academy-controls";
+const LOCAL_NOTIFICATIONS_KEY = "line-online-academy-notifications";
 
 let authState = {
   mode: "visitor",
@@ -114,6 +115,7 @@ let controlState = {
 
 let pendingView = null;
 const renderedMessageIds = new Set();
+let notificationState = {};
 
 const defaultRoles = [
   {
@@ -360,6 +362,22 @@ function escapeHtml(text) {
   });
 }
 
+function normalizeMention(text) {
+  return (text || "")
+    .toLowerCase()
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+function renderMessageContent(text) {
+  return escapeHtml(text).replace(/(^|\s)@([\p{L}\p{N}_-]+)/gu, '$1<span class="mention-token">@$2</span>');
+}
+
 function formatMessageTime(value) {
   return new Date(value).toLocaleTimeString("tr-TR", {
     hour: "2-digit",
@@ -461,6 +479,83 @@ function readControlState() {
 
 function saveControlState() {
   writeJson(LOCAL_CONTROLS_KEY, controlState);
+}
+
+function loadNotificationState() {
+  notificationState = readJson(LOCAL_NOTIFICATIONS_KEY, {});
+}
+
+function saveNotificationState() {
+  writeJson(LOCAL_NOTIFICATIONS_KEY, notificationState);
+}
+
+function getActiveViewId() {
+  return document.querySelector(".view-panel.active")?.id || "dashboard";
+}
+
+function messageMentionsCurrentUser(message) {
+  if (!authState.name || authState.mode === "visitor") {
+    return false;
+  }
+
+  const content = message.content || "";
+  const currentName = normalizeMention(authState.name);
+  const firstName = normalizeMention(authState.name.split(" ")[0]);
+  const mentionTokens = Array.from(content.matchAll(/@([\p{L}\p{N}_-]+)/gu)).map((match) => normalizeMention(match[1]));
+  return mentionTokens.some((token) => token && (token === currentName || token === firstName));
+}
+
+function ensureChannelBadge(button) {
+  let badge = button.querySelector(".channel-badge");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "channel-badge";
+    button.appendChild(badge);
+  }
+  return badge;
+}
+
+function renderNotifications() {
+  channelButtons.forEach((button) => {
+    const viewId = button.dataset.view;
+    const state = notificationState[viewId] || { count: 0, mentions: 0 };
+    const badge = ensureChannelBadge(button);
+    const hasNotification = state.count > 0 || state.mentions > 0;
+
+    button.classList.toggle("has-unread", hasNotification);
+    button.classList.toggle("has-mention", state.mentions > 0);
+    badge.textContent = state.mentions > 0 ? `@${state.mentions}` : state.count > 0 ? String(Math.min(state.count, 99)) : "";
+  });
+}
+
+function markChannelRead(viewId) {
+  if (!TEXT_CHANNEL_VIEWS.has(viewId)) {
+    return;
+  }
+
+  notificationState[viewId] = { count: 0, mentions: 0 };
+  saveNotificationState();
+  renderNotifications();
+}
+
+function registerChannelNotification(panelId, message, options = {}) {
+  if (!TEXT_CHANNEL_VIEWS.has(panelId) || options.notify === false) {
+    return;
+  }
+
+  const isOwnMessage = message.author_id && authState.userId && message.author_id === authState.userId;
+  if (isOwnMessage || getActiveViewId() === panelId) {
+    markChannelRead(panelId);
+    return;
+  }
+
+  const currentState = notificationState[panelId] || { count: 0, mentions: 0 };
+  notificationState[panelId] = {
+    count: currentState.count + 1,
+    mentions: currentState.mentions + (messageMentionsCurrentUser(message) ? 1 : 0)
+  };
+  saveNotificationState();
+  renderNotifications();
 }
 
 function paintAvatar(element, name, image, fallbackColor = "#f1a126") {
@@ -802,15 +897,16 @@ function createMessageLine(message) {
   const line = document.createElement("div");
   line.className = "message-line";
   line.dataset.messageId = message.id || "";
+  line.classList.toggle("mentioned-me", messageMentionsCurrentUser(message));
   line.innerHTML = `
-    <p>${escapeHtml(message.content)}</p>
+    <p>${renderMessageContent(message.content)}</p>
     ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">🗑</button>` : ""}
   `;
   attachDeleteHandlers(line);
   return line;
 }
 
-function addChatMessage(panelId, message) {
+function addChatMessage(panelId, message, options = {}) {
   if (message.id && renderedMessageIds.has(message.id)) {
     return;
   }
@@ -856,13 +952,14 @@ function addChatMessage(panelId, message) {
   }
 
   rememberMessage(panelId, message);
+  registerChannelNotification(panelId, message, options);
   scrollChatToBottom(chat);
 }
 
 function loadLocalMessages() {
   readLocalMessages()
     .filter((message) => TEXT_CHANNEL_VIEWS.has(message.channel_id))
-    .forEach((message) => addChatMessage(message.channel_id, message));
+    .forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
 async function upsertAppUser(user) {
@@ -1085,7 +1182,7 @@ async function loadPersistedMessages() {
     return;
   }
 
-  data.forEach((message) => addChatMessage(message.channel_id, message));
+  data.forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
 function subscribeToMessages() {
@@ -1104,7 +1201,7 @@ function subscribeToMessages() {
       },
       (payload) => {
         if (payload.eventType === "INSERT") {
-          addChatMessage(payload.new.channel_id, payload.new);
+          addChatMessage(payload.new.channel_id, payload.new, { notify: true });
         }
 
         if (payload.eventType === "DELETE") {
@@ -1164,6 +1261,7 @@ function setActiveView(nextView, label) {
   }
 
   updateSearchVisibility(nextView);
+  markChannelRead(nextView);
 }
 
 function updateSearchVisibility(viewId) {
@@ -1517,7 +1615,7 @@ function initializeTextChannelComposers() {
             throw error;
           }
 
-          addChatMessage(panelId, data);
+          addChatMessage(panelId, data, { notify: false });
         } catch (error) {
           console.warn("Supabase mesaj kaydi basarisiz, yerel mesaj eklendi:", error.message);
           addChatMessage(panelId, {
@@ -1527,7 +1625,7 @@ function initializeTextChannelComposers() {
             author_role: roleLabel,
             content: text,
             created_at: new Date().toISOString()
-          });
+          }, { notify: false });
         }
       } else {
         addChatMessage(panelId, {
@@ -1537,7 +1635,7 @@ function initializeTextChannelComposers() {
           author_role: roleLabel,
           content: text,
           created_at: new Date().toISOString()
-        });
+        }, { notify: false });
       }
 
       input.value = "";
@@ -2483,6 +2581,8 @@ initializeAdminState();
 controlState = readControlState();
 renderQuickControls();
 updateSearchVisibility("dashboard");
+loadNotificationState();
+renderNotifications();
 renderMembersSidebar();
 initializeTextChannelComposers();
 initializeStaticMessageControls();

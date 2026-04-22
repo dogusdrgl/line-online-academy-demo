@@ -150,6 +150,7 @@ button {
 }
 
 .channel-item {
+  position: relative;
   width: 100%;
   margin-top: 4px;
   padding: 8px 10px;
@@ -161,6 +162,50 @@ button {
   cursor: pointer;
   transition: 180ms ease;
   font-size: 0.9rem;
+}
+
+.channel-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  min-width: 18px;
+  height: 18px;
+  display: none;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #f4ede3;
+  font-size: 0.68rem;
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+
+.channel-item.has-unread {
+  color: #f4ede3;
+  font-weight: 700;
+}
+
+.channel-item.has-unread::after {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  width: 4px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(244, 237, 227, 0.84);
+  transform: translateY(-50%);
+}
+
+.channel-item.has-unread .channel-badge,
+.channel-item.has-mention .channel-badge {
+  display: grid;
+}
+
+.channel-item.has-mention .channel-badge {
+  background: linear-gradient(135deg, var(--accent), #ffbb58);
+  color: #241305;
 }
 
 .channel-item.page-link {
@@ -752,6 +797,19 @@ button {
 .chat-message.search-hit {
   background: rgba(241, 161, 38, 0.12);
   box-shadow: inset 3px 0 0 rgba(241, 161, 38, 0.82);
+}
+
+.message-line.mentioned-me {
+  background: rgba(241, 161, 38, 0.11);
+  box-shadow: inset 3px 0 0 rgba(241, 161, 38, 0.88);
+}
+
+.mention-token {
+  color: #ffd28a;
+  font-weight: 800;
+  background: rgba(241, 161, 38, 0.14);
+  border-radius: 6px;
+  padding: 0 4px;
 }
 
 .chat-body p,
