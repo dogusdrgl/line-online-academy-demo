@@ -164,6 +164,8 @@ let roles = [];
 let viewAccess = {};
 let adminKnownUsers = [];
 let directoryUsers = [];
+let livePresenceMembers = [];
+let presenceChannel = null;
 
 const members = [
   {
@@ -677,8 +679,15 @@ function canAccessView(viewId) {
 function getAllMembers() {
   const merged = new Map();
 
-  [...members, ...directoryUsers].forEach((member) => {
+  [...members, ...directoryUsers, ...livePresenceMembers].forEach((member) => {
     if (!member.id || member.roleId === "guest") {
+      return;
+    }
+    merged.set(member.id, member);
+  });
+
+  livePresenceMembers.forEach((member) => {
+    if (!member.id || member.roleId !== "guest") {
       return;
     }
     merged.set(member.id, member);
@@ -1153,6 +1162,88 @@ async function updatePresence(isOnline) {
   }
 }
 
+function getRealtimePresencePayload() {
+  return {
+    id: authState.userId,
+    name: authState.name,
+    roleId: authState.roleId,
+    avatarImage: authState.avatarImage,
+    isGuest: authState.roleId === "guest",
+    onlineAt: new Date().toISOString()
+  };
+}
+
+function syncRealtimePresenceMembers() {
+  if (!presenceChannel) {
+    return;
+  }
+
+  const presenceState = presenceChannel.presenceState();
+  livePresenceMembers = Object.values(presenceState)
+    .flat()
+    .filter((presence) => presence?.id)
+    .map((presence) => ({
+      id: presence.id,
+      name: presence.name || "Isimsiz Uye",
+      roleId: presence.roleId || "guest",
+      avatarImage: presence.avatarImage || null,
+      avatarClass: presence.roleId === "guest" ? "amber" : "green",
+      subtitle: getRole(presence.roleId)?.name || (presence.roleId === "guest" ? "Misafir" : "Uye"),
+      isOnline: true,
+      isGuest: Boolean(presence.isGuest)
+    }));
+
+  renderMembersSidebar();
+}
+
+async function trackRealtimePresence() {
+  if (!presenceChannel || !authState.userId || authState.mode === "visitor") {
+    return;
+  }
+
+  try {
+    await presenceChannel.track(getRealtimePresencePayload());
+  } catch (error) {
+    console.warn("Canli uye durumu yayinlanamadi:", error.message);
+  }
+}
+
+function subscribeToPresence() {
+  if (!supabaseClient || presenceChannel) {
+    return;
+  }
+
+  presenceChannel = supabaseClient.channel("line-online-academy-presence", {
+    config: {
+      presence: {
+        key: authState.userId || `visitor-${Date.now()}`
+      }
+    }
+  });
+
+  presenceChannel
+    .on("presence", { event: "sync" }, syncRealtimePresenceMembers)
+    .on("presence", { event: "join" }, syncRealtimePresenceMembers)
+    .on("presence", { event: "leave" }, syncRealtimePresenceMembers)
+    .subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await trackRealtimePresence();
+      }
+    });
+}
+
+async function untrackRealtimePresence() {
+  if (!presenceChannel) {
+    return;
+  }
+
+  try {
+    await presenceChannel.untrack();
+  } catch (error) {
+    console.warn("Canli uye durumu kapatilamadi:", error.message);
+  }
+}
+
 async function loadPersistedMessages() {
   if (!supabaseClient) {
     return;
@@ -1391,6 +1482,8 @@ function updateIdentity(name, roleId, options = {}) {
   refreshChatAdminControls();
   initializeStaticMessageControls();
   renderMembersSidebar();
+  subscribeToPresence();
+  trackRealtimePresence();
   updatePresence(true);
   loadDirectoryUsers();
 }
@@ -1424,6 +1517,7 @@ function finishAuth(name, roleId, options = {}) {
 }
 
 function resetIdentity() {
+  untrackRealtimePresence();
   updatePresence(false);
   authState = {
     mode: "visitor",
@@ -1522,6 +1616,7 @@ async function saveProfileChanges() {
     roleId: authState.roleId,
     avatarImage: nextProfile.avatarImage
   });
+  trackRealtimePresence();
   renderMembersSidebar();
   closeProfileModal();
 }
@@ -2591,7 +2686,9 @@ loadDirectoryUsers();
 loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();
+subscribeToPresence();
 
 window.addEventListener("beforeunload", () => {
+  untrackRealtimePresence();
   updatePresence(false);
 });
