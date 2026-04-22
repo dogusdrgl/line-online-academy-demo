@@ -86,6 +86,10 @@ const dmForm = document.getElementById("dm-form");
 const dmInput = document.getElementById("dm-input");
 const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
+const identityVoiceCard = document.getElementById("identity-voice-card");
+const identityVoiceRoomButton = document.getElementById("identity-voice-room");
+const identityVoiceRoomName = document.getElementById("identity-voice-room-name");
+const identityVoiceLeaveButton = document.getElementById("identity-voice-leave");
 const quickMicButton = document.getElementById("quick-mic");
 const quickAudioButton = document.getElementById("quick-audio");
 const quickCameraButton = document.getElementById("quick-camera");
@@ -783,6 +787,19 @@ function renderQuickControls() {
   updateQuickControl(quickCameraButton, controlState.camera);
 }
 
+function renderIdentityVoiceCard() {
+  if (!identityVoiceCard) {
+    return;
+  }
+
+  const hasVoiceRoom = Boolean(voiceState.roomId);
+  identityVoiceCard.classList.toggle("hidden", !hasVoiceRoom);
+
+  if (hasVoiceRoom && identityVoiceRoomName) {
+    identityVoiceRoomName.textContent = `${VOICE_ROOM_LABELS[voiceState.roomId] || "Sesli Oda"} / LINE Online Academy`;
+  }
+}
+
 function getVoiceRoomPanel(roomId = voiceState.roomId) {
   return roomId ? document.getElementById(roomId) : null;
 }
@@ -1166,6 +1183,7 @@ async function startVoiceRoom(roomId) {
   createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
   renderVoiceParticipants();
   renderVoiceControls();
+  renderIdentityVoiceCard();
 
   voiceState.channel = supabaseClient
     .channel(`line-online-academy-voice-${roomId}`, {
@@ -1235,6 +1253,7 @@ async function leaveVoiceRoom() {
   setVoiceStatus("Odaya katilmaya hazir.", previousRoom);
   renderSidebarVoiceMembers();
   renderVoiceControls();
+  renderIdentityVoiceCard();
   playNotificationSound("voiceLeave");
 }
 
@@ -2583,6 +2602,7 @@ function resetIdentity() {
   dmInboxMessages = [];
   dmInboxLoadedOnce = false;
   renderDmInbox();
+  renderIdentityVoiceCard();
 
   if (authOpenButton) {
     authOpenButton.textContent = "Giris Yap";
@@ -3949,6 +3969,25 @@ if (dmInboxButton) {
   dmInboxButton.addEventListener("click", (event) => {
     event.stopPropagation();
     openDmInbox();
+  });
+}
+
+if (identityVoiceRoomButton) {
+  identityVoiceRoomButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!voiceState.roomId) {
+      return;
+    }
+
+    const button = Array.from(channelButtons).find((item) => item.dataset.view === voiceState.roomId);
+    setActiveView(voiceState.roomId, button?.textContent.trim() || VOICE_ROOM_LABELS[voiceState.roomId] || "Sesli Oda");
+  });
+}
+
+if (identityVoiceLeaveButton) {
+  identityVoiceLeaveButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    leaveVoiceRoom();
   });
 }
 
