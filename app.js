@@ -676,25 +676,46 @@ function canAccessView(viewId) {
   return !allowedRoles || allowedRoles.includes(authState.roleId);
 }
 
+function isVisibleRealMember(member) {
+  if (!member?.id) {
+    return false;
+  }
+
+  if (member.bot) {
+    return true;
+  }
+
+  if (member.isBanned || member.is_banned || getUserModeration(member.id).isBanned) {
+    return false;
+  }
+
+  const demoIds = new Set(["dilara", "ezgi", "mert"]);
+  if (demoIds.has(member.id)) {
+    return false;
+  }
+
+  return true;
+}
+
 function getAllMembers() {
   const merged = new Map();
 
   [...members, ...directoryUsers, ...livePresenceMembers].forEach((member) => {
-    if (!member.id || member.roleId === "guest") {
+    if (!isVisibleRealMember(member) || member.roleId === "guest") {
       return;
     }
     merged.set(member.id, member);
   });
 
   livePresenceMembers.forEach((member) => {
-    if (!member.id || member.roleId !== "guest") {
+    if (!isVisibleRealMember(member) || member.roleId !== "guest") {
       return;
     }
     merged.set(member.id, member);
   });
 
   ephemeralMembers.forEach((member) => {
-    if (!member.id) {
+    if (!isVisibleRealMember(member)) {
       return;
     }
     merged.set(member.id, {
@@ -1095,17 +1116,19 @@ async function loadDirectoryUsers() {
       throw error;
     }
 
-    directoryUsers = (data || []).map((user) => ({
-      id: user.id,
-      name: user.display_name || "Isimsiz Uye",
-      roleId: user.role_id || "student",
-      avatarClass: "blue",
-      subtitle: user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
-      isOnline: Boolean(user.is_online),
-      isMuted: Boolean(user.is_muted),
-      isBanned: Boolean(user.is_banned),
-      isGuest: Boolean(user.is_guest)
-    }));
+    directoryUsers = (data || [])
+      .filter((user) => !user.is_banned)
+      .map((user) => ({
+        id: user.id,
+        name: user.display_name || "Isimsiz Uye",
+        roleId: user.role_id || "student",
+        avatarClass: "blue",
+        subtitle: user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
+        isOnline: Boolean(user.is_online),
+        isMuted: Boolean(user.is_muted),
+        isBanned: Boolean(user.is_banned),
+        isGuest: Boolean(user.is_guest)
+      }));
   } catch (error) {
     console.warn("Uye dizini yuklenemedi:", error.message);
 
