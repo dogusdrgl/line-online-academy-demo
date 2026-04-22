@@ -183,6 +183,7 @@ let livePresenceMembers = [];
 let presenceChannel = null;
 let selectedMember = null;
 let activeDmMember = null;
+let renderedMembersById = new Map();
 
 const members = [
   {
@@ -776,7 +777,10 @@ function writeLocalDirectMessages(messages) {
 }
 
 function renderMembersSidebar() {
-  const grouped = getVisibleMembers().reduce((accumulator, member) => {
+  const visibleMembers = getVisibleMembers();
+  renderedMembersById = new Map(visibleMembers.map((member) => [member.id, member]));
+
+  const grouped = visibleMembers.reduce((accumulator, member) => {
     accumulator[member.group] ||= [];
     accumulator[member.group].push(member);
     return accumulator;
@@ -808,10 +812,10 @@ function renderMembersSidebar() {
 
           return `
             <button class="member-row${offlineClass}" type="button" data-member-id="${escapeHtml(member.id)}">
-              <div class="avatar ${member.avatarClass}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
+              <div class="avatar ${escapeHtml(member.avatarClass || "")}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
               <div class="member-meta">
-                <strong>${member.name}</strong>
-                <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${member.subtitle}</p>
+                <strong>${escapeHtml(member.name)}</strong>
+                <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${escapeHtml(member.subtitle || "")}</p>
               </div>
               ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
             </button>
@@ -830,7 +834,7 @@ function renderMembersSidebar() {
 
   membersGroups.querySelectorAll("[data-member-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      const member = findMemberById(button.dataset.memberId);
+      const member = renderedMembersById.get(button.dataset.memberId) || findMemberById(button.dataset.memberId);
       if (member) {
         openMemberCard(member);
       }

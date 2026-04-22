@@ -1123,21 +1123,37 @@ button {
 }
 
 .member-row {
+  appearance: none;
+  -webkit-appearance: none;
   display: grid;
   grid-template-columns: 34px 1fr auto;
   align-items: center;
   gap: 9px;
   width: 100%;
+  min-height: 42px;
+  padding: 4px 6px;
   border: 0;
-  background: transparent;
+  border-radius: 12px;
+  background: transparent !important;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
   margin-bottom: 12px;
+  box-shadow: none;
 }
 
 .member-row:hover {
-  filter: brightness(1.08);
+  background: rgba(255, 255, 255, 0.055) !important;
+}
+
+.member-row:focus-visible {
+  outline: 1px solid rgba(241, 161, 38, 0.65);
+  outline-offset: 2px;
+}
+
+.member-row:active {
+  background: rgba(241, 161, 38, 0.1) !important;
 }
 
 .member-row.offline {
@@ -1183,6 +1199,7 @@ button {
 .member-meta strong {
   display: block;
   font-size: 0.9rem;
+  color: #f3eee8;
 }
 
 .member-meta p {
