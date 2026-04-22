@@ -50,6 +50,20 @@ const profileEditorName = document.getElementById("profile-editor-name");
 const profileEditorRole = document.getElementById("profile-editor-role");
 const profileSaveButton = document.getElementById("profile-save");
 const profileRemoveImageButton = document.getElementById("profile-remove-image");
+const memberCardBackdrop = document.getElementById("member-card-backdrop");
+const memberCardCloseButton = document.getElementById("member-card-close");
+const memberCardAvatar = document.getElementById("member-card-avatar");
+const memberCardName = document.getElementById("member-card-name");
+const memberCardRole = document.getElementById("member-card-role");
+const memberMessageButton = document.getElementById("member-message-button");
+const memberMuteButton = document.getElementById("member-mute-button");
+const memberBanButton = document.getElementById("member-ban-button");
+const dmBackdrop = document.getElementById("dm-backdrop");
+const dmCloseButton = document.getElementById("dm-close");
+const dmTitle = document.getElementById("dm-title");
+const dmMessages = document.getElementById("dm-messages");
+const dmForm = document.getElementById("dm-form");
+const dmInput = document.getElementById("dm-input");
 const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
 const quickMicButton = document.getElementById("quick-mic");
@@ -95,6 +109,7 @@ const HIDDEN_STATIC_MESSAGES_KEY = "line-online-academy-hidden-static-messages";
 const LOCAL_PROFILE_KEY = "line-online-academy-profile";
 const LOCAL_CONTROLS_KEY = "line-online-academy-controls";
 const LOCAL_NOTIFICATIONS_KEY = "line-online-academy-notifications";
+const LOCAL_DM_KEY = "line-online-academy-direct-messages";
 
 let authState = {
   mode: "visitor",
@@ -166,6 +181,8 @@ let adminKnownUsers = [];
 let directoryUsers = [];
 let livePresenceMembers = [];
 let presenceChannel = null;
+let selectedMember = null;
+let activeDmMember = null;
 
 const members = [
   {
@@ -742,6 +759,22 @@ function getVisibleMembers() {
   });
 }
 
+function findMemberById(memberId) {
+  return getAllMembers().find((member) => member.id === memberId);
+}
+
+function getConversationId(firstId, secondId) {
+  return [firstId, secondId].sort().join("__");
+}
+
+function readLocalDirectMessages() {
+  return readJson(LOCAL_DM_KEY, []);
+}
+
+function writeLocalDirectMessages(messages) {
+  writeJson(LOCAL_DM_KEY, messages.slice(-500));
+}
+
 function renderMembersSidebar() {
   const grouped = getVisibleMembers().reduce((accumulator, member) => {
     accumulator[member.group] ||= [];
@@ -774,14 +807,14 @@ function renderMembersSidebar() {
             : `background: ${escapeHtml(roleColor)}`;
 
           return `
-            <div class="member-row${offlineClass}">
+            <button class="member-row${offlineClass}" type="button" data-member-id="${escapeHtml(member.id)}">
               <div class="avatar ${member.avatarClass}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
               <div class="member-meta">
                 <strong>${member.name}</strong>
                 <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${member.subtitle}</p>
               </div>
               ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
-            </div>
+            </button>
           `;
         })
         .join("");
@@ -794,6 +827,15 @@ function renderMembersSidebar() {
       `;
     })
     .join("");
+
+  membersGroups.querySelectorAll("[data-member-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const member = findMemberById(button.dataset.memberId);
+      if (member) {
+        openMemberCard(member);
+      }
+    });
+  });
 }
 
 function scrollChatToBottom(chat) {
@@ -1106,7 +1148,6 @@ async function loadDirectoryUsers() {
       supabaseClient
         .from("app_users")
         .select("id, display_name, role_id, is_guest, is_muted, is_banned, is_online, last_seen")
-        .eq("is_guest", false)
         .order("created_at", { ascending: true })
         .limit(120),
       "Uye dizinini yukleme"
@@ -1123,8 +1164,8 @@ async function loadDirectoryUsers() {
         name: user.display_name || "Isimsiz Uye",
         roleId: user.role_id || "student",
         avatarClass: "blue",
-        subtitle: user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
-        isOnline: Boolean(user.is_online),
+        subtitle: user.is_guest ? "Misafir" : user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
+        isOnline: user.is_guest ? false : Boolean(user.is_online),
         isMuted: Boolean(user.is_muted),
         isBanned: Boolean(user.is_banned),
         isGuest: Boolean(user.is_guest)
@@ -1137,7 +1178,6 @@ async function loadDirectoryUsers() {
         supabaseClient
           .from("app_users")
           .select("id, display_name, role_id, is_guest")
-          .eq("is_guest", false)
           .order("created_at", { ascending: true })
           .limit(120),
         "Temel uye dizinini yukleme"
@@ -2171,6 +2211,159 @@ async function moderateUser(userId, updates) {
   renderAdminUsers();
 }
 
+function openMemberCard(member) {
+  if (!memberCardBackdrop) {
+    return;
+  }
+
+  selectedMember = member;
+  const role = getRole(member.roleId);
+  memberCardName.textContent = member.name;
+  memberCardRole.textContent = role ? role.name : "Uye";
+  memberCardRole.style.color = role?.color || "";
+  paintAvatar(memberCardAvatar, member.name, member.avatarImage, role?.color || "#f1a126");
+
+  const canModerate = isAdminUser() && !member.bot && member.id !== authState.userId;
+  memberMuteButton.classList.toggle("hidden", !canModerate);
+  memberBanButton.classList.toggle("hidden", !canModerate);
+
+  const moderation = {
+    ...getUserModeration(member.id),
+    isMuted: member.isMuted ?? member.is_muted ?? getUserModeration(member.id).isMuted,
+    isBanned: member.isBanned ?? member.is_banned ?? getUserModeration(member.id).isBanned
+  };
+  memberMuteButton.textContent = moderation.isMuted ? "Susturmayi Kaldir" : "Sustur";
+  memberBanButton.textContent = "Sunucudan At";
+  memberMessageButton.disabled = member.id === authState.userId || authState.mode === "visitor";
+
+  memberCardBackdrop.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeMemberCard() {
+  memberCardBackdrop?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function loadDirectMessages(member) {
+  if (!member || !authState.userId) {
+    return [];
+  }
+
+  const conversationId = getConversationId(authState.userId, member.id);
+
+  if (supabaseClient) {
+    try {
+      const { data, error } = await withTimeout(
+        supabaseClient
+          .from("direct_messages")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(100),
+        "Ozel mesajlari yukleme"
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.warn("Ozel mesajlar Supabase'den yuklenemedi:", error.message);
+    }
+  }
+
+  return readLocalDirectMessages().filter((message) => message.conversation_id === conversationId);
+}
+
+function renderDirectMessages(messages) {
+  if (!dmMessages) {
+    return;
+  }
+
+  dmMessages.innerHTML = messages.length
+    ? messages.map((message) => `
+        <div class="dm-line ${message.sender_id === authState.userId ? "own" : ""}">
+          <strong>${escapeHtml(message.sender_name || "Uye")}</strong>
+          <p>${escapeHtml(message.content || "")}</p>
+        </div>
+      `).join("")
+    : '<p class="admin-muted">Henuz ozel mesaj yok.</p>';
+
+  dmMessages.scrollTop = dmMessages.scrollHeight;
+}
+
+async function openDirectMessage(member) {
+  if (!member || !dmBackdrop || authState.mode === "visitor") {
+    return;
+  }
+
+  activeDmMember = member;
+  dmTitle.textContent = member.name;
+  dmBackdrop.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  renderDirectMessages(await loadDirectMessages(member));
+  dmInput?.focus();
+}
+
+function closeDirectMessage() {
+  dmBackdrop?.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+  activeDmMember = null;
+}
+
+async function sendDirectMessage(content) {
+  if (!activeDmMember || !authState.userId || !content.trim()) {
+    return;
+  }
+
+  const conversationId = getConversationId(authState.userId, activeDmMember.id);
+  const message = {
+    id: `local-dm-${Date.now()}`,
+    conversation_id: conversationId,
+    sender_id: authState.userId,
+    receiver_id: activeDmMember.id,
+    sender_name: authState.name,
+    receiver_name: activeDmMember.name,
+    content: content.trim(),
+    created_at: new Date().toISOString()
+  };
+
+  if (supabaseClient) {
+    try {
+      const { data, error } = await withTimeout(
+        supabaseClient
+          .from("direct_messages")
+          .insert({
+            conversation_id: conversationId,
+            sender_id: message.sender_id,
+            receiver_id: message.receiver_id,
+            sender_name: message.sender_name,
+            receiver_name: message.receiver_name,
+            content: message.content
+          })
+          .select()
+          .single(),
+        "Ozel mesaj gonderme"
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      renderDirectMessages(await loadDirectMessages(activeDmMember));
+      return;
+    } catch (error) {
+      console.warn("Ozel mesaj Supabase'e kaydedilemedi:", error.message);
+    }
+  }
+
+  const messages = readLocalDirectMessages();
+  writeLocalDirectMessages([...messages, message]);
+  renderDirectMessages(await loadDirectMessages(activeDmMember));
+}
+
 function openAdminModal() {
   if (!adminBackdrop) {
     return;
@@ -2533,7 +2726,8 @@ guestForm.addEventListener("submit", async (event) => {
     await upsertAppUser({
       id: guestId,
       displayName: guestName,
-      roleId: "guest"
+      roleId: "guest",
+      isOnline: true
     });
   }
 
@@ -2638,6 +2832,72 @@ if (profileRemoveImageButton) {
 
 if (profileSaveButton) {
   profileSaveButton.addEventListener("click", saveProfileChanges);
+}
+
+if (memberCardCloseButton) {
+  memberCardCloseButton.addEventListener("click", closeMemberCard);
+}
+
+if (memberCardBackdrop) {
+  memberCardBackdrop.addEventListener("click", (event) => {
+    if (event.target === memberCardBackdrop) {
+      closeMemberCard();
+    }
+  });
+}
+
+if (memberMessageButton) {
+  memberMessageButton.addEventListener("click", () => {
+    if (!selectedMember) {
+      return;
+    }
+    closeMemberCard();
+    openDirectMessage(selectedMember);
+  });
+}
+
+if (memberMuteButton) {
+  memberMuteButton.addEventListener("click", async () => {
+    if (!selectedMember || !isAdminUser()) {
+      return;
+    }
+    const moderation = getUserModeration(selectedMember.id);
+    await moderateUser(selectedMember.id, { isMuted: !moderation.isMuted });
+    selectedMember = findMemberById(selectedMember.id) || selectedMember;
+    openMemberCard(selectedMember);
+  });
+}
+
+if (memberBanButton) {
+  memberBanButton.addEventListener("click", async () => {
+    if (!selectedMember || !isAdminUser()) {
+      return;
+    }
+    await moderateUser(selectedMember.id, { isBanned: true });
+    closeMemberCard();
+    renderMembersSidebar();
+  });
+}
+
+if (dmCloseButton) {
+  dmCloseButton.addEventListener("click", closeDirectMessage);
+}
+
+if (dmBackdrop) {
+  dmBackdrop.addEventListener("click", (event) => {
+    if (event.target === dmBackdrop) {
+      closeDirectMessage();
+    }
+  });
+}
+
+if (dmForm) {
+  dmForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const content = dmInput.value;
+    dmInput.value = "";
+    await sendDirectMessage(content);
+  });
 }
 
 [
