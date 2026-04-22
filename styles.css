@@ -1223,14 +1223,15 @@ button {
 .profile-card {
   position: relative;
   margin: 0;
-  padding: 12px;
+  padding: 12px 12px 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  background: rgba(35, 36, 42, 0.98);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(38, 40, 47, 0.98), rgba(29, 31, 37, 0.98));
   color: var(--text);
   text-align: left;
   transition: 180ms ease;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
   cursor: pointer;
 }
 
@@ -1240,15 +1241,26 @@ button {
 
 .profile-card-main {
   display: grid;
-  grid-template-columns: 34px 1fr;
-  gap: 10px;
+  grid-template-columns: 42px 1fr;
+  gap: 12px;
   align-items: center;
 }
 
+.profile-card-main .avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.identity-card .member-meta p {
+  display: none;
+}
+
 .profile-card-actions {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: 70%;
+  min-width: 168px;
+  margin: 10px 0 0 auto;
+  padding: 0;
+  border-top: 0;
 }
 
 .profile-shortcuts {
@@ -1264,15 +1276,15 @@ button {
   height: 34px;
   border: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(52, 40, 46, 0.88);
   color: #d8dde7;
   font-size: 0.92rem;
   cursor: pointer;
 }
 
 .quick-control.active {
-  background: rgba(95, 209, 95, 0.14);
-  color: #8cff8c;
+  background: rgba(70, 46, 55, 0.98);
+  color: #f0c18a;
 }
 
 .quick-control.muted {
@@ -1280,26 +1292,33 @@ button {
   color: #ffb0a8;
 }
 
+.profile-bottom-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .messages-button,
 .logout-button {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 0;
   border: 0;
   height: 34px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #f0c18a;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #f1d2a5;
   cursor: pointer;
   font-weight: 700;
+  font-size: 0.84rem;
 }
 
 .messages-button {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f4ede3;
-  padding: 0 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
 }
 
 .messages-button.has-unread {
@@ -1505,7 +1524,22 @@ button {
 }
 
 .dm-inbox-modal {
-  width: min(100%, 440px);
+  width: min(100%, 470px);
+  padding: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(241, 161, 38, 0.22), transparent 26%),
+    linear-gradient(180deg, rgba(38, 40, 47, 0.99), rgba(24, 26, 31, 0.99));
+}
+
+.dm-inbox-modal .auth-close {
+  top: 16px;
+  right: 16px;
+}
+
+.dm-inbox-modal .dm-head {
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
 }
 
 .dm-inbox-list {
@@ -1513,7 +1547,8 @@ button {
   gap: 8px;
   max-height: 420px;
   overflow: auto;
-  margin-top: 16px;
+  margin: 0;
+  padding: 14px;
 }
 
 .dm-inbox-item {
@@ -1521,20 +1556,33 @@ button {
   -webkit-appearance: none;
   width: 100%;
   display: grid;
-  grid-template-columns: 38px 1fr auto auto;
-  gap: 10px;
+  grid-template-columns: 42px 1fr auto;
+  gap: 12px;
   align-items: center;
   border: 0;
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.055);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.045);
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition: 160ms ease;
 }
 
 .dm-inbox-item:hover {
+  transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.085);
+}
+
+.dm-inbox-item.has-unread {
+  background: linear-gradient(90deg, rgba(241, 161, 38, 0.16), rgba(255, 255, 255, 0.055));
+  box-shadow: inset 3px 0 0 rgba(241, 161, 38, 0.9);
+}
+
+.dm-inbox-item .avatar {
+  width: 42px;
+  height: 42px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.035);
 }
 
 .dm-inbox-item strong,
@@ -1544,7 +1592,7 @@ button {
 }
 
 .dm-inbox-item p {
-  max-width: 230px;
+  max-width: 260px;
   margin-top: 3px;
   overflow: hidden;
   color: #b8bec8;
@@ -1556,6 +1604,12 @@ button {
 .dm-inbox-item span {
   color: #8f96a3;
   font-size: 0.72rem;
+}
+
+.dm-inbox-item-time {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
 }
 
 .dm-inbox-item em {

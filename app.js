@@ -927,14 +927,16 @@ function renderDmInbox() {
           : `background: ${escapeHtml(role?.color || "#f1a126")}`;
 
         return `
-          <button class="dm-inbox-item" type="button" data-dm-peer-id="${escapeHtml(conversation.peerId)}" data-dm-conversation-id="${escapeHtml(conversation.conversationId)}">
+          <button class="dm-inbox-item${unread ? " has-unread" : ""}" type="button" data-dm-peer-id="${escapeHtml(conversation.peerId)}" data-dm-conversation-id="${escapeHtml(conversation.conversationId)}">
             <div class="avatar ${escapeHtml(peer?.avatarClass || "")}" style='${avatarStyle}'>${peer?.avatarImage ? "" : escapeHtml(name.slice(0, 1).toUpperCase())}</div>
             <div>
               <strong>${escapeHtml(name)}</strong>
               <p>${escapeHtml(latestText)}</p>
             </div>
-            <span>${time}</span>
-            ${unread ? `<em>${Math.min(unread, 99)}</em>` : ""}
+            <div class="dm-inbox-item-time">
+              <span>${time}</span>
+              ${unread ? `<em>${Math.min(unread, 99)}</em>` : ""}
+            </div>
           </button>
         `;
       }).join("")
