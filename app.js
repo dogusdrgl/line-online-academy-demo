@@ -1077,10 +1077,10 @@ function renderMembersSidebar() {
     .join("");
 
   membersGroups.querySelectorAll("[data-member-id]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
       const member = renderedMembersById.get(button.dataset.memberId) || findMemberById(button.dataset.memberId);
       if (member) {
-        openMemberCard(member);
+        openMemberCard(member, event.currentTarget);
       }
     });
   });
@@ -2525,7 +2525,30 @@ async function moderateUser(userId, updates) {
   renderAdminUsers();
 }
 
-function openMemberCard(member) {
+function positionMemberCard(anchorElement) {
+  const modal = memberCardBackdrop?.querySelector(".member-card-modal");
+  if (!modal || !anchorElement) {
+    return;
+  }
+
+  const anchorRect = anchorElement.getBoundingClientRect();
+  const modalRect = modal.getBoundingClientRect();
+  const gap = 12;
+  const margin = 12;
+  const hasRoomOnLeft = anchorRect.left >= modalRect.width + gap + margin;
+  const left = hasRoomOnLeft
+    ? anchorRect.left - modalRect.width - gap
+    : Math.min(anchorRect.right + gap, window.innerWidth - modalRect.width - margin);
+  const top = Math.min(
+    Math.max(anchorRect.top - 18, margin),
+    window.innerHeight - modalRect.height - margin
+  );
+
+  modal.style.left = `${left}px`;
+  modal.style.top = `${top}px`;
+}
+
+function openMemberCard(member, anchorElement = null) {
   if (!memberCardBackdrop) {
     return;
   }
@@ -2551,12 +2574,16 @@ function openMemberCard(member) {
   memberMessageButton.disabled = member.id === authState.userId || authState.mode === "visitor";
 
   memberCardBackdrop.classList.remove("hidden");
-  document.body.classList.add("modal-open");
+  window.requestAnimationFrame(() => positionMemberCard(anchorElement));
 }
 
 function closeMemberCard() {
   memberCardBackdrop?.classList.add("hidden");
-  document.body.classList.remove("modal-open");
+  const modal = memberCardBackdrop?.querySelector(".member-card-modal");
+  if (modal) {
+    modal.style.left = "";
+    modal.style.top = "";
+  }
 }
 
 async function loadDirectMessages(member) {
@@ -3194,6 +3221,19 @@ if (memberCardBackdrop) {
     }
   });
 }
+
+document.addEventListener("click", (event) => {
+  if (!memberCardBackdrop || memberCardBackdrop.classList.contains("hidden")) {
+    return;
+  }
+
+  const clickedInsideCard = event.target.closest(".member-card-modal");
+  const clickedMemberRow = event.target.closest(".member-row");
+
+  if (!clickedInsideCard && !clickedMemberRow) {
+    closeMemberCard();
+  }
+});
 
 if (memberMessageButton) {
   memberMessageButton.addEventListener("click", () => {
