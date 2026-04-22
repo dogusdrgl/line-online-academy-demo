@@ -17,6 +17,21 @@ const PERMISSION_OPTIONS = [
   { id: "join_voice", label: "Sesli Odaya Katil" }
 ];
 
+const VOICE_ROOM_LABELS = {
+  "waiting-room": "Bekleme Odasi",
+  "meeting-room": "Gorusme Odasi",
+  "admin-room": "Yonetim Odasi",
+  "trainer-room": "Egitmen Odasi",
+  "board-room": "Toplanti Salonu",
+  "class-1": "Sinif 1",
+  "class-2": "Sinif 2",
+  "class-3": "Sinif 3",
+  "class-4": "Sinif 4",
+  "table-1": "Masa 1",
+  "table-2": "Masa 2",
+  "vip-loca": "Loca"
+};
+
 const channelButtons = document.querySelectorAll(".channel-item");
 const viewPanels = document.querySelectorAll(".view-panel");
 const viewTitle = document.getElementById("view-title");
@@ -142,6 +157,23 @@ let dmUnreadState = {};
 let dmReadState = {};
 let dmInboxMessages = [];
 let dmInboxLoadedOnce = false;
+let voiceState = {
+  roomId: null,
+  channel: null,
+  localStream: null,
+  peers: new Map(),
+  pendingIce: new Map(),
+  participants: new Map(),
+  audioEnabled: true,
+  videoEnabled: false
+};
+
+const rtcConfig = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:global.stun.twilio.com:3478" }
+  ]
+};
 
 const defaultRoles = [
   {
@@ -681,6 +713,459 @@ function renderQuickControls() {
   updateQuickControl(quickMicButton, controlState.mic);
   updateQuickControl(quickAudioButton, controlState.audio);
   updateQuickControl(quickCameraButton, controlState.camera);
+}
+
+function getVoiceRoomPanel(roomId = voiceState.roomId) {
+  return roomId ? document.getElementById(roomId) : null;
+}
+
+function getVoiceGrid(roomId = voiceState.roomId) {
+  return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-grid]");
+}
+
+function getVoiceParticipantList(roomId = voiceState.roomId) {
+  return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-participants]");
+}
+
+function getVoiceStatus(roomId = voiceState.roomId) {
+  return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-status]");
+}
+
+function getVoiceName() {
+  return authState.name || "Uye";
+}
+
+function getVoiceMemberPayload() {
+  return {
+    id: authState.userId,
+    name: getVoiceName(),
+    roleId: authState.roleId,
+    avatarImage: authState.avatarImage || null
+  };
+}
+
+function setVoiceStatus(text, roomId = voiceState.roomId) {
+  const status = getVoiceStatus(roomId);
+  if (status) {
+    status.textContent = text;
+  }
+}
+
+function renderVoiceParticipants() {
+  const list = getVoiceParticipantList();
+  if (!list) {
+    return;
+  }
+
+  const participants = Array.from(voiceState.participants.values());
+  list.innerHTML = participants.length
+    ? participants.map((participant) => `
+        <div class="voice-participant">
+          <div class="voice-dot"></div>
+          <span>${escapeHtml(participant.name || "Uye")}</span>
+        </div>
+      `).join("")
+    : '<p class="admin-muted">Odada henuz kimse yok.</p>';
+}
+
+function renderVoiceControls() {
+  document.querySelectorAll(".voice-channel-view").forEach((panel) => {
+    const isActiveRoom = voiceState.roomId === panel.id;
+    panel.querySelector("[data-voice-join]")?.classList.toggle("hidden", isActiveRoom);
+    panel.querySelector("[data-voice-leave]")?.classList.toggle("hidden", !isActiveRoom);
+    panel.querySelector("[data-voice-mic]")?.classList.toggle("active", isActiveRoom && voiceState.audioEnabled);
+    panel.querySelector("[data-voice-camera]")?.classList.toggle("active", isActiveRoom && voiceState.videoEnabled);
+  });
+}
+
+function createVoiceTile(member, stream, isLocal = false) {
+  const grid = getVoiceGrid();
+  if (!grid || !member?.id) {
+    return;
+  }
+
+  const existingTile = grid.querySelector(`[data-voice-tile="${CSS.escape(member.id)}"]`);
+  existingTile?.remove();
+
+  const role = getRole(member.roleId);
+  const tile = document.createElement("article");
+  const hasVideo = Boolean(stream?.getVideoTracks().length);
+  tile.className = `voice-tile${isLocal ? " local" : ""}${hasVideo ? "" : " audio-only"}`;
+  tile.dataset.voiceTile = member.id;
+  tile.innerHTML = `
+    <video autoplay playsinline ${isLocal ? "muted" : ""}></video>
+    <div class="voice-avatar-fallback"></div>
+    <div class="voice-tile-meta">
+      <strong>${escapeHtml(member.name || "Uye")}${isLocal ? " (Sen)" : ""}</strong>
+      <span>${escapeHtml(role?.name || "Katilimci")}</span>
+    </div>
+  `;
+
+  const video = tile.querySelector("video");
+  const fallback = tile.querySelector(".voice-avatar-fallback");
+  video.srcObject = stream || null;
+  paintAvatar(fallback, member.name, member.avatarImage, role?.color || "#f1a126");
+  grid.appendChild(tile);
+}
+
+function removeVoiceTile(memberId) {
+  if (!memberId) {
+    return;
+  }
+
+  getVoiceGrid()?.querySelector(`[data-voice-tile="${CSS.escape(memberId)}"]`)?.remove();
+}
+
+function sendVoiceSignal(type, to, payload = {}) {
+  if (!voiceState.channel || !authState.userId) {
+    return;
+  }
+
+  voiceState.channel.send({
+    type: "broadcast",
+    event: "signal",
+    payload: {
+      type,
+      to,
+      from: authState.userId,
+      member: getVoiceMemberPayload(),
+      ...payload
+    }
+  });
+}
+
+async function applyPendingIce(remoteId, peer) {
+  const queue = voiceState.pendingIce.get(remoteId) || [];
+  voiceState.pendingIce.delete(remoteId);
+
+  for (const candidate of queue) {
+    try {
+      await peer.addIceCandidate(candidate);
+    } catch (error) {
+      console.warn("ICE adayi eklenemedi:", error.message);
+    }
+  }
+}
+
+async function createPeerConnection(remoteMember, shouldOffer = false) {
+  if (!remoteMember?.id || remoteMember.id === authState.userId) {
+    return null;
+  }
+
+  const existingPeer = voiceState.peers.get(remoteMember.id);
+  if (existingPeer) {
+    return existingPeer;
+  }
+
+  const peer = new RTCPeerConnection(rtcConfig);
+  voiceState.peers.set(remoteMember.id, peer);
+  voiceState.participants.set(remoteMember.id, remoteMember);
+  renderVoiceParticipants();
+
+  voiceState.localStream?.getTracks().forEach((track) => {
+    peer.addTrack(track, voiceState.localStream);
+  });
+
+  peer.ontrack = (event) => {
+    const [remoteStream] = event.streams;
+    createVoiceTile(remoteMember, remoteStream, false);
+  };
+
+  peer.onicecandidate = (event) => {
+    if (event.candidate) {
+      sendVoiceSignal("ice", remoteMember.id, { candidate: event.candidate });
+    }
+  };
+
+  peer.onconnectionstatechange = () => {
+    if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
+      peer.close();
+      voiceState.peers.delete(remoteMember.id);
+      voiceState.participants.delete(remoteMember.id);
+      removeVoiceTile(remoteMember.id);
+      renderVoiceParticipants();
+    }
+  };
+
+  if (shouldOffer) {
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    sendVoiceSignal("offer", remoteMember.id, { description: peer.localDescription });
+  }
+
+  return peer;
+}
+
+async function handleVoiceSignal(payload) {
+  if (!voiceState.roomId || !payload || payload.from === authState.userId) {
+    return;
+  }
+
+  if (payload.to && payload.to !== authState.userId) {
+    return;
+  }
+
+  const remoteMember = payload.member || { id: payload.from, name: "Uye" };
+
+  if (payload.type === "join") {
+    await createPeerConnection(remoteMember, true);
+    return;
+  }
+
+  if (payload.type === "leave") {
+    voiceState.peers.get(payload.from)?.close();
+    voiceState.peers.delete(payload.from);
+    voiceState.participants.delete(payload.from);
+    removeVoiceTile(payload.from);
+    renderVoiceParticipants();
+    return;
+  }
+
+  if (payload.type === "offer") {
+    const peer = await createPeerConnection(remoteMember, false);
+    await peer.setRemoteDescription(payload.description);
+    await applyPendingIce(remoteMember.id, peer);
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    sendVoiceSignal("answer", remoteMember.id, { description: peer.localDescription });
+    return;
+  }
+
+  if (payload.type === "answer") {
+    const peer = voiceState.peers.get(payload.from);
+    if (peer) {
+      await peer.setRemoteDescription(payload.description);
+      await applyPendingIce(payload.from, peer);
+    }
+    return;
+  }
+
+  if (payload.type === "ice") {
+    const peer = voiceState.peers.get(payload.from);
+    if (peer?.remoteDescription) {
+      await peer.addIceCandidate(payload.candidate);
+    } else {
+      const queue = voiceState.pendingIce.get(payload.from) || [];
+      queue.push(payload.candidate);
+      voiceState.pendingIce.set(payload.from, queue);
+    }
+  }
+}
+
+async function startVoiceRoom(roomId) {
+  if (authState.mode === "visitor") {
+    pendingView = roomId;
+    openAuthModal("signin");
+    return;
+  }
+
+  if (!hasPermission("join_voice")) {
+    window.alert("Bu role sesli odaya katilma yetkisi tanimlanmamis.");
+    return;
+  }
+
+  if (!supabaseClient) {
+    window.alert("Sesli odalar icin Supabase baglantisi gerekiyor.");
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    window.alert("Tarayicin mikrofon/kamera erisimini desteklemiyor.");
+    return;
+  }
+
+  if (voiceState.roomId && voiceState.roomId !== roomId) {
+    await leaveVoiceRoom();
+  }
+
+  if (voiceState.roomId === roomId) {
+    return;
+  }
+
+  setVoiceStatus("Baglaniyor...", roomId);
+
+  try {
+    voiceState.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch (error) {
+    window.alert("Mikrofon erisimi acilamadi. Tarayici izinlerini kontrol et.");
+    setVoiceStatus("Mikrofon izni bekleniyor.", roomId);
+    console.error(error);
+    return;
+  }
+
+  voiceState.roomId = roomId;
+  voiceState.audioEnabled = true;
+  voiceState.videoEnabled = false;
+  voiceState.peers = new Map();
+  voiceState.pendingIce = new Map();
+  voiceState.participants = new Map([[authState.userId, getVoiceMemberPayload()]]);
+  createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+  renderVoiceParticipants();
+  renderVoiceControls();
+
+  voiceState.channel = supabaseClient
+    .channel(`line-online-academy-voice-${roomId}`, {
+      config: {
+        broadcast: { self: false },
+        presence: { key: authState.userId }
+      }
+    })
+    .on("broadcast", { event: "signal" }, ({ payload }) => {
+      handleVoiceSignal(payload).catch((error) => console.warn("Sesli oda sinyali islenemedi:", error.message));
+    })
+    .on("presence", { event: "sync" }, () => {
+      const state = voiceState.channel.presenceState();
+      Object.values(state).flat().forEach((participant) => {
+        if (participant.id && participant.id !== authState.userId) {
+          voiceState.participants.set(participant.id, participant);
+        }
+      });
+      renderVoiceParticipants();
+    })
+    .subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await voiceState.channel.track(getVoiceMemberPayload());
+        sendVoiceSignal("join", null);
+        setVoiceStatus(`${VOICE_ROOM_LABELS[roomId] || "Oda"} odasindasin.`);
+      }
+    });
+}
+
+async function leaveVoiceRoom() {
+  if (!voiceState.roomId) {
+    return;
+  }
+
+  sendVoiceSignal("leave", null);
+  voiceState.peers.forEach((peer) => peer.close());
+  voiceState.localStream?.getTracks().forEach((track) => track.stop());
+
+  try {
+    await voiceState.channel?.untrack();
+    await voiceState.channel?.unsubscribe();
+  } catch (error) {
+    console.warn("Sesli odadan cikis tamamlanamadi:", error.message);
+  }
+
+  const previousRoom = voiceState.roomId;
+  getVoiceGrid(previousRoom)?.replaceChildren();
+  voiceState = {
+    roomId: null,
+    channel: null,
+    localStream: null,
+    peers: new Map(),
+    pendingIce: new Map(),
+    participants: new Map(),
+    audioEnabled: true,
+    videoEnabled: false
+  };
+  setVoiceStatus("Odaya katilmaya hazir.", previousRoom);
+  renderVoiceControls();
+}
+
+function renegotiateVoicePeers() {
+  voiceState.peers.forEach(async (peer, remoteId) => {
+    try {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      sendVoiceSignal("offer", remoteId, { description: peer.localDescription });
+    } catch (error) {
+      console.warn("Sesli oda yeniden baglanti teklifi basarisiz:", error.message);
+    }
+  });
+}
+
+function toggleVoiceMic() {
+  if (!voiceState.localStream) {
+    return;
+  }
+
+  voiceState.audioEnabled = !voiceState.audioEnabled;
+  voiceState.localStream.getAudioTracks().forEach((track) => {
+    track.enabled = voiceState.audioEnabled;
+  });
+  renderVoiceControls();
+}
+
+async function toggleVoiceCamera() {
+  if (!voiceState.localStream) {
+    return;
+  }
+
+  if (voiceState.videoEnabled) {
+    voiceState.localStream.getVideoTracks().forEach((track) => {
+      voiceState.peers.forEach((peer) => {
+        const sender = peer.getSenders().find((item) => item.track === track);
+        if (sender) {
+          peer.removeTrack(sender);
+        }
+      });
+      track.stop();
+      voiceState.localStream.removeTrack(track);
+    });
+    voiceState.videoEnabled = false;
+    createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+    renderVoiceControls();
+    renegotiateVoicePeers();
+    return;
+  }
+
+  try {
+    const cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const [videoTrack] = cameraStream.getVideoTracks();
+    voiceState.localStream.addTrack(videoTrack);
+    voiceState.peers.forEach((peer) => peer.addTrack(videoTrack, voiceState.localStream));
+    voiceState.videoEnabled = true;
+    createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+    renderVoiceControls();
+    renegotiateVoicePeers();
+  } catch (error) {
+    window.alert("Kamera erisimi acilamadi. Tarayici izinlerini kontrol et.");
+    console.error(error);
+  }
+}
+
+function initializeVoiceRooms() {
+  document.querySelectorAll(".voice-channel-view").forEach((panel) => {
+    if (panel.querySelector("[data-voice-call]")) {
+      return;
+    }
+
+    const roomLabel = VOICE_ROOM_LABELS[panel.id] || panel.querySelector("h3")?.textContent || "Oda";
+    const callShell = document.createElement("section");
+    callShell.className = "voice-call-shell";
+    callShell.dataset.voiceCall = panel.id;
+    callShell.innerHTML = `
+      <div class="voice-call-head">
+        <div>
+          <p class="section-kicker">Canli Baglanti</p>
+          <h4>${escapeHtml(roomLabel)}</h4>
+          <span data-voice-status>Odaya katilmaya hazir.</span>
+        </div>
+        <button class="accent-button" type="button" data-voice-join>Odaya Katil</button>
+      </div>
+      <div class="voice-call-grid" data-voice-grid></div>
+      <div class="voice-call-footer">
+        <div class="voice-call-controls">
+          <button class="voice-control active" type="button" data-voice-mic>Mikrofon</button>
+          <button class="voice-control" type="button" data-voice-camera>Kamera</button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave>Ayril</button>
+        </div>
+        <div class="voice-participants-panel">
+          <strong>Katilanlar</strong>
+          <div data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
+        </div>
+      </div>
+    `;
+
+    panel.appendChild(callShell);
+    callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
+    callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
+    callShell.querySelector("[data-voice-mic]").addEventListener("click", toggleVoiceMic);
+    callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
+  });
+
+  renderVoiceControls();
 }
 
 function ensureLogoutButton() {
@@ -1893,6 +2378,7 @@ function finishAuth(name, roleId, options = {}) {
 }
 
 function resetIdentity() {
+  leaveVoiceRoom();
   untrackRealtimePresence();
   updatePresence(false);
   authState = {
@@ -3381,6 +3867,7 @@ loadDmUnreadState();
 renderNotifications();
 renderDmBadge();
 renderMembersSidebar();
+initializeVoiceRooms();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
 restoreSavedSession();
@@ -3398,6 +3885,7 @@ window.setInterval(() => {
 }, 15000);
 
 window.addEventListener("beforeunload", () => {
+  leaveVoiceRoom();
   untrackRealtimePresence();
   updatePresence(false);
 });

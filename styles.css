@@ -977,6 +977,188 @@ button {
   font-size: 1rem;
 }
 
+.voice-call-shell {
+  margin-top: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(241, 161, 38, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(38, 40, 47, 0.94), rgba(25, 27, 32, 0.96));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.voice-call-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.voice-call-head h4,
+.voice-call-head span {
+  display: block;
+  margin: 0;
+}
+
+.voice-call-head h4 {
+  font-size: 1.28rem;
+}
+
+.voice-call-head span {
+  margin-top: 5px;
+  color: #b8bec8;
+  font-size: 0.88rem;
+}
+
+.voice-call-grid {
+  min-height: 260px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.voice-call-grid:empty::before {
+  content: "Odaya katildiginda yayin kutulari burada gorunecek.";
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  color: #8f96a3;
+  text-align: center;
+}
+
+.voice-tile {
+  position: relative;
+  min-height: 190px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(241, 161, 38, 0.12), rgba(91, 109, 255, 0.08)),
+    #15171d;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.voice-tile video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.voice-tile.audio-only video {
+  display: none;
+}
+
+.voice-avatar-fallback {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  font-weight: 900;
+  font-size: 1.45rem;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+}
+
+.voice-tile-meta {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(8, 9, 12, 0.68);
+  backdrop-filter: blur(10px);
+}
+
+.voice-tile-meta strong,
+.voice-tile-meta span {
+  display: block;
+  margin: 0;
+}
+
+.voice-tile-meta span {
+  color: #f0c18a;
+  font-size: 0.76rem;
+}
+
+.voice-call-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.voice-call-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.voice-control {
+  min-width: 104px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d8dde7;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.voice-control.active {
+  background: rgba(95, 209, 95, 0.15);
+  color: #9dff9d;
+}
+
+.voice-control.danger {
+  background: rgba(255, 94, 94, 0.14);
+  color: #ffb0a8;
+}
+
+.voice-participants-panel {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.voice-participants-panel > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #f4ede3;
+}
+
+.voice-participant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  color: #cdd2dc;
+  font-size: 0.88rem;
+}
+
+.voice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #59d85f;
+  box-shadow: 0 0 0 3px rgba(89, 216, 95, 0.12);
+}
+
 
 .room-badges span {
   padding: 8px 12px;
@@ -2479,7 +2661,17 @@ button {
   }
 
   .admin-grid,
-  .voice-layout {
+  .voice-layout,
+  .voice-call-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-call-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .voice-call-grid {
     grid-template-columns: 1fr;
   }
 
