@@ -1159,6 +1159,224 @@ button {
   box-shadow: 0 0 0 3px rgba(89, 216, 95, 0.12);
 }
 
+.voice-channel-view > .panel-header,
+.voice-channel-view > .voice-layout,
+.voice-channel-view > .room-layout {
+  display: none;
+}
+
+.voice-channel-view {
+  padding: 0;
+  background: #050608;
+}
+
+.voice-call-shell {
+  min-height: calc(100vh - var(--topbar-height));
+  display: grid;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 70% 10%, rgba(241, 161, 38, 0.12), transparent 22%),
+    radial-gradient(circle at 20% 72%, rgba(91, 109, 255, 0.12), transparent 26%),
+    #050608;
+  box-shadow: none;
+}
+
+.voice-call-lobby {
+  width: min(520px, calc(100% - 40px));
+  place-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(38, 40, 47, 0.94), rgba(20, 21, 26, 0.96));
+  text-align: center;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+}
+
+.voice-call-shell.in-call .voice-call-lobby,
+.voice-call-shell:not(.in-call) .voice-call-stage {
+  display: none;
+}
+
+.voice-lobby-orb {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(135deg, rgba(241, 161, 38, 0.9), rgba(122, 94, 255, 0.7));
+  font-size: 2.3rem;
+  box-shadow: 0 18px 50px rgba(241, 161, 38, 0.18);
+}
+
+.voice-call-lobby h3,
+.voice-call-lobby p {
+  margin: 0;
+}
+
+.voice-call-lobby h3 {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  letter-spacing: -0.06em;
+}
+
+.voice-call-lobby p {
+  max-width: 390px;
+  color: #b8bec8;
+  line-height: 1.65;
+}
+
+.voice-call-lobby [data-voice-status] {
+  color: #8f96a3;
+  font-size: 0.86rem;
+}
+
+.voice-call-stage {
+  min-height: calc(100vh - var(--topbar-height));
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  padding: 24px;
+}
+
+.voice-call-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.voice-call-topline h4 {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: -0.04em;
+}
+
+.voice-participants-mini {
+  max-width: 46%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.voice-participants-mini .admin-muted {
+  margin: 0;
+  color: #7f8794;
+}
+
+.voice-participants-mini .voice-participant {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.voice-call-grid {
+  min-height: 0;
+  align-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+  padding: 0;
+}
+
+.voice-call-grid:empty::before {
+  min-height: 420px;
+  border: 0;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(241, 161, 38, 0.12), transparent 24%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.voice-tile {
+  min-height: clamp(260px, 42vh, 440px);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(241, 161, 38, 0.12), transparent 22%),
+    #111318;
+}
+
+.voice-tile.audio-only {
+  background: #f4f2f1;
+}
+
+.voice-tile.audio-only .voice-avatar-fallback {
+  color: white;
+}
+
+.voice-tile-meta {
+  right: auto;
+  left: 16px;
+  bottom: 14px;
+  width: auto;
+  min-width: 84px;
+  border-radius: 8px;
+  background: rgba(22, 23, 27, 0.72);
+}
+
+.voice-tile-meta span {
+  display: none;
+}
+
+.voice-call-dock {
+  place-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(18, 19, 24, 0.92);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.4);
+}
+
+.voice-call-dock .voice-control {
+  min-width: 74px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.voice-control span {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.voice-control small {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #aeb5c1;
+}
+
+.voice-call-dock .voice-control.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: #f4ede3;
+}
+
+.voice-call-dock .voice-control.muted {
+  background: rgba(255, 94, 94, 0.13);
+  color: #ffb0a8;
+}
+
+.voice-call-dock .voice-control.danger {
+  min-width: 82px;
+  background: #e2384a;
+  color: white;
+}
+
+.voice-call-dock .voice-control.danger small {
+  color: white;
+}
+
 
 .room-badges span {
   padding: 8px 12px;

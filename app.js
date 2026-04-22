@@ -771,10 +771,13 @@ function renderVoiceParticipants() {
 function renderVoiceControls() {
   document.querySelectorAll(".voice-channel-view").forEach((panel) => {
     const isActiveRoom = voiceState.roomId === panel.id;
+    panel.querySelector("[data-voice-call]")?.classList.toggle("in-call", isActiveRoom);
     panel.querySelector("[data-voice-join]")?.classList.toggle("hidden", isActiveRoom);
     panel.querySelector("[data-voice-leave]")?.classList.toggle("hidden", !isActiveRoom);
     panel.querySelector("[data-voice-mic]")?.classList.toggle("active", isActiveRoom && voiceState.audioEnabled);
     panel.querySelector("[data-voice-camera]")?.classList.toggle("active", isActiveRoom && voiceState.videoEnabled);
+    panel.querySelector("[data-voice-mic]")?.classList.toggle("muted", isActiveRoom && !voiceState.audioEnabled);
+    panel.querySelector("[data-voice-camera]")?.classList.toggle("muted", isActiveRoom && !voiceState.videoEnabled);
   });
 }
 
@@ -1136,24 +1139,30 @@ function initializeVoiceRooms() {
     callShell.className = "voice-call-shell";
     callShell.dataset.voiceCall = panel.id;
     callShell.innerHTML = `
-      <div class="voice-call-head">
-        <div>
-          <p class="section-kicker">Canli Baglanti</p>
-          <h4>${escapeHtml(roomLabel)}</h4>
-          <span data-voice-status>Odaya katilmaya hazir.</span>
-        </div>
-        <button class="accent-button" type="button" data-voice-join>Odaya Katil</button>
+      <div class="voice-call-lobby">
+        <div class="voice-lobby-orb">🎧</div>
+        <p class="section-kicker">Sesli Toplanti</p>
+        <h3>${escapeHtml(roomLabel)}</h3>
+        <p>Bu odaya katilarak mikrofonunu kullanabilir, kamerani acabilir ve diger katilimcilarla gorusebilirsin.</p>
+        <button class="accent-button" type="button" data-voice-join>Sesli Toplantiya Gir</button>
+        <span data-voice-status>Odaya katilmaya hazir.</span>
       </div>
-      <div class="voice-call-grid" data-voice-grid></div>
-      <div class="voice-call-footer">
-        <div class="voice-call-controls">
-          <button class="voice-control active" type="button" data-voice-mic>Mikrofon</button>
-          <button class="voice-control" type="button" data-voice-camera>Kamera</button>
-          <button class="voice-control danger hidden" type="button" data-voice-leave>Ayril</button>
+      <div class="voice-call-stage">
+        <div class="voice-call-topline">
+          <div>
+            <p class="section-kicker">Canli Baglanti</p>
+            <h4>${escapeHtml(roomLabel)}</h4>
+          </div>
+          <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
         </div>
-        <div class="voice-participants-panel">
-          <strong>Katilanlar</strong>
-          <div data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
+        <div class="voice-call-grid" data-voice-grid></div>
+        <div class="voice-call-dock">
+          <button class="voice-control active" type="button" data-voice-mic><span>🎙</span><small>Mik</small></button>
+          <button class="voice-control muted" type="button" data-voice-camera><span>📷</span><small>Kamera</small></button>
+          <button class="voice-control" type="button" data-voice-share><span>🖥</span><small>Ekran</small></button>
+          <button class="voice-control" type="button" data-voice-activity><span>✦</span><small>Aktivite</small></button>
+          <button class="voice-control" type="button" data-voice-more><span>⋯</span><small>Daha</small></button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave><span>☎</span><small>Ayril</small></button>
         </div>
       </div>
     `;
@@ -1163,6 +1172,9 @@ function initializeVoiceRooms() {
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
     callShell.querySelector("[data-voice-mic]").addEventListener("click", toggleVoiceMic);
     callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
+    callShell.querySelector("[data-voice-share]").addEventListener("click", () => window.alert("Ekran paylasimi sonraki adimda entegre edilecek."));
+    callShell.querySelector("[data-voice-activity]").addEventListener("click", () => window.alert("Aktivite secimi sonraki adimda entegre edilecek."));
+    callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplantı ayarlari sonraki adimda eklenecek."));
   });
 
   renderVoiceControls();
