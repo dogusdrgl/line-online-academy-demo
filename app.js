@@ -1824,7 +1824,14 @@ function renderAdminUsers() {
     return;
   }
 
-  adminUsersList.innerHTML = adminKnownUsers
+  const visibleAdminUsers = adminKnownUsers.filter((user) => !(user.isBanned ?? user.is_banned ?? false));
+
+  if (!visibleAdminUsers.length) {
+    adminUsersList.innerHTML = '<p class="admin-muted">Listelenecek aktif uye bulunamadi.</p>';
+    return;
+  }
+
+  adminUsersList.innerHTML = visibleAdminUsers
     .map((user) => {
       const moderation = {
         isMuted: user.isMuted ?? user.is_muted ?? false,
