@@ -167,6 +167,10 @@ let voiceState = {
   audioEnabled: true,
   videoEnabled: false
 };
+let voiceRoomDirectory = {};
+let voiceDirectoryChannels = [];
+let voiceDirectoryReady = {};
+let notificationAudioContext = null;
 
 const rtcConfig = {
   iceServers: [
@@ -544,6 +548,69 @@ function saveControlState() {
   writeJson(LOCAL_CONTROLS_KEY, controlState);
 }
 
+function getNotificationAudioContext() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) {
+    return null;
+  }
+
+  if (!notificationAudioContext) {
+    notificationAudioContext = new AudioContextConstructor();
+  }
+
+  return notificationAudioContext;
+}
+
+function unlockNotificationAudio() {
+  const context = getNotificationAudioContext();
+  if (context?.state === "suspended") {
+    context.resume().catch(() => {});
+  }
+}
+
+function playTone(frequency, startTime, duration, gainValue = 0.045) {
+  const context = getNotificationAudioContext();
+  if (!context || !controlState.audio) {
+    return;
+  }
+
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(gainValue, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + duration + 0.02);
+}
+
+function playNotificationSound(type = "message") {
+  const context = getNotificationAudioContext();
+  if (!context || !controlState.audio) {
+    return;
+  }
+
+  if (context.state === "suspended") {
+    context.resume().catch(() => {});
+    return;
+  }
+
+  const now = context.currentTime;
+  const patterns = {
+    message: [[740, 0, 0.08], [980, 0.09, 0.11]],
+    dm: [[900, 0, 0.09], [1180, 0.1, 0.12]],
+    voiceJoin: [[520, 0, 0.08], [700, 0.09, 0.12]],
+    voiceLeave: [[620, 0, 0.07], [420, 0.08, 0.11]]
+  };
+
+  (patterns[type] || patterns.message).forEach(([frequency, offset, duration]) => {
+    playTone(frequency, now + offset, duration);
+  });
+}
+
 function loadNotificationState() {
   notificationState = readJson(LOCAL_NOTIFICATIONS_KEY, {});
 }
@@ -689,6 +756,7 @@ function registerChannelNotification(panelId, message, options = {}) {
   };
   saveNotificationState();
   renderNotifications();
+  playNotificationSound(messageMentionsCurrentUser(message) ? "dm" : "message");
 }
 
 function paintAvatar(element, name, image, fallbackColor = "#f1a126") {
@@ -766,6 +834,99 @@ function renderVoiceParticipants() {
         </div>
       `).join("")
     : '<p class="admin-muted">Odada henuz kimse yok.</p>';
+}
+
+function renderSidebarVoiceMembers() {
+  document.querySelectorAll("[data-voice-members-for]").forEach((element) => element.remove());
+
+  Object.entries(voiceRoomDirectory).forEach(([roomId, participants]) => {
+    const channelButton = document.querySelector(`.channel-item.voice[data-view="${CSS.escape(roomId)}"]`);
+    if (!channelButton || !participants.length) {
+      return;
+    }
+
+    const list = document.createElement("div");
+    list.className = "voice-channel-members";
+    list.dataset.voiceMembersFor = roomId;
+    list.innerHTML = participants.map((participant) => {
+      const role = getRole(participant.roleId);
+      const initials = (participant.name || "U")
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+      const avatarStyle = participant.avatarImage
+        ? `background: center / cover no-repeat url("${participant.avatarImage}")`
+        : `background: ${escapeHtml(role?.color || "#f1a126")}`;
+
+      return `
+        <div class="voice-channel-member">
+          <div class="voice-channel-avatar" style='${avatarStyle}'>${participant.avatarImage ? "" : escapeHtml(initials)}</div>
+          <span>${escapeHtml(participant.name || "Uye")}</span>
+        </div>
+      `;
+    }).join("");
+
+    channelButton.insertAdjacentElement("afterend", list);
+  });
+}
+
+function notifyVoiceDirectoryChanges(roomId, nextParticipants) {
+  const previousParticipants = voiceRoomDirectory[roomId] || [];
+  const previousIds = new Set(previousParticipants.map((participant) => participant.id));
+  const nextIds = new Set(nextParticipants.map((participant) => participant.id));
+
+  if (!voiceDirectoryReady[roomId]) {
+    voiceDirectoryReady[roomId] = true;
+    return;
+  }
+
+  if (voiceState.roomId !== roomId) {
+    return;
+  }
+
+  const someoneJoined = nextParticipants.some((participant) => participant.id !== authState.userId && !previousIds.has(participant.id));
+  const someoneLeft = previousParticipants.some((participant) => participant.id !== authState.userId && !nextIds.has(participant.id));
+
+  if (someoneJoined) {
+    playNotificationSound("voiceJoin");
+  }
+
+  if (someoneLeft) {
+    playNotificationSound("voiceLeave");
+  }
+}
+
+function subscribeToVoiceRoomDirectory() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  Object.keys(VOICE_ROOM_LABELS).forEach((roomId) => {
+    const channel = supabaseClient
+      .channel(`line-online-academy-voice-directory-${roomId}`, {
+        config: {
+          presence: { key: `directory-${roomId}` }
+        }
+      })
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const uniqueParticipants = new Map();
+        Object.values(state).flat().forEach((participant) => {
+          if (participant.id) {
+            uniqueParticipants.set(participant.id, participant);
+          }
+        });
+        const nextParticipants = Array.from(uniqueParticipants.values());
+        notifyVoiceDirectoryChanges(roomId, nextParticipants);
+        voiceRoomDirectory[roomId] = nextParticipants;
+        renderSidebarVoiceMembers();
+      })
+      .subscribe();
+
+    voiceDirectoryChannels.push(channel);
+  });
 }
 
 function renderVoiceControls() {
@@ -1029,6 +1190,12 @@ async function startVoiceRoom(roomId) {
       if (status === "SUBSCRIBED") {
         await voiceState.channel.track(getVoiceMemberPayload());
         sendVoiceSignal("join", null);
+        voiceRoomDirectory[roomId] = [
+          ...voiceRoomDirectory[roomId]?.filter((participant) => participant.id !== authState.userId) || [],
+          getVoiceMemberPayload()
+        ];
+        renderSidebarVoiceMembers();
+        playNotificationSound("voiceJoin");
         setVoiceStatus(`${VOICE_ROOM_LABELS[roomId] || "Oda"} odasindasin.`);
       }
     });
@@ -1052,6 +1219,9 @@ async function leaveVoiceRoom() {
 
   const previousRoom = voiceState.roomId;
   getVoiceGrid(previousRoom)?.replaceChildren();
+  voiceRoomDirectory[previousRoom] = (voiceRoomDirectory[previousRoom] || []).filter(
+    (participant) => participant.id !== authState.userId
+  );
   voiceState = {
     roomId: null,
     channel: null,
@@ -1063,7 +1233,9 @@ async function leaveVoiceRoom() {
     videoEnabled: false
   };
   setVoiceStatus("Odaya katilmaya hazir.", previousRoom);
+  renderSidebarVoiceMembers();
   renderVoiceControls();
+  playNotificationSound("voiceLeave");
 }
 
 function renegotiateVoicePeers() {
@@ -2138,6 +2310,7 @@ function registerDmNotification(message) {
   }
 
   refreshDmUnreadFromMessages();
+  playNotificationSound("dm");
   renderDmInbox();
 }
 
@@ -3825,6 +3998,9 @@ if (dmForm) {
   });
 });
 
+document.addEventListener("pointerdown", unlockNotificationAudio, { once: true });
+document.addEventListener("keydown", unlockNotificationAudio, { once: true });
+
 if (authBackdrop) {
   authBackdrop.addEventListener("click", (event) => {
     if (event.target === authBackdrop) {
@@ -3889,6 +4065,7 @@ loadPersistedMessages();
 subscribeToMessages();
 subscribeToDirectMessages();
 subscribeToPresence();
+subscribeToVoiceRoomDirectory();
 
 window.setInterval(() => {
   if (authState.userId) {

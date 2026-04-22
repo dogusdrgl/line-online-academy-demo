@@ -228,6 +228,34 @@ button {
   margin-right: 10px;
 }
 
+.voice-channel-members {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 6px 34px;
+}
+
+.voice-channel-member {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  color: #aeb5c1;
+  font-size: 0.82rem;
+}
+
+.voice-channel-avatar {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  font-size: 0.62rem;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px rgba(89, 216, 95, 0.12);
+}
+
 .channel-item.text-channel::before {
   content: "";
   margin-right: 0;
