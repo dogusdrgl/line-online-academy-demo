@@ -892,7 +892,10 @@ function saveVoiceChatUiState() {
 }
 
 function isVoiceChatCollapsed(roomId) {
-  return Boolean(voiceChatUiState?.[roomId]?.collapsed);
+  if (!roomId) {
+    return true;
+  }
+  return voiceChatUiState?.[roomId]?.collapsed ?? true;
 }
 
 function getVoiceChatUnreadCount(roomId) {
@@ -945,6 +948,7 @@ function renderVoiceChatPanels() {
     const chatPanel = panel.querySelector(".voice-chat-panel");
     const unreadBadge = panel.querySelector("[data-voice-chat-unread]");
     const toggleLabel = panel.querySelector("[data-voice-chat-toggle-label]");
+    const handleBadge = panel.querySelector("[data-voice-chat-handle-unread]");
     if (!chatPanel || !unreadBadge || !toggleLabel) {
       return;
     }
@@ -953,13 +957,77 @@ function renderVoiceChatPanels() {
     const unread = getVoiceChatUnreadCount(roomId);
     chatPanel.classList.toggle("collapsed", collapsed);
     unreadBadge.classList.toggle("hidden", unread <= 0);
+    handleBadge?.classList.toggle("hidden", unread <= 0);
     unreadBadge.textContent = unread > 99 ? "99+" : String(unread);
-    toggleLabel.textContent = collapsed ? "Ac" : "Kapat";
+    if (handleBadge) {
+      handleBadge.textContent = unread > 99 ? "99+" : String(unread);
+    }
+    toggleLabel.textContent = collapsed ? ">" : "<";
   });
 }
 
 function getVoiceDirectoryChannel(roomId) {
   return voiceDirectoryChannels.find((item) => item.roomId === roomId)?.channel || null;
+}
+
+function clearVoiceRoomMessages(roomId, deleteRemote = false) {
+  if (!roomId) {
+    return;
+  }
+
+  const panel = document.getElementById(roomId);
+  panel?.querySelectorAll("[data-voice-chat-stream] .message-line[data-message-id]").forEach((line) => {
+    renderedMessageIds.delete(line.dataset.messageId);
+  });
+  panel?.querySelector("[data-voice-chat-stream]")?.replaceChildren();
+  notificationState[roomId] = { count: 0, mentions: 0 };
+  voiceChatUiState[roomId] = {
+    ...(voiceChatUiState[roomId] || {}),
+    unread: 0,
+    collapsed: true
+  };
+  saveNotificationState();
+  saveVoiceChatUiState();
+  renderNotifications();
+  renderVoiceChatPanels();
+
+  if (!deleteRemote || !supabaseClient) {
+    return;
+  }
+
+  withTimeout(
+    supabaseClient.from("messages").delete().eq("channel_id", roomId),
+    "Ses odasi sohbet temizleme"
+  ).catch((error) => {
+    console.warn("Ses odasi sohbeti temizlenemedi:", error.message);
+  });
+}
+
+async function loadVoiceRoomMessages(roomId) {
+  if (!supabaseClient || !roomId || !VOICE_ROOM_LABELS[roomId]) {
+    return;
+  }
+
+  clearVoiceRoomMessages(roomId, false);
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("messages")
+        .select("*")
+        .eq("channel_id", roomId)
+        .order("created_at", { ascending: true }),
+      "Ses odasi mesajlarini yukleme"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    (data || []).forEach((message) => addChatMessage(roomId, message, { notify: false }));
+  } catch (error) {
+    console.warn("Ses odasi mesajlari yuklenemedi:", error.message);
+  }
 }
 
 function renderVoiceParticipants() {
@@ -1063,6 +1131,9 @@ function subscribeToVoiceRoomDirectory() {
         });
         const nextParticipants = Array.from(uniqueParticipants.values());
         notifyVoiceDirectoryChanges(roomId, nextParticipants);
+        if (nextParticipants.length === 0 && (voiceRoomDirectory[roomId] || []).length > 0) {
+          clearVoiceRoomMessages(roomId, true);
+        }
         voiceRoomDirectory[roomId] = nextParticipants;
         renderSidebarVoiceMembers();
       })
@@ -1317,6 +1388,7 @@ async function startVoiceRoom(roomId) {
   renderIdentityVoiceCard();
   renderQuickControls();
   clearVoiceChatUnread(roomId);
+  await loadVoiceRoomMessages(roomId);
 
   const directoryChannel = getVoiceDirectoryChannel(roomId);
   if (directoryChannel) {
@@ -1504,6 +1576,10 @@ function initializeVoiceRooms() {
         <div class="voice-stage-layout">
           <div class="voice-call-grid" data-voice-grid></div>
           <aside class="voice-chat-panel">
+            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">
+              <span class="voice-chat-handle-icon" data-voice-chat-toggle-label>></span>
+              <strong class="voice-chat-handle-unread hidden" data-voice-chat-handle-unread>0</strong>
+            </button>
             <div class="voice-chat-head">
               <div>
                 <p class="section-kicker">Oda Sohbeti</p>
@@ -2189,7 +2265,7 @@ function addChatMessage(panelId, message, options = {}) {
 
 function loadLocalMessages() {
   readLocalMessages()
-    .filter((message) => MESSAGE_CHANNEL_VIEWS.has(message.channel_id))
+    .filter((message) => TEXT_CHANNEL_VIEWS.has(message.channel_id))
     .forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
@@ -2482,7 +2558,7 @@ async function loadPersistedMessages() {
         supabaseClient
           .from("messages")
           .select("*")
-          .in("channel_id", Array.from(MESSAGE_CHANNEL_VIEWS))
+          .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
           .order("created_at", { ascending: true })
           .range(from, from + pageSize - 1),
         "Mesajlari yukleme"
