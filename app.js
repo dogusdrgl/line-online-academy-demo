@@ -946,21 +946,27 @@ function renderVoiceChatPanels() {
   document.querySelectorAll(".voice-channel-view").forEach((panel) => {
     const roomId = panel.id;
     const chatPanel = panel.querySelector(".voice-chat-panel");
-    const unreadBadge = panel.querySelector("[data-voice-chat-unread]");
+    const stageLayout = panel.querySelector(".voice-stage-layout");
     const toggleLabel = panel.querySelector("[data-voice-chat-toggle-label]");
     const handleBadge = panel.querySelector("[data-voice-chat-handle-unread]");
-    if (!chatPanel || !unreadBadge || !toggleLabel) {
+    const dockBadge = panel.querySelector("[data-voice-chat-dock-unread]");
+    const chatButton = panel.querySelector("[data-voice-chat-button]");
+    if (!chatPanel || !toggleLabel) {
       return;
     }
 
     const collapsed = isVoiceChatCollapsed(roomId);
     const unread = getVoiceChatUnreadCount(roomId);
     chatPanel.classList.toggle("collapsed", collapsed);
-    unreadBadge.classList.toggle("hidden", unread <= 0);
+    stageLayout?.classList.toggle("chat-open", !collapsed);
+    chatButton?.classList.toggle("active", !collapsed);
     handleBadge?.classList.toggle("hidden", unread <= 0);
-    unreadBadge.textContent = unread > 99 ? "99+" : String(unread);
+    dockBadge?.classList.toggle("hidden", unread <= 0);
     if (handleBadge) {
       handleBadge.textContent = unread > 99 ? "99+" : String(unread);
+    }
+    if (dockBadge) {
+      dockBadge.textContent = unread > 99 ? "99+" : String(unread);
     }
     toggleLabel.textContent = collapsed ? ">" : "<";
   });
@@ -1585,12 +1591,6 @@ function initializeVoiceRooms() {
                 <p class="section-kicker">Oda Sohbeti</p>
                 <strong>${escapeHtml(roomLabel)} Metin Alani</strong>
               </div>
-              <div class="voice-chat-head-actions">
-                <strong class="voice-chat-unread hidden" data-voice-chat-unread>0</strong>
-                <button class="voice-chat-toggle" type="button" data-voice-chat-toggle>
-                  <span data-voice-chat-toggle-label>Kapat</span>
-                </button>
-              </div>
             </div>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
@@ -1611,11 +1611,20 @@ function initializeVoiceRooms() {
     `;
 
     panel.appendChild(callShell);
+    const moreButton = callShell.querySelector("[data-voice-more]");
+    const chatDockButton = document.createElement("button");
+    chatDockButton.className = "voice-control voice-chat-dock-button";
+    chatDockButton.type = "button";
+    chatDockButton.dataset.voiceChatButton = "true";
+    chatDockButton.innerHTML = `<span>Chat</span><small>Chat</small><strong class="voice-chat-dock-unread hidden" data-voice-chat-dock-unread>0</strong>`;
+    moreButton?.insertAdjacentElement("beforebegin", chatDockButton);
+
     callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
     callShell.querySelector("[data-voice-mic]").addEventListener("click", toggleVoiceMic);
     callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
     callShell.querySelector("[data-voice-chat-toggle]")?.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
+    chatDockButton.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
     callShell.querySelector("[data-voice-share]").addEventListener("click", () => window.alert("Ekran paylasimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-activity]").addEventListener("click", () => window.alert("Aktivite secimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplantı ayarlari sonraki adimda eklenecek."));
