@@ -11,7 +11,7 @@
   --accent-soft: #c8925d;
   --success: #5fd15f;
   --shadow: 0 20px 45px rgba(0, 0, 0, 0.34);
-  --panel-width-left: 244px;
+  --panel-width-left: 220px;
   --panel-width-right: 248px;
   --content-max: 1180px;
   --surface-main: #303238;
@@ -113,9 +113,9 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 14px;
+  padding: 14px 12px;
   border-bottom: 1px solid var(--border);
-  background: #202227;
+  background: linear-gradient(180deg, #1c1e22, #1a1c20);
 }
 
 .brand-lockup {
@@ -126,8 +126,8 @@ button {
 }
 
 .sidebar-logo {
-  width: 150px;
-  height: 36px;
+  width: 132px;
+  height: 32px;
   object-fit: contain;
   object-position: left center;
 }
@@ -141,27 +141,32 @@ button {
 }
 
 .channel-groups {
-  padding: 14px 8px 84px;
+  padding: 12px 8px 84px;
   display: grid;
-  gap: 16px;
+  gap: 12px;
   height: calc(100vh - 60px);
   overflow: auto;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.01), transparent);
 }
 
+.channel-groups > section {
+  display: grid;
+  gap: 2px;
+}
+
 .channel-item {
   position: relative;
   width: 100%;
-  margin-top: 4px;
-  padding: 8px 10px;
+  margin-top: 2px;
+  padding: 7px 10px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 10px;
   background: transparent;
   color: #b7bcc6;
   text-align: left;
   cursor: pointer;
   transition: 180ms ease;
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .channel-badge {
@@ -210,13 +215,14 @@ button {
 
 .channel-item.page-link {
   font-weight: 600;
+  margin-bottom: 2px;
 }
 
 .channel-item.active,
 .channel-item:hover {
   color: #f4ede3;
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.03);
 }
 
 .channel-item:hover {
@@ -230,8 +236,8 @@ button {
 
 .voice-channel-members {
   display: grid;
-  gap: 6px;
-  margin: 4px 0 6px 34px;
+  gap: 5px;
+  margin: 2px 0 5px 28px;
 }
 
 .voice-channel-member {
@@ -262,19 +268,30 @@ button {
 }
 
 .group-title.filled {
-  display: block;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  color: #1f1205;
-  background: linear-gradient(135deg, #d39a63, #c4874e);
-  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 5px;
+  margin: 8px 0 4px;
+  color: #c6aa86;
+  background: transparent;
+  border-radius: 0;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  box-shadow: none;
+}
+
+.group-title.filled::before,
+.group-title.filled::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(241, 161, 38, 0.22), rgba(255, 255, 255, 0.02));
 }
 
 .channel-item.subtle {
-  background: rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .user-card {

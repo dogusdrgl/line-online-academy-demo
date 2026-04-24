@@ -33,6 +33,7 @@ const VOICE_ROOM_LABELS = {
 };
 
 const channelButtons = document.querySelectorAll(".channel-item");
+const channelGroups = document.querySelector(".channel-groups");
 const viewPanels = document.querySelectorAll(".view-panel");
 const viewTitle = document.getElementById("view-title");
 const messageSearchInput = document.getElementById("message-search");
@@ -1398,6 +1399,33 @@ function ensureLogoutButton() {
   logoutButton.textContent = "Cikis Yap";
   identityCard.appendChild(logoutButton);
   return logoutButton;
+}
+
+function initializeSidebarOrder() {
+  if (!channelGroups) {
+    return;
+  }
+
+  const sections = Array.from(channelGroups.querySelectorAll(":scope > section"));
+  if (!sections.length) {
+    return;
+  }
+
+  const pagesSection = sections.find((section) => section.querySelector('[data-view="dashboard"]'));
+  const lobiSection = sections.find((section) => section.querySelector('[data-view="waiting-room"]'));
+  const siniflarSection = sections.find((section) => section.querySelector('[data-view="class-1"]'));
+  const yonetimSection = sections.find((section) => section.querySelector('[data-view="admin-room"]'));
+  const kantinSection = sections.find((section) => section.querySelector('[data-view="canteen-chat"]'));
+  const kutuphaneSection = sections.find((section) => section.querySelector('[data-view="piano-notes"]'));
+
+  [
+    pagesSection,
+    lobiSection,
+    siniflarSection,
+    yonetimSection,
+    kantinSection,
+    kutuphaneSection
+  ].filter(Boolean).forEach((section) => channelGroups.appendChild(section));
 }
 
 function ensureSidebarMember(user) {
@@ -4101,6 +4129,7 @@ loadNotificationState();
 loadDmUnreadState();
 renderNotifications();
 renderDmBadge();
+initializeSidebarOrder();
 renderMembersSidebar();
 initializeVoiceRooms();
 initializeTextChannelComposers();
