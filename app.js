@@ -32,6 +32,11 @@ const VOICE_ROOM_LABELS = {
   "vip-loca": "Loca"
 };
 
+const MESSAGE_CHANNEL_VIEWS = new Set([
+  ...TEXT_CHANNEL_VIEWS,
+  ...Object.keys(VOICE_ROOM_LABELS)
+]);
+
 const channelButtons = document.querySelectorAll(".channel-item");
 const channelGroups = document.querySelector(".channel-groups");
 const viewPanels = document.querySelectorAll(".view-panel");
@@ -170,7 +175,8 @@ let voiceState = {
   pendingIce: new Map(),
   participants: new Map(),
   audioEnabled: true,
-  videoEnabled: false
+  videoEnabled: false,
+  outputEnabled: true
 };
 let voiceRoomDirectory = {};
 let voiceDirectoryChannels = [];
@@ -749,7 +755,7 @@ function renderNotifications() {
 }
 
 function markChannelRead(viewId) {
-  if (!TEXT_CHANNEL_VIEWS.has(viewId)) {
+  if (!MESSAGE_CHANNEL_VIEWS.has(viewId)) {
     return;
   }
 
@@ -759,7 +765,7 @@ function markChannelRead(viewId) {
 }
 
 function registerChannelNotification(panelId, message, options = {}) {
-  if (!TEXT_CHANNEL_VIEWS.has(panelId) || options.notify === false) {
+  if (!MESSAGE_CHANNEL_VIEWS.has(panelId) || options.notify === false) {
     return;
   }
 
@@ -798,9 +804,13 @@ function updateQuickControl(button, isActive) {
 }
 
 function renderQuickControls() {
-  updateQuickControl(quickMicButton, controlState.mic);
-  updateQuickControl(quickAudioButton, controlState.audio);
-  updateQuickControl(quickCameraButton, controlState.camera);
+  const micActive = voiceState.roomId ? voiceState.audioEnabled : controlState.mic;
+  const audioActive = voiceState.roomId ? voiceState.outputEnabled !== false : controlState.audio;
+  const cameraActive = voiceState.roomId ? voiceState.videoEnabled : controlState.camera;
+
+  updateQuickControl(quickMicButton, micActive);
+  updateQuickControl(quickAudioButton, audioActive);
+  updateQuickControl(quickCameraButton, cameraActive);
 }
 
 function renderIdentityVoiceCard() {
@@ -820,6 +830,10 @@ function getVoiceRoomPanel(roomId = voiceState.roomId) {
 
 function getVoiceGrid(roomId = voiceState.roomId) {
   return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-grid]");
+}
+
+function getVoiceChat(roomId = voiceState.roomId) {
+  return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-chat-stream]");
 }
 
 function getVoiceParticipantList(roomId = voiceState.roomId) {
@@ -848,6 +862,20 @@ function setVoiceStatus(text, roomId = voiceState.roomId) {
   if (status) {
     status.textContent = text;
   }
+}
+
+function applyVoiceOutputState(enabled) {
+  voiceState.outputEnabled = enabled;
+  getVoiceGrid()?.querySelectorAll("video").forEach((video) => {
+    if (video.closest(".voice-tile.local")) {
+      video.muted = true;
+      return;
+    }
+    video.muted = !enabled;
+  });
+  controlState.audio = enabled;
+  saveControlState();
+  renderQuickControls();
 }
 
 function renderVoiceParticipants() {
@@ -999,6 +1027,7 @@ function createVoiceTile(member, stream, isLocal = false) {
   const video = tile.querySelector("video");
   const fallback = tile.querySelector(".voice-avatar-fallback");
   video.srcObject = stream || null;
+  video.muted = isLocal || voiceState.outputEnabled === false;
   paintAvatar(fallback, member.name, member.avatarImage, role?.color || "#f1a126");
   grid.appendChild(tile);
 }
@@ -1189,15 +1218,20 @@ async function startVoiceRoom(roomId) {
   }
 
   voiceState.roomId = roomId;
-  voiceState.audioEnabled = true;
+  voiceState.audioEnabled = controlState.mic !== false;
   voiceState.videoEnabled = false;
+  voiceState.outputEnabled = controlState.audio !== false;
   voiceState.peers = new Map();
   voiceState.pendingIce = new Map();
   voiceState.participants = new Map([[authState.userId, getVoiceMemberPayload()]]);
+  voiceState.localStream.getAudioTracks().forEach((track) => {
+    track.enabled = voiceState.audioEnabled;
+  });
   createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
   renderVoiceParticipants();
   renderVoiceControls();
   renderIdentityVoiceCard();
+  renderQuickControls();
 
   voiceState.channel = supabaseClient
     .channel(`line-online-academy-voice-${roomId}`, {
@@ -1262,12 +1296,14 @@ async function leaveVoiceRoom() {
     pendingIce: new Map(),
     participants: new Map(),
     audioEnabled: true,
-    videoEnabled: false
+    videoEnabled: false,
+    outputEnabled: true
   };
   setVoiceStatus("Odaya katilmaya hazir.", previousRoom);
   renderSidebarVoiceMembers();
   renderVoiceControls();
   renderIdentityVoiceCard();
+  renderQuickControls();
   playNotificationSound("voiceLeave");
 }
 
@@ -1292,7 +1328,10 @@ function toggleVoiceMic() {
   voiceState.localStream.getAudioTracks().forEach((track) => {
     track.enabled = voiceState.audioEnabled;
   });
+  controlState.mic = voiceState.audioEnabled;
+  saveControlState();
   renderVoiceControls();
+  renderQuickControls();
 }
 
 async function toggleVoiceCamera() {
@@ -1312,8 +1351,11 @@ async function toggleVoiceCamera() {
       voiceState.localStream.removeTrack(track);
     });
     voiceState.videoEnabled = false;
+    controlState.camera = false;
+    saveControlState();
     createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
     renderVoiceControls();
+    renderQuickControls();
     renegotiateVoicePeers();
     return;
   }
@@ -1324,8 +1366,11 @@ async function toggleVoiceCamera() {
     voiceState.localStream.addTrack(videoTrack);
     voiceState.peers.forEach((peer) => peer.addTrack(videoTrack, voiceState.localStream));
     voiceState.videoEnabled = true;
+    controlState.camera = true;
+    saveControlState();
     createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
     renderVoiceControls();
+    renderQuickControls();
     renegotiateVoicePeers();
   } catch (error) {
     window.alert(getMediaErrorMessage(error, "Kamera"));
@@ -1360,7 +1405,20 @@ function initializeVoiceRooms() {
           </div>
           <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
         </div>
-        <div class="voice-call-grid" data-voice-grid></div>
+        <div class="voice-stage-layout">
+          <div class="voice-call-grid" data-voice-grid></div>
+          <aside class="voice-chat-panel">
+            <div class="voice-chat-head">
+              <p class="section-kicker">Oda Sohbeti</p>
+              <strong>${escapeHtml(roomLabel)} Metin Alani</strong>
+            </div>
+            <div class="voice-chat-stream" data-voice-chat-stream></div>
+            <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
+              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasina mesaj yaz..." maxlength="240" />
+              <button class="composer-submit" type="submit">Gonder</button>
+            </form>
+          </aside>
+        </div>
         <div class="voice-call-dock">
           <button class="voice-control active" type="button" data-voice-mic><span>🎙</span><small>Mik</small></button>
           <button class="voice-control muted" type="button" data-voice-camera><span>📷</span><small>Kamera</small></button>
@@ -1979,7 +2037,7 @@ function addChatMessage(panelId, message, options = {}) {
   }
 
   const panel = document.getElementById(panelId);
-  const chat = panel?.querySelector(".channel-chat");
+  const chat = panel?.querySelector(".channel-chat, [data-voice-chat-stream]");
   if (!chat) {
     return;
   }
@@ -2025,7 +2083,7 @@ function addChatMessage(panelId, message, options = {}) {
 
 function loadLocalMessages() {
   readLocalMessages()
-    .filter((message) => TEXT_CHANNEL_VIEWS.has(message.channel_id))
+    .filter((message) => MESSAGE_CHANNEL_VIEWS.has(message.channel_id))
     .forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
@@ -2318,7 +2376,7 @@ async function loadPersistedMessages() {
         supabaseClient
           .from("messages")
           .select("*")
-          .in("channel_id", Array.from(TEXT_CHANNEL_VIEWS))
+          .in("channel_id", Array.from(MESSAGE_CHANNEL_VIEWS))
           .order("created_at", { ascending: true })
           .range(from, from + pageSize - 1),
         "Mesajlari yukleme"
@@ -2755,6 +2813,111 @@ function openGuestInline() {
   guestNameInput.focus();
 }
 
+async function sendChannelMessage(panelId, text) {
+  if (authState.mode === "visitor") {
+    pendingView = panelId;
+    openAuthModal("signin");
+    return false;
+  }
+
+  if (!hasPermission("send_messages")) {
+    window.alert("Bu rol mesaj gonderme yetkisine sahip degil.");
+    return false;
+  }
+
+  if (authState.isBanned) {
+    window.alert("Bu hesabin sunucu erisimi kapatilmis.");
+    resetIdentity();
+    return false;
+  }
+
+  if (authState.isMuted) {
+    window.alert("Bu hesap susturuldugu icin mesaj gonderemez.");
+    return false;
+  }
+
+  const trimmedText = text.trim();
+  if (!trimmedText) {
+    return false;
+  }
+
+  const currentRole = getRole(authState.roleId);
+  const roleLabel = currentRole ? currentRole.name : "Uye";
+
+  if (supabaseClient) {
+    try {
+      const userSaved = await upsertAppUser({
+        id: authState.userId,
+        displayName: authState.name,
+        roleId: authState.roleId
+      });
+      const { data, error } = await withTimeout(
+        supabaseClient
+          .from("messages")
+          .insert({
+            channel_id: panelId,
+            author_id: userSaved ? authState.userId : null,
+            author_name: authState.name,
+            author_role: roleLabel,
+            content: trimmedText
+          })
+          .select()
+          .single(),
+        "Mesaj kaydi"
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      addChatMessage(panelId, data, { notify: false });
+      return true;
+    } catch (error) {
+      console.warn("Supabase mesaj kaydi basarisiz, yerel mesaj eklendi:", error.message);
+      addChatMessage(panelId, {
+        id: `local-${Date.now()}`,
+        channel_id: panelId,
+        author_name: authState.name,
+        author_role: roleLabel,
+        content: trimmedText,
+        created_at: new Date().toISOString()
+      }, { notify: false });
+      return true;
+    }
+  }
+
+  addChatMessage(panelId, {
+    id: `local-${Date.now()}`,
+    channel_id: panelId,
+    author_name: authState.name,
+    author_role: roleLabel,
+    content: trimmedText,
+    created_at: new Date().toISOString()
+  }, { notify: false });
+  return true;
+}
+
+function bindComposerForm(form) {
+  if (!form || form.dataset.composerBound === "true") {
+    return;
+  }
+
+  form.dataset.composerBound = "true";
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const panelId = form.dataset.composerView;
+    const input = form.querySelector(".composer-input");
+    if (!panelId || !input) {
+      return;
+    }
+
+    const sent = await sendChannelMessage(panelId, input.value);
+    if (sent) {
+      input.value = "";
+    }
+  });
+}
+
 function initializeTextChannelComposers() {
   document.querySelectorAll(".text-channel-view").forEach((panel) => {
     const composer = panel.querySelector(".message-composer");
@@ -2774,95 +2937,7 @@ function initializeTextChannelComposers() {
     `;
   });
 
-  document.querySelectorAll(".composer-form").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      const panelId = form.dataset.composerView;
-      const input = form.querySelector(".composer-input");
-
-      if (authState.mode === "visitor") {
-        pendingView = panelId;
-        openAuthModal("signin");
-        return;
-      }
-
-      if (!hasPermission("send_messages")) {
-        window.alert("Bu rol mesaj gonderme yetkisine sahip degil.");
-        return;
-      }
-
-      if (authState.isBanned) {
-        window.alert("Bu hesabin sunucu erisimi kapatilmis.");
-        resetIdentity();
-        return;
-      }
-
-      if (authState.isMuted) {
-        window.alert("Bu hesap susturuldugu icin mesaj gonderemez.");
-        return;
-      }
-
-      const text = input.value.trim();
-      if (!text) {
-        return;
-      }
-
-      const currentRole = getRole(authState.roleId);
-      const roleLabel = currentRole ? currentRole.name : "Uye";
-
-      if (supabaseClient) {
-        try {
-          const userSaved = await upsertAppUser({
-            id: authState.userId,
-            displayName: authState.name,
-            roleId: authState.roleId
-          });
-          const { data, error } = await withTimeout(
-            supabaseClient
-              .from("messages")
-              .insert({
-                channel_id: panelId,
-                author_id: userSaved ? authState.userId : null,
-                author_name: authState.name,
-                author_role: roleLabel,
-                content: text
-              })
-              .select()
-              .single(),
-            "Mesaj kaydi"
-          );
-
-          if (error) {
-            throw error;
-          }
-
-          addChatMessage(panelId, data, { notify: false });
-        } catch (error) {
-          console.warn("Supabase mesaj kaydi basarisiz, yerel mesaj eklendi:", error.message);
-          addChatMessage(panelId, {
-            id: `local-${Date.now()}`,
-            channel_id: panelId,
-            author_name: authState.name,
-            author_role: roleLabel,
-            content: text,
-            created_at: new Date().toISOString()
-          }, { notify: false });
-        }
-      } else {
-        addChatMessage(panelId, {
-          id: `local-${Date.now()}`,
-          channel_id: panelId,
-          author_name: authState.name,
-          author_role: roleLabel,
-          content: text,
-          created_at: new Date().toISOString()
-        }, { notify: false });
-      }
-
-      input.value = "";
-    });
-  });
+  document.querySelectorAll(".composer-form").forEach(bindComposerForm);
 }
 
 async function loadAdminUsers() {
@@ -4088,6 +4163,24 @@ if (dmForm) {
 
   button.addEventListener("click", (event) => {
     event.stopPropagation();
+
+    if (voiceState.roomId) {
+      if (key === "mic") {
+        toggleVoiceMic();
+        return;
+      }
+
+      if (key === "camera") {
+        toggleVoiceCamera();
+        return;
+      }
+
+      if (key === "audio") {
+        applyVoiceOutputState(!(voiceState.outputEnabled !== false));
+        return;
+      }
+    }
+
     controlState[key] = !controlState[key];
     saveControlState();
     renderQuickControls();
