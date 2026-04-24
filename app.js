@@ -87,8 +87,8 @@ const dmForm = document.getElementById("dm-form");
 const dmInput = document.getElementById("dm-input");
 const guestCard = document.getElementById("guest-card");
 const identityCard = document.getElementById("identity-card");
-const identityVoiceCard = document.getElementById("identity-voice-card");
 const identityVoiceRoomButton = document.getElementById("identity-voice-room");
+const identityVoiceRoomStatus = document.getElementById("identity-voice-room-status");
 const identityVoiceRoomName = document.getElementById("identity-voice-room-name");
 const identityVoiceLeaveButton = document.getElementById("identity-voice-leave");
 const quickMicButton = document.getElementById("quick-mic");
@@ -804,16 +804,14 @@ function renderQuickControls() {
 }
 
 function renderIdentityVoiceCard() {
-  if (!identityVoiceCard) {
+  if (!identityVoiceRoomButton || !identityVoiceRoomName || !identityVoiceRoomStatus) {
     return;
   }
 
   const hasVoiceRoom = Boolean(voiceState.roomId);
-  identityVoiceCard.classList.toggle("hidden", !hasVoiceRoom);
-
-  if (hasVoiceRoom && identityVoiceRoomName) {
-    identityVoiceRoomName.textContent = `${VOICE_ROOM_LABELS[voiceState.roomId] || "Sesli Oda"} / LINE Online Academy`;
-  }
+  identityVoiceRoomButton.classList.toggle("active-room", hasVoiceRoom);
+  identityVoiceRoomStatus.textContent = hasVoiceRoom ? "Canli" : "Bos";
+  identityVoiceRoomName.textContent = hasVoiceRoom ? (VOICE_ROOM_LABELS[voiceState.roomId] || "Sesli Oda") : "Sesli Oda";
 }
 
 function getVoiceRoomPanel(roomId = voiceState.roomId) {
@@ -1440,7 +1438,8 @@ function titleCaseSidebarLabels() {
       return;
     }
 
-    const normalized = currentText
+    const withoutDecorativePrefix = currentText.replace(/^[^\p{L}\p{N}]+/u, "");
+    const normalized = withoutDecorativePrefix
       .split(" ")
       .filter(Boolean)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
