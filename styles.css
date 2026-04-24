@@ -1244,6 +1244,7 @@ button {
 }
 
 .voice-call-shell {
+  height: calc(100vh - var(--topbar-height));
   min-height: calc(100vh - var(--topbar-height));
   display: grid;
   margin: 0;
@@ -1311,6 +1312,7 @@ button {
 }
 
 .voice-call-stage {
+  height: 100%;
   min-height: calc(100vh - var(--topbar-height));
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -1325,6 +1327,7 @@ button {
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   overflow: hidden;
+  position: relative;
 }
 
 .voice-call-topline {
@@ -1461,6 +1464,7 @@ button {
 }
 
 .voice-chat-panel {
+  position: relative;
   min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -1468,6 +1472,46 @@ button {
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(30, 32, 38, 0.94), rgba(18, 19, 24, 0.96));
   overflow: hidden;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.voice-chat-handle {
+  position: absolute;
+  top: 18px;
+  left: -42px;
+  width: 38px;
+  min-height: 88px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 0;
+  border-radius: 14px 0 0 14px;
+  background: rgba(25, 27, 32, 0.96);
+  color: #eef1f6;
+  cursor: pointer;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.26);
+  z-index: 2;
+}
+
+.voice-chat-handle-icon {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.voice-chat-handle-unread {
+  min-width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e2384a;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .voice-chat-head {
@@ -1576,12 +1620,17 @@ button {
 }
 
 .voice-chat-panel.collapsed {
-  grid-template-rows: auto;
-  align-self: start;
+  width: 0;
+  min-width: 0;
+  border-color: transparent;
+  background: transparent;
+  transform: translateX(100%);
+  overflow: visible;
 }
 
 .voice-chat-panel.collapsed .voice-chat-stream,
-.voice-chat-panel.collapsed .voice-chat-form {
+.voice-chat-panel.collapsed .voice-chat-form,
+.voice-chat-panel.collapsed .voice-chat-head {
   display: none;
 }
 
