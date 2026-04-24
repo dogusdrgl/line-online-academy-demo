@@ -142,6 +142,7 @@ const LOCAL_NOTIFICATIONS_KEY = "line-online-academy-notifications";
 const LOCAL_DM_KEY = "line-online-academy-direct-messages";
 const LOCAL_DM_UNREAD_KEY = "line-online-academy-dm-unread";
 const LOCAL_DM_READ_KEY = "line-online-academy-dm-read";
+const LOCAL_VOICE_CHAT_UI_KEY = "line-online-academy-voice-chat-ui";
 
 let authState = {
   mode: "visitor",
@@ -167,6 +168,7 @@ let dmUnreadState = {};
 let dmReadState = {};
 let dmInboxMessages = [];
 let dmInboxLoadedOnce = false;
+let voiceChatUiState = readJson(LOCAL_VOICE_CHAT_UI_KEY, {});
 let voiceState = {
   roomId: null,
   channel: null,
@@ -760,6 +762,9 @@ function markChannelRead(viewId) {
   }
 
   notificationState[viewId] = { count: 0, mentions: 0 };
+  if (VOICE_ROOM_LABELS[viewId]) {
+    clearVoiceChatUnread(viewId);
+  }
   saveNotificationState();
   renderNotifications();
 }
@@ -770,7 +775,8 @@ function registerChannelNotification(panelId, message, options = {}) {
   }
 
   const isOwnMessage = message.author_id && authState.userId && message.author_id === authState.userId;
-  if (isOwnMessage || getActiveViewId() === panelId) {
+  const isSameVoiceRoomOpen = getActiveViewId() === panelId && !isVoiceChatCollapsed(panelId);
+  if (isOwnMessage || isSameVoiceRoomOpen) {
     markChannelRead(panelId);
     return;
   }
@@ -781,6 +787,9 @@ function registerChannelNotification(panelId, message, options = {}) {
     mentions: currentState.mentions + (messageMentionsCurrentUser(message) ? 1 : 0)
   };
   saveNotificationState();
+  if (VOICE_ROOM_LABELS[panelId]) {
+    incrementVoiceChatUnread(panelId);
+  }
   renderNotifications();
   playNotificationSound(messageMentionsCurrentUser(message) ? "dm" : "message");
 }
@@ -878,6 +887,81 @@ function applyVoiceOutputState(enabled) {
   renderQuickControls();
 }
 
+function saveVoiceChatUiState() {
+  writeJson(LOCAL_VOICE_CHAT_UI_KEY, voiceChatUiState);
+}
+
+function isVoiceChatCollapsed(roomId) {
+  return Boolean(voiceChatUiState?.[roomId]?.collapsed);
+}
+
+function getVoiceChatUnreadCount(roomId) {
+  return Number(voiceChatUiState?.[roomId]?.unread || 0);
+}
+
+function clearVoiceChatUnread(roomId) {
+  if (!roomId) {
+    return;
+  }
+  voiceChatUiState[roomId] = {
+    ...(voiceChatUiState[roomId] || {}),
+    unread: 0
+  };
+  saveVoiceChatUiState();
+  renderVoiceChatPanels();
+}
+
+function incrementVoiceChatUnread(roomId) {
+  if (!roomId) {
+    return;
+  }
+  voiceChatUiState[roomId] = {
+    ...(voiceChatUiState[roomId] || {}),
+    unread: getVoiceChatUnreadCount(roomId) + 1
+  };
+  saveVoiceChatUiState();
+  renderVoiceChatPanels();
+}
+
+function toggleVoiceChatPanel(roomId) {
+  if (!roomId) {
+    return;
+  }
+  const collapsed = !isVoiceChatCollapsed(roomId);
+  voiceChatUiState[roomId] = {
+    ...(voiceChatUiState[roomId] || {}),
+    collapsed
+  };
+  if (!collapsed && voiceState.roomId === roomId) {
+    voiceChatUiState[roomId].unread = 0;
+  }
+  saveVoiceChatUiState();
+  renderVoiceChatPanels();
+}
+
+function renderVoiceChatPanels() {
+  document.querySelectorAll(".voice-channel-view").forEach((panel) => {
+    const roomId = panel.id;
+    const chatPanel = panel.querySelector(".voice-chat-panel");
+    const unreadBadge = panel.querySelector("[data-voice-chat-unread]");
+    const toggleLabel = panel.querySelector("[data-voice-chat-toggle-label]");
+    if (!chatPanel || !unreadBadge || !toggleLabel) {
+      return;
+    }
+
+    const collapsed = isVoiceChatCollapsed(roomId);
+    const unread = getVoiceChatUnreadCount(roomId);
+    chatPanel.classList.toggle("collapsed", collapsed);
+    unreadBadge.classList.toggle("hidden", unread <= 0);
+    unreadBadge.textContent = unread > 99 ? "99+" : String(unread);
+    toggleLabel.textContent = collapsed ? "Ac" : "Kapat";
+  });
+}
+
+function getVoiceDirectoryChannel(roomId) {
+  return voiceDirectoryChannels.find((item) => item.roomId === roomId)?.channel || null;
+}
+
 function renderVoiceParticipants() {
   const list = getVoiceParticipantList();
   if (!list) {
@@ -966,7 +1050,7 @@ function subscribeToVoiceRoomDirectory() {
     const channel = supabaseClient
       .channel(`line-online-academy-voice-directory-${roomId}`, {
         config: {
-          presence: { key: `directory-${roomId}` }
+          presence: { key: `${roomId}-${authState.userId || `visitor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`}` }
         }
       })
       .on("presence", { event: "sync" }, () => {
@@ -984,7 +1068,7 @@ function subscribeToVoiceRoomDirectory() {
       })
       .subscribe();
 
-    voiceDirectoryChannels.push(channel);
+    voiceDirectoryChannels.push({ roomId, channel });
   });
 }
 
@@ -1232,6 +1316,16 @@ async function startVoiceRoom(roomId) {
   renderVoiceControls();
   renderIdentityVoiceCard();
   renderQuickControls();
+  clearVoiceChatUnread(roomId);
+
+  const directoryChannel = getVoiceDirectoryChannel(roomId);
+  if (directoryChannel) {
+    try {
+      await directoryChannel.track(getVoiceMemberPayload());
+    } catch (error) {
+      console.warn("Sesli oda dizin takibi baslatilamadi:", error.message);
+    }
+  }
 
   voiceState.channel = supabaseClient
     .channel(`line-online-academy-voice-${roomId}`, {
@@ -1275,8 +1369,10 @@ async function leaveVoiceRoom() {
   sendVoiceSignal("leave", null);
   voiceState.peers.forEach((peer) => peer.close());
   voiceState.localStream?.getTracks().forEach((track) => track.stop());
+  const directoryChannel = getVoiceDirectoryChannel(voiceState.roomId);
 
   try {
+    await directoryChannel?.untrack();
     await voiceState.channel?.untrack();
     await voiceState.channel?.unsubscribe();
   } catch (error) {
@@ -1409,8 +1505,16 @@ function initializeVoiceRooms() {
           <div class="voice-call-grid" data-voice-grid></div>
           <aside class="voice-chat-panel">
             <div class="voice-chat-head">
-              <p class="section-kicker">Oda Sohbeti</p>
-              <strong>${escapeHtml(roomLabel)} Metin Alani</strong>
+              <div>
+                <p class="section-kicker">Oda Sohbeti</p>
+                <strong>${escapeHtml(roomLabel)} Metin Alani</strong>
+              </div>
+              <div class="voice-chat-head-actions">
+                <strong class="voice-chat-unread hidden" data-voice-chat-unread>0</strong>
+                <button class="voice-chat-toggle" type="button" data-voice-chat-toggle>
+                  <span data-voice-chat-toggle-label>Kapat</span>
+                </button>
+              </div>
             </div>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
@@ -1435,12 +1539,14 @@ function initializeVoiceRooms() {
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
     callShell.querySelector("[data-voice-mic]").addEventListener("click", toggleVoiceMic);
     callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
+    callShell.querySelector("[data-voice-chat-toggle]")?.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
     callShell.querySelector("[data-voice-share]").addEventListener("click", () => window.alert("Ekran paylasimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-activity]").addEventListener("click", () => window.alert("Aktivite secimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplantı ayarlari sonraki adimda eklenecek."));
   });
 
   renderVoiceControls();
+  renderVoiceChatPanels();
 }
 
 function ensureLogoutButton() {
@@ -2532,6 +2638,9 @@ function setActiveView(nextView, label) {
 
   updateSearchVisibility(nextView);
   markChannelRead(nextView);
+  if (VOICE_ROOM_LABELS[nextView] && !isVoiceChatCollapsed(nextView)) {
+    clearVoiceChatUnread(nextView);
+  }
 }
 
 function updateSearchVisibility(viewId) {

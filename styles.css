@@ -1240,6 +1240,7 @@ button {
 .voice-channel-view {
   padding: 0;
   background: #050608;
+  overflow: hidden;
 }
 
 .voice-call-shell {
@@ -1315,6 +1316,7 @@ button {
   grid-template-rows: auto 1fr auto;
   gap: 18px;
   padding: 24px;
+  overflow: hidden;
 }
 
 .voice-stage-layout {
@@ -1322,6 +1324,7 @@ button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
+  overflow: hidden;
 }
 
 .voice-call-topline {
@@ -1468,8 +1471,43 @@ button {
 }
 
 .voice-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 16px 16px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.voice-chat-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-chat-unread {
+  min-width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e2384a;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 0 0 4px rgba(226, 56, 74, 0.12);
+}
+
+.voice-chat-toggle {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eef1f6;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .voice-chat-head strong {
@@ -1535,6 +1573,16 @@ button {
   min-width: 88px;
   height: 42px;
   border-radius: 12px;
+}
+
+.voice-chat-panel.collapsed {
+  grid-template-rows: auto;
+  align-self: start;
+}
+
+.voice-chat-panel.collapsed .voice-chat-stream,
+.voice-chat-panel.collapsed .voice-chat-form {
+  display: none;
 }
 
 @media (max-width: 1220px) {
