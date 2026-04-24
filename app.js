@@ -615,6 +615,21 @@ function playNotificationSound(type = "message") {
   });
 }
 
+function getMediaErrorMessage(error, deviceLabel = "medya") {
+  const errorName = error?.name || "BilinmeyenHata";
+  const baseMessage = `${deviceLabel} erisimi acilamadi.`;
+  const helpMessages = {
+    NotAllowedError: "Tarayici veya sistem izinlerinde kamera/mikrofon engellenmis. Adres cubugundaki kilit simgesinden site izinlerini acip tekrar dene.",
+    SecurityError: "Tarayici guvenli baglanti istiyor. Siteyi https uzerinden actigindan emin ol.",
+    NotFoundError: "Bu cihazda uygun kamera/mikrofon bulunamadi ya da tarayici cihazi goremiyor.",
+    NotReadableError: "Kamera/mikrofon baska bir uygulama tarafindan kullaniliyor olabilir. Zoom, Discord, OBS veya kamera uygulamasini kapatip tekrar dene.",
+    OverconstrainedError: "Secilen kamera/mikrofon ayarlari cihazla uyusmadi. Varsayilan cihazi degistirip tekrar dene.",
+    AbortError: "Tarayici medya erisimini baslatirken islemi kesti. Sayfayi yenileyip tekrar dene."
+  };
+
+  return `${baseMessage}\n\n${helpMessages[errorName] || "Tarayici izinlerini ve cihaz baglantisini kontrol edip tekrar dene."}\n\nTeknik hata: ${errorName}`;
+}
+
 function loadNotificationState() {
   notificationState = readJson(LOCAL_NOTIFICATIONS_KEY, {});
 }
@@ -1168,7 +1183,7 @@ async function startVoiceRoom(roomId) {
   try {
     voiceState.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   } catch (error) {
-    window.alert("Mikrofon erisimi acilamadi. Tarayici izinlerini kontrol et.");
+    window.alert(getMediaErrorMessage(error, "Mikrofon"));
     setVoiceStatus("Mikrofon izni bekleniyor.", roomId);
     console.error(error);
     return;
@@ -1314,7 +1329,7 @@ async function toggleVoiceCamera() {
     renderVoiceControls();
     renegotiateVoicePeers();
   } catch (error) {
-    window.alert("Kamera erisimi acilamadi. Tarayici izinlerini kontrol et.");
+    window.alert(getMediaErrorMessage(error, "Kamera"));
     console.error(error);
   }
 }
@@ -1488,14 +1503,7 @@ function getAllMembers() {
   const merged = new Map();
 
   [...members, ...directoryUsers, ...livePresenceMembers].forEach((member) => {
-    if (!isVisibleRealMember(member) || member.roleId === "guest") {
-      return;
-    }
-    merged.set(member.id, member);
-  });
-
-  livePresenceMembers.forEach((member) => {
-    if (!isVisibleRealMember(member) || member.roleId !== "guest") {
+    if (!isVisibleRealMember(member)) {
       return;
     }
     merged.set(member.id, member);
@@ -4079,7 +4087,7 @@ if (cameraButton && cameraPreview) {
       cameraPreview.style.display = "block";
       cameraButton.style.display = "none";
     } catch (error) {
-      window.alert("Kamera erisimi acilamadi. Tarayici izinlerini kontrol et.");
+      window.alert(getMediaErrorMessage(error, "Kamera"));
       console.error(error);
     }
   });
