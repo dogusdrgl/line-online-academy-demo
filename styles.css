@@ -234,6 +234,20 @@ button {
   margin-right: 10px;
 }
 
+.channel-item.voice::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, currentColor 0 32%, transparent 36%),
+    radial-gradient(circle at 50% 50%, transparent 46%, currentColor 50% 54%, transparent 58%),
+    radial-gradient(circle at 50% 50%, transparent 68%, currentColor 72% 76%, transparent 80%);
+  opacity: 0.78;
+}
+
 .voice-channel-members {
   display: grid;
   gap: 5px;
@@ -264,7 +278,18 @@ button {
 
 .channel-item.text-channel::before {
   content: "";
-  margin-right: 0;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 10px;
+  border-radius: 4px;
+  background:
+    linear-gradient(currentColor, currentColor) 3px 4px / 8px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) 3px 7px / 6px 1.5px no-repeat,
+    linear-gradient(currentColor, currentColor) 3px 10px / 5px 1.5px no-repeat,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0.82;
 }
 
 .group-title.filled {
@@ -1489,43 +1514,41 @@ button {
 .members-sidebar {
   border-right: 0;
   background: #26282d;
-  display: flex;
-  flex-direction: column;
-  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   height: 100vh;
   overflow: hidden;
 }
 
-.members-scroll {
-  flex: 1;
+.members-scroll-area {
   overflow: auto;
-  padding-bottom: 128px;
+  min-height: 0;
 }
 
 .channel-groups,
 .content-area,
-.members-scroll {
+.members-scroll-area {
   scrollbar-width: thin;
   scrollbar-color: rgba(215, 160, 98, 0.42) rgba(255, 255, 255, 0.03);
 }
 
 .channel-groups::-webkit-scrollbar,
 .content-area::-webkit-scrollbar,
-.members-scroll::-webkit-scrollbar {
+.members-scroll-area::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .channel-groups::-webkit-scrollbar-track,
 .content-area::-webkit-scrollbar-track,
-.members-scroll::-webkit-scrollbar-track {
+.members-scroll-area::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.025);
   border-radius: 999px;
 }
 
 .channel-groups::-webkit-scrollbar-thumb,
 .content-area::-webkit-scrollbar-thumb,
-.members-scroll::-webkit-scrollbar-thumb {
+.members-scroll-area::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, rgba(215, 160, 98, 0.58), rgba(154, 104, 60, 0.58));
   border-radius: 999px;
   border: 2px solid transparent;
@@ -1534,7 +1557,7 @@ button {
 
 .channel-groups::-webkit-scrollbar-thumb:hover,
 .content-area::-webkit-scrollbar-thumb:hover,
-.members-scroll::-webkit-scrollbar-thumb:hover {
+.members-scroll-area::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, rgba(230, 174, 109, 0.72), rgba(167, 113, 67, 0.72));
   background-clip: padding-box;
 }
@@ -1658,11 +1681,10 @@ button {
   font-weight: 700;
 }
 
-.profile-stack {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  left: 12px;
+.members-card-dock {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(29, 31, 36, 0.98), rgba(24, 26, 31, 0.99));
 }
 
 .profile-card {

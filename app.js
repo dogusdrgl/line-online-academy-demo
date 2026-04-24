@@ -1428,6 +1428,28 @@ function initializeSidebarOrder() {
   ].filter(Boolean).forEach((section) => channelGroups.appendChild(section));
 }
 
+function titleCaseSidebarLabels() {
+  channelGroups?.querySelectorAll(".channel-item").forEach((button) => {
+    const labelNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE);
+    if (!labelNode) {
+      return;
+    }
+
+    const currentText = labelNode.textContent.trim();
+    if (!currentText) {
+      return;
+    }
+
+    const normalized = currentText
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    labelNode.textContent = ` ${normalized}`;
+  });
+}
+
 function ensureSidebarMember(user) {
   if (!user?.id) {
     return;
@@ -4130,6 +4152,7 @@ loadDmUnreadState();
 renderNotifications();
 renderDmBadge();
 initializeSidebarOrder();
+titleCaseSidebarLabels();
 renderMembersSidebar();
 initializeVoiceRooms();
 initializeTextChannelComposers();
