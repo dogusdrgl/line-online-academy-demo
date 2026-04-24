@@ -949,6 +949,7 @@ function renderVoiceChatPanels() {
     const stageLayout = panel.querySelector(".voice-stage-layout");
     const toggleLabel = panel.querySelector("[data-voice-chat-toggle-label]");
     const handleBadge = panel.querySelector("[data-voice-chat-handle-unread]");
+    const handle = panel.querySelector("[data-voice-chat-toggle]");
     const dockBadge = panel.querySelector("[data-voice-chat-dock-unread]");
     const chatButton = panel.querySelector("[data-voice-chat-button]");
     if (!chatPanel || !toggleLabel) {
@@ -960,6 +961,8 @@ function renderVoiceChatPanels() {
     chatPanel.classList.toggle("collapsed", collapsed);
     stageLayout?.classList.toggle("chat-open", !collapsed);
     chatButton?.classList.toggle("active", !collapsed);
+    chatButton?.classList.toggle("has-unread", unread > 0);
+    handle?.classList.toggle("has-unread", unread > 0);
     handleBadge?.classList.toggle("hidden", unread <= 0);
     dockBadge?.classList.toggle("hidden", unread <= 0);
     if (handleBadge) {
@@ -1616,7 +1619,7 @@ function initializeVoiceRooms() {
     chatDockButton.className = "voice-control voice-chat-dock-button";
     chatDockButton.type = "button";
     chatDockButton.dataset.voiceChatButton = "true";
-    chatDockButton.innerHTML = `<span>Chat</span><small>Chat</small><strong class="voice-chat-dock-unread hidden" data-voice-chat-dock-unread>0</strong>`;
+    chatDockButton.innerHTML = `<span>&#128172;</span><small>Chat</small><strong class="voice-chat-dock-unread hidden" data-voice-chat-dock-unread>0</strong>`;
     moreButton?.insertAdjacentElement("beforebegin", chatDockButton);
 
     callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
