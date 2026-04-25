@@ -2895,12 +2895,14 @@ function isMobileLayout() {
 function syncMobileDrawerUi() {
   const channelsOpen = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const membersOpen = Boolean(appShell?.classList.contains("mobile-members-open"));
-  const anyOpen = channelsOpen || membersOpen;
+  const profileCardOpen = Boolean(appShell?.classList.contains("mobile-profile-card-open"));
+  const anyOpen = channelsOpen || membersOpen || profileCardOpen;
 
   document.body.classList.toggle("mobile-drawer-open", anyOpen);
   mobileDrawerBackdrop?.classList.toggle("hidden", !anyOpen);
   mobileChannelsToggle?.classList.toggle("active", channelsOpen);
   mobileMembersToggle?.classList.toggle("active", membersOpen);
+  mobileProfileFab?.classList.toggle("active", profileCardOpen);
 }
 
 function renderMobileProfileFab() {
@@ -2920,7 +2922,7 @@ function renderMobileProfileFab() {
 }
 
 function closeMobileDrawers() {
-  appShell?.classList.remove("mobile-channels-open", "mobile-members-open");
+  appShell?.classList.remove("mobile-channels-open", "mobile-members-open", "mobile-profile-card-open");
   syncMobileDrawerUi();
 }
 
@@ -2931,6 +2933,7 @@ function openMobileDrawer(type) {
 
   appShell.classList.toggle("mobile-channels-open", type === "channels");
   appShell.classList.toggle("mobile-members-open", type === "members");
+  appShell.classList.toggle("mobile-profile-card-open", type === "profile-card");
   syncMobileDrawerUi();
 }
 
@@ -4662,7 +4665,7 @@ if (mobileProfileFab) {
       openAuthModal("signin");
       return;
     }
-    toggleMobileDrawer("members");
+    toggleMobileDrawer("profile-card");
   });
 }
 
@@ -4711,9 +4714,10 @@ document.addEventListener("touchend", (event) => {
   const startedInContent = mobileGestureStart.target?.closest(".content-area, .view-panel, .topbar");
   const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
+  const openedProfileCard = Boolean(appShell?.classList.contains("mobile-profile-card-open"));
 
   if (!startedInField && deltaY < 80) {
-    if (!openedChannels && !openedMembers && !startedInScrollable) {
+    if (!openedChannels && !openedMembers && !openedProfileCard && !startedInScrollable) {
       if (startedInContent && deltaX > 64) {
         openMobileDrawer("channels");
       } else if (startedInContent && deltaX < -64) {
@@ -4722,6 +4726,8 @@ document.addEventListener("touchend", (event) => {
     } else if (openedChannels && deltaX < -64) {
       closeMobileDrawers();
     } else if (openedMembers && deltaX > 64) {
+      closeMobileDrawers();
+    } else if (openedProfileCard && deltaX > 64) {
       closeMobileDrawers();
     }
   }
