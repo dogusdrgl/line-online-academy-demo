@@ -4712,8 +4712,8 @@ document.addEventListener("touchend", (event) => {
   const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
 
-  if (!startedInField && !startedInScrollable && deltaY < 80) {
-    if (!openedChannels && !openedMembers) {
+  if (!startedInField && deltaY < 80) {
+    if (!openedChannels && !openedMembers && !startedInScrollable) {
       if (startedInContent && deltaX > 64) {
         openMobileDrawer("channels");
       } else if (startedInContent && deltaX < -64) {
