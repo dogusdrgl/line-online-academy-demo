@@ -3545,8 +3545,8 @@ button {
     right: 0;
     z-index: 3;
     margin: 0 -12px;
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-    border-radius: 18px 18px 0 0;
+    padding: 8px 12px max(6px, env(safe-area-inset-bottom));
+    border-radius: 16px 16px 0 0;
     background: linear-gradient(180deg, rgba(39, 41, 47, 0.92), rgba(28, 30, 35, 0.98));
     box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
   }
