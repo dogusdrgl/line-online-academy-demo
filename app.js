@@ -129,6 +129,8 @@ const membersSidebar = document.querySelector(".members-sidebar");
 const mobileChannelsToggle = document.getElementById("mobile-channels-toggle");
 const mobileMembersToggle = document.getElementById("mobile-members-toggle");
 const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
+const mobileProfileFab = document.getElementById("mobile-profile-fab");
+const mobileProfileFabAvatar = document.getElementById("mobile-profile-fab-avatar");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
@@ -2901,6 +2903,22 @@ function syncMobileDrawerUi() {
   mobileMembersToggle?.classList.toggle("active", membersOpen);
 }
 
+function renderMobileProfileFab() {
+  if (!mobileProfileFab || !mobileProfileFabAvatar) {
+    return;
+  }
+
+  const shouldShow = isMobileLayout();
+  mobileProfileFab.classList.toggle("hidden", !shouldShow);
+  mobileProfileFab.classList.toggle("guest", authState.mode === "visitor");
+  paintAvatar(
+    mobileProfileFabAvatar,
+    authState.mode === "visitor" ? "G" : authState.name,
+    authState.mode === "visitor" ? null : authState.avatarImage,
+    getRole(authState.roleId)?.color || "#f1a126"
+  );
+}
+
 function closeMobileDrawers() {
   appShell?.classList.remove("mobile-channels-open", "mobile-members-open");
   syncMobileDrawerUi();
@@ -3049,6 +3067,7 @@ function updateIdentity(name, roleId, options = {}) {
   initializeStaticMessageControls();
   renderAdminUsers();
   renderMembersSidebar();
+  renderMobileProfileFab();
   subscribeToPresence();
   trackRealtimePresence();
   updatePresence(true);
@@ -3136,6 +3155,7 @@ function resetIdentity() {
   }
 
   renderMembersSidebar();
+  renderMobileProfileFab();
 }
 
 function restoreSavedSession() {
@@ -4636,11 +4656,76 @@ if (mobileDrawerBackdrop) {
   mobileDrawerBackdrop.addEventListener("click", closeMobileDrawers);
 }
 
+if (mobileProfileFab) {
+  mobileProfileFab.addEventListener("click", () => {
+    if (authState.mode === "visitor") {
+      openAuthModal("signin");
+      return;
+    }
+    toggleMobileDrawer("members");
+  });
+}
+
 window.addEventListener("resize", () => {
+  renderMobileProfileFab();
   if (!isMobileLayout()) {
     closeMobileDrawers();
   }
 });
+
+let mobileGestureStart = null;
+
+document.addEventListener("touchstart", (event) => {
+  if (!isMobileLayout()) {
+    mobileGestureStart = null;
+    return;
+  }
+
+  const touch = event.changedTouches?.[0];
+  if (!touch) {
+    return;
+  }
+
+  mobileGestureStart = {
+    x: touch.clientX,
+    y: touch.clientY,
+    target: event.target
+  };
+}, { passive: true });
+
+document.addEventListener("touchend", (event) => {
+  if (!isMobileLayout() || !mobileGestureStart) {
+    return;
+  }
+
+  const touch = event.changedTouches?.[0];
+  if (!touch) {
+    mobileGestureStart = null;
+    return;
+  }
+
+  const deltaX = touch.clientX - mobileGestureStart.x;
+  const deltaY = Math.abs(touch.clientY - mobileGestureStart.y);
+  const startedInField = mobileGestureStart.target?.closest("input, textarea, select, [contenteditable='true']");
+  const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
+  const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
+
+  if (!startedInField && deltaY < 80) {
+    if (!openedChannels && !openedMembers) {
+      if (mobileGestureStart.x <= 26 && deltaX > 64) {
+        openMobileDrawer("channels");
+      } else if (mobileGestureStart.x >= window.innerWidth - 26 && deltaX < -64) {
+        openMobileDrawer("members");
+      }
+    } else if (openedChannels && deltaX < -64) {
+      closeMobileDrawers();
+    } else if (openedMembers && deltaX > 64) {
+      closeMobileDrawers();
+    }
+  }
+
+  mobileGestureStart = null;
+}, { passive: true });
 
 document.addEventListener("pointerdown", unlockNotificationAudio, { once: true });
 document.addEventListener("keydown", unlockNotificationAudio, { once: true });
@@ -4701,6 +4786,7 @@ renderDmBadge();
 initializeSidebarOrder();
 titleCaseSidebarLabels();
 renderMembersSidebar();
+renderMobileProfileFab();
 initializeVoiceRooms();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
