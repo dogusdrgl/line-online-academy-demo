@@ -446,44 +446,6 @@ button {
   backdrop-filter: blur(6px);
 }
 
-.mobile-profile-fab {
-  position: fixed;
-  right: 14px;
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  z-index: 26;
-  width: 56px;
-  height: 56px;
-  display: none;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  background: rgba(27, 29, 34, 0.92);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-  cursor: pointer;
-}
-
-.mobile-profile-fab.active {
-  border-color: rgba(241, 161, 38, 0.32);
-  background: rgba(33, 35, 41, 0.96);
-}
-
-.mobile-profile-fab-avatar {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 14px;
-  color: white;
-  font-weight: 800;
-  background: linear-gradient(135deg, rgba(241, 161, 38, 0.94), rgba(210, 138, 63, 0.94));
-}
-
-.mobile-profile-fab.guest .mobile-profile-fab-avatar {
-  background: rgba(241, 161, 38, 0.18);
-  color: #ffd49b;
-}
-
 .topbar-channel {
   display: flex;
   align-items: center;
@@ -3361,46 +3323,6 @@ button {
   .app-shell.mobile-members-open .members-sidebar {
     transform: translateX(0);
     visibility: visible;
-  }
-
-  .app-shell.mobile-profile-card-open .members-sidebar {
-    top: auto;
-    right: 12px;
-    bottom: calc(78px + env(safe-area-inset-bottom));
-    width: min(300px, calc(100vw - 24px));
-    height: auto;
-    display: block;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-    transform: none;
-    pointer-events: none;
-    transition: none;
-    visibility: visible;
-  }
-
-  .app-shell.mobile-profile-card-open .members-scroll-area {
-    display: none !important;
-  }
-
-  .app-shell.mobile-profile-card-open .members-card-dock {
-    min-height: 0;
-    display: block;
-    padding: 0;
-    border-top: 0;
-    background: transparent;
-    pointer-events: auto;
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    transform-origin: bottom right;
-    transition: opacity 160ms ease, transform 160ms ease;
-  }
-
-  .app-shell.mobile-profile-card-open .profile-card {
-    margin-top: 0;
-    border-radius: 20px;
-    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.34);
   }
 
   .user-card {

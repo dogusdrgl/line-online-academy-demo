@@ -129,8 +129,6 @@ const membersSidebar = document.querySelector(".members-sidebar");
 const mobileChannelsToggle = document.getElementById("mobile-channels-toggle");
 const mobileMembersToggle = document.getElementById("mobile-members-toggle");
 const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
-const mobileProfileFab = document.getElementById("mobile-profile-fab");
-const mobileProfileFabAvatar = document.getElementById("mobile-profile-fab-avatar");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
@@ -2895,34 +2893,16 @@ function isMobileLayout() {
 function syncMobileDrawerUi() {
   const channelsOpen = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const membersOpen = Boolean(appShell?.classList.contains("mobile-members-open"));
-  const profileCardOpen = Boolean(appShell?.classList.contains("mobile-profile-card-open"));
   const overlayOpen = channelsOpen || membersOpen;
 
   document.body.classList.toggle("mobile-drawer-open", overlayOpen);
   mobileDrawerBackdrop?.classList.toggle("hidden", !overlayOpen);
   mobileChannelsToggle?.classList.toggle("active", channelsOpen);
   mobileMembersToggle?.classList.toggle("active", membersOpen);
-  mobileProfileFab?.classList.toggle("active", profileCardOpen);
-}
-
-function renderMobileProfileFab() {
-  if (!mobileProfileFab || !mobileProfileFabAvatar) {
-    return;
-  }
-
-  const shouldShow = isMobileLayout();
-  mobileProfileFab.classList.toggle("hidden", !shouldShow);
-  mobileProfileFab.classList.toggle("guest", authState.mode === "visitor");
-  paintAvatar(
-    mobileProfileFabAvatar,
-    authState.mode === "visitor" ? "G" : authState.name,
-    authState.mode === "visitor" ? null : authState.avatarImage,
-    getRole(authState.roleId)?.color || "#f1a126"
-  );
 }
 
 function closeMobileDrawers() {
-  appShell?.classList.remove("mobile-channels-open", "mobile-members-open", "mobile-profile-card-open");
+  appShell?.classList.remove("mobile-channels-open", "mobile-members-open");
   syncMobileDrawerUi();
 }
 
@@ -2933,7 +2913,6 @@ function openMobileDrawer(type) {
 
   appShell.classList.toggle("mobile-channels-open", type === "channels");
   appShell.classList.toggle("mobile-members-open", type === "members");
-  appShell.classList.toggle("mobile-profile-card-open", type === "profile-card");
   syncMobileDrawerUi();
 }
 
@@ -2942,11 +2921,7 @@ function toggleMobileDrawer(type) {
     return;
   }
 
-  const className = type === "channels"
-    ? "mobile-channels-open"
-    : type === "members"
-      ? "mobile-members-open"
-      : "mobile-profile-card-open";
+  const className = type === "channels" ? "mobile-channels-open" : "mobile-members-open";
   const isOpen = appShell.classList.contains(className);
   if (isOpen) {
     closeMobileDrawers();
@@ -3074,7 +3049,6 @@ function updateIdentity(name, roleId, options = {}) {
   initializeStaticMessageControls();
   renderAdminUsers();
   renderMembersSidebar();
-  renderMobileProfileFab();
   subscribeToPresence();
   trackRealtimePresence();
   updatePresence(true);
@@ -3162,7 +3136,6 @@ function resetIdentity() {
   }
 
   renderMembersSidebar();
-  renderMobileProfileFab();
 }
 
 function restoreSavedSession() {
@@ -4663,18 +4636,7 @@ if (mobileDrawerBackdrop) {
   mobileDrawerBackdrop.addEventListener("click", closeMobileDrawers);
 }
 
-if (mobileProfileFab) {
-  mobileProfileFab.addEventListener("click", () => {
-    if (authState.mode === "visitor") {
-      openAuthModal("signin");
-      return;
-    }
-    toggleMobileDrawer("profile-card");
-  });
-}
-
 window.addEventListener("resize", () => {
-  renderMobileProfileFab();
   if (!isMobileLayout()) {
     closeMobileDrawers();
   }
@@ -4718,10 +4680,8 @@ document.addEventListener("touchend", (event) => {
   const startedInContent = mobileGestureStart.target?.closest(".content-area, .view-panel, .topbar");
   const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
-  const openedProfileCard = Boolean(appShell?.classList.contains("mobile-profile-card-open"));
-
   if (!startedInField && deltaY < 80) {
-    if (!openedChannels && !openedMembers && !openedProfileCard && !startedInScrollable) {
+    if (!openedChannels && !openedMembers && !startedInScrollable) {
       if (startedInContent && deltaX > 64) {
         openMobileDrawer("channels");
       } else if (startedInContent && deltaX < -64) {
@@ -4730,8 +4690,6 @@ document.addEventListener("touchend", (event) => {
     } else if (openedChannels && deltaX < -64) {
       closeMobileDrawers();
     } else if (openedMembers && deltaX > 64) {
-      closeMobileDrawers();
-    } else if (openedProfileCard && deltaX > 64) {
       closeMobileDrawers();
     }
   }
@@ -4743,15 +4701,7 @@ document.addEventListener("pointerdown", unlockNotificationAudio, { once: true }
 document.addEventListener("keydown", unlockNotificationAudio, { once: true });
 
 document.addEventListener("click", (event) => {
-  if (!isMobileLayout() || !appShell?.classList.contains("mobile-profile-card-open")) {
-    return;
-  }
-
-  const clickedInsideCard = event.target.closest(".members-sidebar");
-  const clickedFab = event.target.closest("#mobile-profile-fab");
-  if (!clickedInsideCard && !clickedFab) {
-    closeMobileDrawers();
-  }
+  return;
 });
 
 if (authBackdrop) {
@@ -4810,7 +4760,6 @@ renderDmBadge();
 initializeSidebarOrder();
 titleCaseSidebarLabels();
 renderMembersSidebar();
-renderMobileProfileFab();
 initializeVoiceRooms();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
