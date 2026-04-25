@@ -3520,8 +3520,75 @@ button {
     max-height: min(86vh, 760px);
   }
 
-  .mobile-profile-fab {
-    display: grid;
+  .text-channel-view.active {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: calc(100dvh - 70px);
+    min-height: 0;
+    gap: 10px;
+    padding: 14px 12px 0;
+  }
+
+  .text-channel-view .panel-header {
+    margin-bottom: 0;
+  }
+
+  .channel-chat {
+    min-height: 0;
+    height: 100%;
+    padding: 6px 2px 18px 0;
+  }
+
+  .message-composer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3;
+    margin: 0 -12px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    background: linear-gradient(180deg, rgba(39, 41, 47, 0.92), rgba(28, 30, 35, 0.98));
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.18);
+  }
+
+  .composer-form {
+    grid-template-columns: minmax(0, 1fr) 54px auto auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .composer-input {
+    min-height: 48px;
+    padding: 0 14px;
+    border-radius: 14px;
+    font-size: 0.95rem;
+  }
+
+  .composer-submit {
+    min-width: 54px;
+    height: 48px;
+    padding: 0;
+    border-radius: 14px;
+    font-size: 0;
+    position: relative;
+  }
+
+  .composer-submit::before {
+    content: "➜";
+    font-size: 1.05rem;
+    font-weight: 900;
+  }
+
+  .composer-actions {
+    gap: 6px;
+  }
+
+  .composer-actions span {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
   }
 
   .members-scroll-area {
