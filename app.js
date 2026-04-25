@@ -4707,14 +4707,16 @@ document.addEventListener("touchend", (event) => {
   const deltaX = touch.clientX - mobileGestureStart.x;
   const deltaY = Math.abs(touch.clientY - mobileGestureStart.y);
   const startedInField = mobileGestureStart.target?.closest("input, textarea, select, [contenteditable='true']");
+  const startedInScrollable = mobileGestureStart.target?.closest(".channel-groups, .members-scroll-area, .voice-chat-stream, .dm-messages, .dm-inbox-list, .channel-chat");
+  const startedInContent = mobileGestureStart.target?.closest(".content-area, .view-panel, .topbar");
   const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
 
-  if (!startedInField && deltaY < 80) {
+  if (!startedInField && !startedInScrollable && deltaY < 80) {
     if (!openedChannels && !openedMembers) {
-      if (mobileGestureStart.x <= 26 && deltaX > 64) {
+      if (startedInContent && deltaX > 64) {
         openMobileDrawer("channels");
-      } else if (mobileGestureStart.x >= window.innerWidth - 26 && deltaX < -64) {
+      } else if (startedInContent && deltaX < -64) {
         openMobileDrawer("members");
       }
     } else if (openedChannels && deltaX < -64) {
