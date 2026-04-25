@@ -183,8 +183,9 @@ button {
   place-items: center;
   padding: 0 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  color: #f4ede3;
+  background: linear-gradient(180deg, #f14f5f, #c92d42);
+  color: #fff6f7;
+  box-shadow: 0 8px 16px rgba(201, 45, 66, 0.24);
   font-size: 0.68rem;
   font-weight: 800;
   transform: translateY(-50%);
@@ -203,7 +204,7 @@ button {
   width: 4px;
   height: 18px;
   border-radius: 999px;
-  background: rgba(244, 237, 227, 0.84);
+  background: linear-gradient(180deg, #f14f5f, #cf3147);
   transform: translateY(-50%);
 }
 
@@ -213,8 +214,8 @@ button {
 }
 
 .channel-item.has-mention .channel-badge {
-  background: linear-gradient(135deg, var(--accent), #ffbb58);
-  color: #241305;
+  background: linear-gradient(180deg, #ff5c71, #d92f47);
+  color: white;
 }
 
 .channel-item.page-link {
