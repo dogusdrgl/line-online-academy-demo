@@ -485,11 +485,18 @@ button {
   gap: 14px;
 }
 
-.channel-symbol {
-  color: #8c9098;
-  font-size: 1.8rem;
-  line-height: 1;
-  font-weight: 700;
+.topbar-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 3px 12px rgba(241, 161, 38, 0.08));
+}
+
+.topbar-channel h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
 }
 
 .topbar-meta {
