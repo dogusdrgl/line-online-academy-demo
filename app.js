@@ -4033,6 +4033,10 @@ channelButtons.forEach((button) => {
     const nextView = button.dataset.view;
     const label = button.textContent.trim();
 
+    if (isMobileLayout()) {
+      closeMobileDrawers();
+    }
+
     if (!PUBLIC_VIEWS.has(nextView) && authState.mode === "visitor") {
       pendingView = nextView;
       openAuthModal("signin");
@@ -4676,7 +4680,7 @@ document.addEventListener("touchend", (event) => {
   const deltaX = touch.clientX - mobileGestureStart.x;
   const deltaY = Math.abs(touch.clientY - mobileGestureStart.y);
   const startedInField = mobileGestureStart.target?.closest("input, textarea, select, [contenteditable='true']");
-  const startedInScrollable = mobileGestureStart.target?.closest(".channel-groups, .members-scroll-area, .voice-chat-stream, .dm-messages, .dm-inbox-list, .channel-chat");
+  const startedInScrollable = mobileGestureStart.target?.closest(".channel-groups, .members-scroll-area, .voice-chat-stream, .dm-messages, .dm-inbox-list");
   const startedInContent = mobileGestureStart.target?.closest(".content-area, .view-panel, .topbar");
   const openedChannels = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const openedMembers = Boolean(appShell?.classList.contains("mobile-members-open"));
