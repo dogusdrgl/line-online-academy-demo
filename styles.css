@@ -1867,13 +1867,13 @@ button {
   background: #26282d;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 .members-scroll-area {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   min-height: 0;
   height: 100%;
@@ -1881,6 +1881,7 @@ button {
 
 #members-groups {
   min-height: 0;
+  flex: 1 1 auto;
 }
 
 .channel-groups,
@@ -2052,6 +2053,7 @@ button {
   padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(29, 31, 36, 0.98), rgba(24, 26, 31, 0.99));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
 }
 
 .profile-card {
@@ -3341,6 +3343,7 @@ button {
     z-index: 24;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100dvh;
     border-left: 1px solid var(--border);
     border-right: 0;
     transform: translateX(104%);
@@ -3603,17 +3606,26 @@ button {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     min-height: 0;
+    touch-action: pan-y;
   }
 
   #members-groups {
-    height: 100%;
+    flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
-    padding-bottom: 18px;
+    padding-bottom: 24px;
     min-height: 0;
+  }
+
+  .members-card-dock {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    backdrop-filter: blur(10px);
   }
 }
 
