@@ -1865,8 +1865,8 @@ button {
 .members-sidebar {
   border-right: 0;
   background: #26282d;
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
 }
@@ -1874,9 +1874,10 @@ button {
 .members-scroll-area {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   overflow: hidden;
   min-height: 0;
-  height: 100%;
+  height: auto;
 }
 
 #members-groups {
@@ -2050,6 +2051,7 @@ button {
 }
 
 .members-card-dock {
+  flex: 0 0 auto;
   padding: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(29, 31, 36, 0.98), rgba(24, 26, 31, 0.99));
@@ -3341,8 +3343,8 @@ button {
     bottom: 0;
     width: min(86vw, 340px);
     z-index: 24;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     height: 100dvh;
     border-left: 1px solid var(--border);
     border-right: 0;
@@ -3601,7 +3603,8 @@ button {
   }
 
   .members-scroll-area {
-    height: 100%;
+    flex: 1 1 auto;
+    height: auto;
     overflow: hidden;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -3611,6 +3614,7 @@ button {
 
   #members-groups {
     flex: 1 1 auto;
+    height: auto;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -3621,9 +3625,10 @@ button {
   }
 
   .members-card-dock {
-    position: sticky;
-    bottom: 0;
+    flex: 0 0 auto;
+    position: relative;
     z-index: 2;
+    margin-top: auto;
     padding-bottom: calc(12px + env(safe-area-inset-bottom));
     backdrop-filter: blur(10px);
   }
