@@ -1874,8 +1874,9 @@ button {
 .members-scroll-area {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
+  height: 100%;
 }
 
 #members-groups {
@@ -3345,6 +3346,7 @@ button {
     transform: translateX(104%);
     transition: transform 180ms ease;
     box-shadow: -24px 0 48px rgba(0, 0, 0, 0.28);
+    visibility: hidden;
   }
 
   .app-shell.mobile-channels-open .channel-sidebar {
@@ -3353,6 +3355,7 @@ button {
 
   .app-shell.mobile-members-open .members-sidebar {
     transform: translateX(0);
+    visibility: visible;
   }
 
   .app-shell.mobile-profile-card-open .members-sidebar {
@@ -3368,6 +3371,8 @@ button {
     overflow: visible;
     transform: none;
     pointer-events: none;
+    transition: none;
+    visibility: visible;
   }
 
   .app-shell.mobile-profile-card-open .members-scroll-area {
@@ -3381,6 +3386,10 @@ button {
     border-top: 0;
     background: transparent;
     pointer-events: auto;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transform-origin: bottom right;
+    transition: opacity 160ms ease, transform 160ms ease;
   }
 
   .app-shell.mobile-profile-card-open .profile-card {
@@ -3593,15 +3602,18 @@ button {
     overflow: hidden;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
+    min-height: 0;
   }
 
   #members-groups {
+    height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
     padding-bottom: 18px;
+    min-height: 0;
   }
 }
 
