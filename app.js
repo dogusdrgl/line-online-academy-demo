@@ -2896,10 +2896,10 @@ function syncMobileDrawerUi() {
   const channelsOpen = Boolean(appShell?.classList.contains("mobile-channels-open"));
   const membersOpen = Boolean(appShell?.classList.contains("mobile-members-open"));
   const profileCardOpen = Boolean(appShell?.classList.contains("mobile-profile-card-open"));
-  const anyOpen = channelsOpen || membersOpen || profileCardOpen;
+  const overlayOpen = channelsOpen || membersOpen;
 
-  document.body.classList.toggle("mobile-drawer-open", anyOpen);
-  mobileDrawerBackdrop?.classList.toggle("hidden", !anyOpen);
+  document.body.classList.toggle("mobile-drawer-open", overlayOpen);
+  mobileDrawerBackdrop?.classList.toggle("hidden", !overlayOpen);
   mobileChannelsToggle?.classList.toggle("active", channelsOpen);
   mobileMembersToggle?.classList.toggle("active", membersOpen);
   mobileProfileFab?.classList.toggle("active", profileCardOpen);
@@ -2942,7 +2942,11 @@ function toggleMobileDrawer(type) {
     return;
   }
 
-  const className = type === "channels" ? "mobile-channels-open" : "mobile-members-open";
+  const className = type === "channels"
+    ? "mobile-channels-open"
+    : type === "members"
+      ? "mobile-members-open"
+      : "mobile-profile-card-open";
   const isOpen = appShell.classList.contains(className);
   if (isOpen) {
     closeMobileDrawers();
@@ -4737,6 +4741,18 @@ document.addEventListener("touchend", (event) => {
 
 document.addEventListener("pointerdown", unlockNotificationAudio, { once: true });
 document.addEventListener("keydown", unlockNotificationAudio, { once: true });
+
+document.addEventListener("click", (event) => {
+  if (!isMobileLayout() || !appShell?.classList.contains("mobile-profile-card-open")) {
+    return;
+  }
+
+  const clickedInsideCard = event.target.closest(".members-sidebar");
+  const clickedFab = event.target.closest("#mobile-profile-fab");
+  if (!clickedInsideCard && !clickedFab) {
+    closeMobileDrawers();
+  }
+});
 
 if (authBackdrop) {
   authBackdrop.addEventListener("click", (event) => {

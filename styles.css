@@ -1872,7 +1872,13 @@ button {
 }
 
 .members-scroll-area {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: auto;
+  min-height: 0;
+}
+
+#members-groups {
   min-height: 0;
 }
 
@@ -3350,24 +3356,37 @@ button {
   }
 
   .app-shell.mobile-profile-card-open .members-sidebar {
-    transform: translateX(0);
-    width: min(86vw, 340px);
+    top: auto;
+    right: 12px;
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    width: min(300px, calc(100vw - 24px));
+    height: auto;
+    display: block;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+    transform: none;
+    pointer-events: none;
   }
 
   .app-shell.mobile-profile-card-open .members-scroll-area {
-    display: none;
+    display: none !important;
   }
 
   .app-shell.mobile-profile-card-open .members-card-dock {
-    min-height: 100%;
-    display: grid;
-    align-content: end;
-    padding: 14px;
+    min-height: 0;
+    display: block;
+    padding: 0;
     border-top: 0;
+    background: transparent;
+    pointer-events: auto;
   }
 
   .app-shell.mobile-profile-card-open .profile-card {
-    margin-top: auto;
+    margin-top: 0;
+    border-radius: 20px;
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.34);
   }
 
   .user-card {
@@ -3571,11 +3590,18 @@ button {
 
   .members-scroll-area {
     height: 100%;
+    overflow: hidden;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #members-groups {
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
+    padding-bottom: 18px;
   }
 }
 
