@@ -178,7 +178,12 @@ let voiceState = {
   participants: new Map(),
   audioEnabled: true,
   videoEnabled: false,
-  outputEnabled: true
+  outputEnabled: true,
+  activityAudioContext: null,
+  activityAnalyser: null,
+  activitySource: null,
+  activityFrame: null,
+  speaking: false
 };
 let voiceRoomDirectory = {};
 let voiceDirectoryChannels = [];
@@ -803,6 +808,23 @@ function paintAvatar(element, name, image, fallbackColor = "#f1a126") {
   element.style.background = image ? `center / cover no-repeat url("${image}")` : fallbackColor;
 }
 
+function getMemberAvatarImage(memberId, fallbackName = "") {
+  if (memberId && authState.userId === memberId) {
+    return authState.avatarImage || null;
+  }
+
+  const knownMember = memberId ? findMemberById(memberId) : null;
+  if (knownMember?.avatarImage) {
+    return knownMember.avatarImage;
+  }
+
+  if (fallbackName && authState.name === fallbackName && authState.avatarImage) {
+    return authState.avatarImage;
+  }
+
+  return null;
+}
+
 function updateQuickControl(button, isActive) {
   if (!button) {
     return;
@@ -820,6 +842,83 @@ function renderQuickControls() {
   updateQuickControl(quickMicButton, micActive);
   updateQuickControl(quickAudioButton, audioActive);
   updateQuickControl(quickCameraButton, cameraActive);
+}
+
+function renderVoiceSpeakingState(isSpeaking) {
+  const changed = voiceState.speaking !== isSpeaking;
+  voiceState.speaking = isSpeaking;
+  if (!authState.userId) {
+    return;
+  }
+
+  getVoiceGrid()?.querySelector(`[data-voice-tile="${CSS.escape(authState.userId)}"]`)?.classList.toggle("speaking", isSpeaking);
+  if (changed && voiceState.roomId) {
+    sendVoiceSignal("speaking", null, { speaking: isSpeaking });
+  }
+}
+
+function stopVoiceActivityMonitor() {
+  if (voiceState.activityFrame) {
+    window.cancelAnimationFrame(voiceState.activityFrame);
+    voiceState.activityFrame = null;
+  }
+
+  try {
+    voiceState.activitySource?.disconnect();
+  } catch (error) {}
+
+  voiceState.activitySource = null;
+  voiceState.activityAnalyser = null;
+
+  try {
+    voiceState.activityAudioContext?.close();
+  } catch (error) {}
+
+  voiceState.activityAudioContext = null;
+  renderVoiceSpeakingState(false);
+}
+
+function startVoiceActivityMonitor(stream) {
+  stopVoiceActivityMonitor();
+
+  const [audioTrack] = stream?.getAudioTracks?.() || [];
+  if (!audioTrack) {
+    return;
+  }
+
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) {
+    return;
+  }
+
+  try {
+    const audioContext = new AudioContextConstructor();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.82;
+    const source = audioContext.createMediaStreamSource(new MediaStream([audioTrack]));
+    source.connect(analyser);
+
+    const samples = new Uint8Array(analyser.frequencyBinCount);
+    voiceState.activityAudioContext = audioContext;
+    voiceState.activityAnalyser = analyser;
+    voiceState.activitySource = source;
+
+    const tick = () => {
+      if (!voiceState.activityAnalyser || !voiceState.localStream) {
+        return;
+      }
+
+      voiceState.activityAnalyser.getByteFrequencyData(samples);
+      const average = samples.reduce((sum, value) => sum + value, 0) / Math.max(samples.length, 1);
+      renderVoiceSpeakingState(voiceState.audioEnabled && average > 18);
+      voiceState.activityFrame = window.requestAnimationFrame(tick);
+    };
+
+    tick();
+  } catch (error) {
+    console.warn("Ses aktivitesi izlenemedi:", error.message);
+  }
 }
 
 function renderIdentityVoiceCard() {
@@ -1172,12 +1271,16 @@ function createVoiceTile(member, stream, isLocal = false) {
   }
 
   const existingTile = grid.querySelector(`[data-voice-tile="${CSS.escape(member.id)}"]`);
+  const preserveSpeaking = Boolean(existingTile?.classList.contains("speaking"));
   existingTile?.remove();
 
   const role = getRole(member.roleId);
   const tile = document.createElement("article");
   const hasVideo = Boolean(stream?.getVideoTracks().length);
   tile.className = `voice-tile${isLocal ? " local" : ""}${hasVideo ? "" : " audio-only"}`;
+  if (preserveSpeaking || (isLocal && voiceState.speaking)) {
+    tile.classList.add("speaking");
+  }
   tile.dataset.voiceTile = member.id;
   tile.innerHTML = `
     <video autoplay playsinline ${isLocal ? "muted" : ""}></video>
@@ -1309,6 +1412,11 @@ async function handleVoiceSignal(payload) {
     return;
   }
 
+  if (payload.type === "speaking") {
+    getVoiceGrid()?.querySelector(`[data-voice-tile="${CSS.escape(payload.from)}"]`)?.classList.toggle("speaking", Boolean(payload.speaking));
+    return;
+  }
+
   if (payload.type === "offer") {
     const peer = await createPeerConnection(remoteMember, false);
     await peer.setRemoteDescription(payload.description);
@@ -1371,6 +1479,10 @@ async function startVoiceRoom(roomId) {
   }
 
   setVoiceStatus("Baglaniyor...", roomId);
+  controlState.mic = true;
+  controlState.audio = true;
+  controlState.camera = false;
+  saveControlState();
 
   try {
     voiceState.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -1382,9 +1494,9 @@ async function startVoiceRoom(roomId) {
   }
 
   voiceState.roomId = roomId;
-  voiceState.audioEnabled = controlState.mic !== false;
+  voiceState.audioEnabled = true;
   voiceState.videoEnabled = false;
-  voiceState.outputEnabled = controlState.audio !== false;
+  voiceState.outputEnabled = true;
   voiceState.peers = new Map();
   voiceState.pendingIce = new Map();
   voiceState.participants = new Map([[authState.userId, getVoiceMemberPayload()]]);
@@ -1392,6 +1504,7 @@ async function startVoiceRoom(roomId) {
     track.enabled = voiceState.audioEnabled;
   });
   createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+  startVoiceActivityMonitor(voiceState.localStream);
   renderVoiceParticipants();
   renderVoiceControls();
   renderIdentityVoiceCard();
@@ -1450,6 +1563,7 @@ async function leaveVoiceRoom() {
   sendVoiceSignal("leave", null);
   voiceState.peers.forEach((peer) => peer.close());
   voiceState.localStream?.getTracks().forEach((track) => track.stop());
+  stopVoiceActivityMonitor();
   const directoryChannel = getVoiceDirectoryChannel(voiceState.roomId);
 
   try {
@@ -1474,7 +1588,12 @@ async function leaveVoiceRoom() {
     participants: new Map(),
     audioEnabled: true,
     videoEnabled: false,
-    outputEnabled: true
+    outputEnabled: true,
+    activityAudioContext: null,
+    activityAnalyser: null,
+    activitySource: null,
+    activityFrame: null,
+    speaking: false
   };
   setVoiceStatus("Odaya katilmaya hazir.", previousRoom);
   renderSidebarVoiceMembers();
@@ -1505,6 +1624,9 @@ function toggleVoiceMic() {
   voiceState.localStream.getAudioTracks().forEach((track) => {
     track.enabled = voiceState.audioEnabled;
   });
+  if (!voiceState.audioEnabled) {
+    renderVoiceSpeakingState(false);
+  }
   controlState.mic = voiceState.audioEnabled;
   saveControlState();
   renderVoiceControls();
@@ -2239,6 +2361,8 @@ function addChatMessage(panelId, message, options = {}) {
   const roleLabel = message.author_role || "Uye";
   const authorName = message.author_name || "Uye";
   const authorKey = message.author_id || authorName;
+  const authorAvatarImage = message.author_avatar || getMemberAvatarImage(message.author_id, authorName);
+  const authorRole = getRole(message.author_role_id || findMemberById(message.author_id)?.roleId);
   const timestamp = message.created_at ? formatMessageTime(message.created_at) : formatMessageTime(new Date());
   const lastMessage = chat.lastElementChild;
   const shouldGroup =
@@ -2251,8 +2375,11 @@ function addChatMessage(panelId, message, options = {}) {
     const chatMessage = document.createElement("article");
     chatMessage.className = "chat-message";
     chatMessage.dataset.authorKey = authorKey;
+    const avatarStyle = authorAvatarImage
+      ? `background: center / cover no-repeat url("${authorAvatarImage}")`
+      : `background: ${escapeHtml(authorRole?.color || "#f1a126")}`;
     chatMessage.innerHTML = `
-      <div class="avatar red">${escapeHtml(authorName.slice(0, 1).toUpperCase())}</div>
+      <div class="avatar red" style='${avatarStyle}'>${authorAvatarImage ? "" : escapeHtml(authorName.slice(0, 1).toUpperCase())}</div>
       <div class="chat-body">
         <div class="chat-meta">
           <strong>${escapeHtml(authorName)}</strong>
@@ -2293,6 +2420,7 @@ async function upsertAppUser(user) {
         display_name: user.displayName,
         role_id: user.roleId,
         is_guest: user.roleId === "guest",
+        avatar_image: user.avatarImage || null,
         is_muted: user.isMuted || false,
         is_banned: user.isBanned || false,
         is_online: user.isOnline || false,
@@ -2341,7 +2469,7 @@ async function getStoredUserProfile(userId) {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("role_id, is_muted, is_banned")
+        .select("role_id, is_muted, is_banned, avatar_image")
         .eq("id", userId)
         .maybeSingle(),
       "Kullanici profilini okuma"
@@ -2354,7 +2482,8 @@ async function getStoredUserProfile(userId) {
     return {
       roleId: data?.role_id || null,
       isMuted: data?.is_muted || false,
-      isBanned: data?.is_banned || false
+      isBanned: data?.is_banned || false,
+      avatarImage: data?.avatar_image || null
     };
   } catch (error) {
     console.warn("Kullanici profili okunamadi:", error.message);
@@ -2394,7 +2523,7 @@ async function loadDirectoryUsers() {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("id, display_name, role_id, is_guest, is_muted, is_banned, is_online, last_seen")
+        .select("id, display_name, role_id, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image")
         .order("created_at", { ascending: true })
         .limit(120),
       "Uye dizinini yukleme"
@@ -2410,6 +2539,7 @@ async function loadDirectoryUsers() {
         id: user.id,
         name: user.display_name || "Isimsiz Uye",
         roleId: user.role_id || "student",
+        avatarImage: user.avatar_image || null,
         avatarClass: "blue",
         subtitle: user.is_guest ? "Misafir" : user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
         isOnline: user.is_guest ? false : Boolean(user.is_online),
@@ -2438,6 +2568,7 @@ async function loadDirectoryUsers() {
         id: user.id,
         name: user.display_name || "Isimsiz Uye",
         roleId: user.role_id || "student",
+        avatarImage: null,
         avatarClass: "blue",
         subtitle: "Cevrimdisi",
         isOnline: false,
@@ -2857,12 +2988,31 @@ function updateIdentity(name, roleId, options = {}) {
 
   refreshChatAdminControls();
   initializeStaticMessageControls();
+  renderAdminUsers();
   renderMembersSidebar();
   subscribeToPresence();
   trackRealtimePresence();
   updatePresence(true);
   loadDirectoryUsers();
   loadDmInbox();
+
+  if (voiceState.roomId && voiceState.localStream && authState.userId) {
+    const localMember = getVoiceMemberPayload();
+    voiceState.participants.set(authState.userId, localMember);
+    createVoiceTile(localMember, voiceState.localStream, true);
+    renderVoiceParticipants();
+    voiceRoomDirectory[voiceState.roomId] = [
+      ...(voiceRoomDirectory[voiceState.roomId] || []).filter((participant) => participant.id !== authState.userId),
+      localMember
+    ];
+    renderSidebarVoiceMembers();
+    voiceState.channel?.track(localMember).catch((error) => {
+      console.warn("Sesli oda profili guncellenemedi:", error.message);
+    });
+    getVoiceDirectoryChannel(voiceState.roomId)?.track(localMember).catch((error) => {
+      console.warn("Sesli oda dizin profili guncellenemedi:", error.message);
+    });
+  }
 }
 
 function finishAuth(name, roleId, options = {}) {
@@ -2986,6 +3136,7 @@ async function saveProfileChanges() {
       id: authState.userId,
       displayName: nextName,
       roleId: authState.roleId,
+      avatarImage: nextProfile.avatarImage,
       isMuted: authState.isMuted,
       isBanned: authState.isBanned,
       isOnline: true
@@ -3046,7 +3197,8 @@ async function sendChannelMessage(panelId, text) {
       const userSaved = await upsertAppUser({
         id: authState.userId,
         displayName: authState.name,
-        roleId: authState.roleId
+        roleId: authState.roleId,
+        avatarImage: authState.avatarImage
       });
       const { data, error } = await withTimeout(
         supabaseClient
@@ -3143,6 +3295,7 @@ async function loadAdminUsers() {
     display_name: member.name,
     role_id: member.roleId,
     is_guest: member.roleId === "guest",
+    avatarImage: member.avatarImage || null,
     ...getUserModeration(member.id)
   }));
 
@@ -3156,7 +3309,7 @@ async function loadAdminUsers() {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("id, display_name, role_id, is_guest, created_at")
+        .select("id, display_name, role_id, is_guest, created_at, avatar_image")
         .order("created_at", { ascending: false })
         .limit(100),
       "Uyeleri yukleme"
@@ -3171,6 +3324,7 @@ async function loadAdminUsers() {
       const moderation = getUserModeration(user.id);
       merged.set(user.id, {
         ...user,
+        avatarImage: user.avatar_image || merged.get(user.id)?.avatarImage || null,
         isMuted: user.is_muted ?? moderation.isMuted,
         isBanned: user.is_banned ?? moderation.isBanned
       });
@@ -3214,10 +3368,14 @@ function renderAdminUsers() {
         isBanned: user.isBanned ?? user.is_banned ?? false
       };
       const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : "Aktif";
+      const roleColor = getRole(user.role_id || "student")?.color || "#f1a126";
+      const avatarStyle = user.avatarImage
+        ? `background: center / cover no-repeat url("${user.avatarImage}")`
+        : `background: ${escapeHtml(roleColor)}`;
       return `
         <article class="member-admin-card ${moderation.isBanned ? "is-banned" : ""}">
           <div class="member-admin-main">
-            <div class="member-admin-avatar">${escapeHtml((user.display_name || "U").slice(0, 1).toUpperCase())}</div>
+            <div class="member-admin-avatar" style='${avatarStyle}'>${user.avatarImage ? "" : escapeHtml((user.display_name || "U").slice(0, 1).toUpperCase())}</div>
             <div>
               <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
               <small>${escapeHtml(user.id)}${user.is_guest ? " - Misafir" : ""}</small>
@@ -3994,6 +4152,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
       id: data.user.id,
       displayName,
       roleId,
+      avatarImage: storedProfile.avatarImage || null,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
       isOnline: true
@@ -4002,7 +4161,8 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
       mode: "member",
       userId: data.user.id,
       isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned
+      isBanned: storedProfile.isBanned,
+      avatarImage: storedProfile.avatarImage || null
     });
     return;
   }
@@ -4074,6 +4234,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       id: data.user.id,
       displayName: signUpDisplayName,
       roleId,
+      avatarImage: storedProfile.avatarImage || null,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
       isOnline: true
@@ -4082,7 +4243,8 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       mode: "member",
       userId: data.user.id,
       isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned
+      isBanned: storedProfile.isBanned,
+      avatarImage: storedProfile.avatarImage || null
     });
     return;
   }
@@ -4125,6 +4287,7 @@ guestForm.addEventListener("submit", async (event) => {
       id: guestId,
       displayName: guestName,
       roleId: "guest",
+      avatarImage: null,
       isOnline: true
     });
   }
