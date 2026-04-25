@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260425-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260425-3" />
   </head>
   <body>
     <div class="app-shell">
@@ -75,6 +75,11 @@
 
       <main class="content-area">
         <header class="topbar">
+          <div class="topbar-mobile-actions left">
+            <button class="mobile-drawer-button" id="mobile-channels-toggle" type="button" aria-label="Kanallari ac">
+              <span>☰</span>
+            </button>
+          </div>
           <div class="topbar-channel">
             <span class="channel-symbol">#</span>
             <div>
@@ -85,6 +90,11 @@
           <div class="topbar-meta">
             <input class="message-search hidden" id="message-search" type="search" placeholder="Mesajlarda ara" />
             <button class="meta-auth-button" id="open-auth-modal" type="button">Giris Yap</button>
+          </div>
+          <div class="topbar-mobile-actions right">
+            <button class="mobile-drawer-button" id="mobile-members-toggle" type="button" aria-label="Uyeleri ve hesabi ac">
+              <span>◉</span>
+            </button>
           </div>
         </header>
 
@@ -952,6 +962,8 @@
       </div>
     </div>
 
+    <div class="mobile-drawer-backdrop hidden" id="mobile-drawer-backdrop"></div>
+
     <div class="member-card-backdrop hidden" id="member-card-backdrop">
       <div class="member-card-modal" role="dialog" aria-modal="true" aria-labelledby="member-card-name">
         <button class="auth-close" id="member-card-close" type="button" aria-label="Uye kartini kapat">x</button>
@@ -1134,6 +1146,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260422-5"></script>
-    <script src="./app.js?v=20260425-2"></script>
+    <script src="./app.js?v=20260425-3"></script>
   </body>
 </html>

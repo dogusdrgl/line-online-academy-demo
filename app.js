@@ -123,6 +123,12 @@ const newRoleAccess = document.getElementById("new-role-access");
 const newRoleAdminInput = document.getElementById("new-role-admin");
 const createRoleButton = document.getElementById("create-role-button");
 const saveAccessButton = document.getElementById("save-access-button");
+const appShell = document.querySelector(".app-shell");
+const channelSidebar = document.querySelector(".channel-sidebar");
+const membersSidebar = document.querySelector(".members-sidebar");
+const mobileChannelsToggle = document.getElementById("mobile-channels-toggle");
+const mobileMembersToggle = document.getElementById("mobile-members-toggle");
+const mobileDrawerBackdrop = document.getElementById("mobile-drawer-backdrop");
 const supabaseConfig = window.LINE_SUPABASE_CONFIG || {};
 const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
@@ -2848,6 +2854,8 @@ function showAccessDenied(label) {
 }
 
 function setActiveView(nextView, label) {
+  closeMobileDrawers();
+
   channelButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.view === nextView);
   });
@@ -2876,6 +2884,51 @@ function updateSearchVisibility(viewId) {
   messageSearchInput.classList.toggle("hidden", !isTextChannel);
   messageSearchInput.value = "";
   clearSearchHighlights();
+}
+
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 920px)").matches;
+}
+
+function syncMobileDrawerUi() {
+  const channelsOpen = Boolean(appShell?.classList.contains("mobile-channels-open"));
+  const membersOpen = Boolean(appShell?.classList.contains("mobile-members-open"));
+  const anyOpen = channelsOpen || membersOpen;
+
+  document.body.classList.toggle("mobile-drawer-open", anyOpen);
+  mobileDrawerBackdrop?.classList.toggle("hidden", !anyOpen);
+  mobileChannelsToggle?.classList.toggle("active", channelsOpen);
+  mobileMembersToggle?.classList.toggle("active", membersOpen);
+}
+
+function closeMobileDrawers() {
+  appShell?.classList.remove("mobile-channels-open", "mobile-members-open");
+  syncMobileDrawerUi();
+}
+
+function openMobileDrawer(type) {
+  if (!isMobileLayout() || !appShell) {
+    return;
+  }
+
+  appShell.classList.toggle("mobile-channels-open", type === "channels");
+  appShell.classList.toggle("mobile-members-open", type === "members");
+  syncMobileDrawerUi();
+}
+
+function toggleMobileDrawer(type) {
+  if (!isMobileLayout() || !appShell) {
+    return;
+  }
+
+  const className = type === "channels" ? "mobile-channels-open" : "mobile-members-open";
+  const isOpen = appShell.classList.contains(className);
+  if (isOpen) {
+    closeMobileDrawers();
+    return;
+  }
+
+  openMobileDrawer(type);
 }
 
 function clearSearchHighlights() {
@@ -2929,6 +2982,7 @@ function setAuthTab(nextTab) {
 }
 
 function openAuthModal(tab = "signin") {
+  closeMobileDrawers();
   setAuthTab(tab);
   authBackdrop.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -3105,6 +3159,7 @@ function openProfileModal() {
     return;
   }
 
+  closeMobileDrawers();
   const role = getRole(authState.roleId);
   profileDisplayNameInput.value = authState.name;
   profileEditorName.textContent = authState.name;
@@ -3712,7 +3767,18 @@ async function moderateUser(userId, updates) {
 
 function positionMemberCard(anchorElement) {
   const modal = memberCardBackdrop?.querySelector(".member-card-modal");
-  if (!modal || !anchorElement) {
+  if (!modal) {
+    return;
+  }
+
+  if (isMobileLayout()) {
+    modal.style.left = "12px";
+    modal.style.right = "12px";
+    modal.style.top = "max(12px, env(safe-area-inset-top))";
+    return;
+  }
+
+  if (!anchorElement) {
     return;
   }
 
@@ -3737,6 +3803,8 @@ function openMemberCard(member, anchorElement = null) {
   if (!memberCardBackdrop) {
     return;
   }
+
+  closeMobileDrawers();
 
   selectedMember = member;
   const role = getRole(member.roleId);
@@ -3767,6 +3835,7 @@ function closeMemberCard() {
   const modal = memberCardBackdrop?.querySelector(".member-card-modal");
   if (modal) {
     modal.style.left = "";
+    modal.style.right = "";
     modal.style.top = "";
   }
 }
@@ -3839,6 +3908,7 @@ async function openDirectMessage(member) {
     return;
   }
 
+  closeMobileDrawers();
   activeDmMember = member;
   markDmRead(getConversationId(authState.userId, member.id));
   dmTitle.textContent = member.name;
@@ -3860,6 +3930,7 @@ function openDmInbox() {
     return;
   }
 
+  closeMobileDrawers();
   loadDmInbox();
   dmInboxBackdrop.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -3930,6 +4001,7 @@ function openAdminModal() {
     return;
   }
 
+  closeMobileDrawers();
   adminBackdrop.classList.remove("hidden");
   document.body.classList.add("modal-open");
   adminLock?.classList.remove("hidden");
@@ -4550,6 +4622,24 @@ if (dmForm) {
     saveControlState();
     renderQuickControls();
   });
+});
+
+if (mobileChannelsToggle) {
+  mobileChannelsToggle.addEventListener("click", () => toggleMobileDrawer("channels"));
+}
+
+if (mobileMembersToggle) {
+  mobileMembersToggle.addEventListener("click", () => toggleMobileDrawer("members"));
+}
+
+if (mobileDrawerBackdrop) {
+  mobileDrawerBackdrop.addEventListener("click", closeMobileDrawers);
+}
+
+window.addEventListener("resize", () => {
+  if (!isMobileLayout()) {
+    closeMobileDrawers();
+  }
 });
 
 document.addEventListener("pointerdown", unlockNotificationAudio, { once: true });
