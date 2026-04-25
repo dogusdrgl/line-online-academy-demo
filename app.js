@@ -2168,8 +2168,13 @@ function renderMembersSidebar() {
             .slice(0, 2)
             .toUpperCase();
 
-          const subtitleClass = member.roleId === "admin" || member.roleId === "guest" ? "role green" : "";
-          const roleColor = getRole(member.roleId)?.color || "#f1a126";
+          const isOffline = !(member.isOnline || member.bot);
+          const subtitleClass = isOffline
+            ? "role offline-role"
+            : member.roleId === "admin" || member.roleId === "guest"
+              ? "role green"
+              : "";
+          const roleColor = isOffline ? "#8e949d" : (getRole(member.roleId)?.color || "#f1a126");
           const offlineClass = member.isOnline || member.bot ? "" : " offline";
           const avatarStyle = member.avatarImage
             ? `background: center / cover no-repeat url("${member.avatarImage}")`

@@ -1436,6 +1436,36 @@ button {
     0 12px 34px rgba(0, 0, 0, 0.32);
 }
 
+.voice-tile.speaking .voice-tile-meta {
+  background: rgba(14, 22, 18, 0.82);
+  box-shadow:
+    inset 0 0 0 1px rgba(89, 216, 95, 0.18),
+    0 0 0 1px rgba(89, 216, 95, 0.08);
+}
+
+.voice-tile.speaking .voice-tile-meta strong {
+  color: #f7fff8;
+  text-shadow: 0 0 18px rgba(89, 216, 95, 0.18);
+}
+
+.voice-tile.speaking .voice-tile-meta::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: #59d85f;
+  box-shadow:
+    0 0 0 4px rgba(89, 216, 95, 0.12),
+    0 0 18px rgba(89, 216, 95, 0.42);
+  flex: 0 0 auto;
+}
+
+.voice-tile.speaking .voice-tile-meta {
+  display: flex;
+  align-items: center;
+}
+
 .voice-tile.audio-only {
   background: #f4f2f1;
 }
@@ -1871,6 +1901,15 @@ button {
 
 .member-row.offline .avatar {
   filter: grayscale(0.9);
+}
+
+.member-row.offline .member-meta strong {
+  color: #b6bac1;
+}
+
+.member-row.offline .member-meta p,
+.member-row.offline .member-meta .offline-role {
+  color: #858b94 !important;
 }
 
 .avatar {
