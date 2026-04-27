@@ -2029,6 +2029,7 @@ function getAllMembers() {
   const memberSources = [
     ...members.filter((member) => member.bot),
     ...directoryUsers,
+    ...livePresenceMembers,
     ...(!supabaseClient ? ephemeralMembers : [])
   ];
 
