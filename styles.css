@@ -246,11 +246,13 @@ button {
   height: 14px;
   margin-right: 10px;
   border-radius: 50%;
+  color: #f3b15d;
   background:
     radial-gradient(circle at 50% 50%, currentColor 0 32%, transparent 36%),
     radial-gradient(circle at 50% 50%, transparent 46%, currentColor 50% 54%, transparent 58%),
     radial-gradient(circle at 50% 50%, transparent 68%, currentColor 72% 76%, transparent 80%);
   opacity: 0.78;
+  filter: drop-shadow(0 0 8px rgba(243, 177, 93, 0.18));
 }
 
 .voice-channel-members {
@@ -288,13 +290,28 @@ button {
   height: 14px;
   margin-right: 10px;
   border-radius: 4px;
+  color: #79c7ff;
   background:
     linear-gradient(currentColor, currentColor) 3px 4px / 8px 1.5px no-repeat,
     linear-gradient(currentColor, currentColor) 3px 7px / 6px 1.5px no-repeat,
     linear-gradient(currentColor, currentColor) 3px 10px / 5px 1.5px no-repeat,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    linear-gradient(180deg, rgba(121, 199, 255, 0.18), rgba(121, 199, 255, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(121, 199, 255, 0.2);
   opacity: 0.82;
+  filter: drop-shadow(0 0 8px rgba(121, 199, 255, 0.12));
+}
+
+.channel-item.voice.active::before,
+.channel-item.voice:hover::before {
+  color: #ffc678;
+  opacity: 1;
+}
+
+.channel-item.text-channel.active::before,
+.channel-item.text-channel:hover::before {
+  color: #98d8ff;
+  box-shadow: inset 0 0 0 1px rgba(152, 216, 255, 0.28);
+  opacity: 1;
 }
 
 .group-title.filled {
