@@ -117,6 +117,7 @@ const adminPages = document.querySelectorAll("[data-admin-panel-page]");
 const adminViewSelect = document.getElementById("admin-view-select");
 const adminAccessRoles = document.getElementById("admin-access-roles");
 const adminRefreshUsersButton = document.getElementById("admin-refresh-users");
+const adminResetUsersButton = document.getElementById("admin-reset-users");
 const newRoleNameInput = document.getElementById("new-role-name");
 const newRoleColorInput = document.getElementById("new-role-color");
 const newRoleAccess = document.getElementById("new-role-access");
@@ -430,6 +431,11 @@ function removeUserModeration(userId) {
   const moderation = readModeration();
   delete moderation[userId];
   saveModeration(moderation);
+}
+
+function isProtectedOwnerUser(user) {
+  const normalizedName = normalizeMention(user?.display_name || user?.name || "");
+  return normalizedName === "dogus";
 }
 
 function getRole(roleId) {
@@ -1845,7 +1851,6 @@ function ensureSidebarMember(user) {
     return;
   }
 
-  const existingIndex = ephemeralMembers.findIndex((member) => member.id === user.id);
   const nextMember = {
     id: user.id,
     name: user.name,
@@ -1857,15 +1862,29 @@ function ensureSidebarMember(user) {
     isOnline: true
   };
 
-  if (existingIndex >= 0) {
-    ephemeralMembers[existingIndex] = {
-      ...ephemeralMembers[existingIndex],
+  const directoryIndex = directoryUsers.findIndex((member) => member.id === user.id);
+  if (directoryIndex >= 0) {
+    directoryUsers[directoryIndex] = {
+      ...directoryUsers[directoryIndex],
       ...nextMember
     };
     return;
   }
 
-  ephemeralMembers.push(nextMember);
+  if (!supabaseClient) {
+    const existingIndex = ephemeralMembers.findIndex((member) => member.id === user.id);
+    if (existingIndex >= 0) {
+      ephemeralMembers[existingIndex] = {
+        ...ephemeralMembers[existingIndex],
+        ...nextMember
+      };
+      return;
+    }
+    ephemeralMembers.push(nextMember);
+    return;
+  }
+
+  directoryUsers.push(nextMember);
 }
 
 function withTimeout(promise, label = "Supabase istegi") {
@@ -2007,8 +2026,13 @@ function mergeMembersPreferred(currentMember, nextMember) {
 
 function getAllMembers() {
   const merged = new Map();
+  const memberSources = [
+    ...members.filter((member) => member.bot),
+    ...directoryUsers,
+    ...(!supabaseClient ? ephemeralMembers : [])
+  ];
 
-  [...members, ...directoryUsers, ...livePresenceMembers].forEach((member) => {
+  memberSources.forEach((member) => {
     if (!isVisibleRealMember(member)) {
       return;
     }
@@ -2019,19 +2043,20 @@ function getAllMembers() {
     merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), member));
   });
 
-  ephemeralMembers.forEach((member) => {
-    if (!isVisibleRealMember(member)) {
-      return;
+  if (authState.userId && authState.mode !== "visitor") {
+    const selfMember = {
+      id: authState.userId,
+      name: authState.name,
+      roleId: authState.roleId,
+      avatarImage: authState.avatarImage || null,
+      isOnline: true,
+      isGuest: authState.roleId === "guest"
+    };
+    const identityKey = getMemberIdentityKey(selfMember);
+    if (identityKey) {
+      merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), selfMember));
     }
-    const identityKey = getMemberIdentityKey(member);
-    if (!identityKey) {
-      return;
-    }
-    merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), {
-      ...member,
-      isOnline: true
-    }));
-  });
+  }
 
   return Array.from(merged.values());
 }
@@ -2768,6 +2793,29 @@ function syncRealtimePresenceMembers() {
       isOnline: true,
       isGuest: Boolean(presence.isGuest)
     }));
+
+  if (directoryUsers.length) {
+    const onlineIds = new Set(livePresenceMembers.map((member) => member.id));
+    directoryUsers = directoryUsers.map((member) => {
+      const liveMember = livePresenceMembers.find((item) => item.id === member.id);
+      if (liveMember) {
+        return {
+          ...member,
+          name: liveMember.name || member.name,
+          roleId: liveMember.roleId || member.roleId,
+          avatarImage: liveMember.avatarImage || member.avatarImage || null,
+          isOnline: true,
+          subtitle: getRole(liveMember.roleId || member.roleId)?.name || (member.isGuest ? "Misafir" : "Uye")
+        };
+      }
+
+      if (onlineIds.has(member.id)) {
+        return member;
+      }
+
+      return member;
+    });
+  }
 
   renderMembersSidebar();
   scheduleDirectoryRefresh();
@@ -3660,6 +3708,82 @@ function renderAdminUsers() {
   });
 }
 
+async function resetUsersExceptOwner() {
+  const confirmed = window.confirm("Doğuş hesabi disindaki tum kullanici kayitlarini sifirlamak istiyor musun?");
+  if (!confirmed) {
+    return;
+  }
+
+  const removableUsers = adminKnownUsers.filter((user) => !isProtectedOwnerUser(user) && !user.bot);
+  const removableIds = removableUsers.map((user) => user.id).filter(Boolean);
+
+  if (!removableIds.length) {
+    window.alert("Silinecek ek kullanici kaydi bulunamadi.");
+    return;
+  }
+
+  adminKnownUsers = adminKnownUsers.filter((user) => !removableIds.includes(user.id));
+  directoryUsers = directoryUsers.filter((user) => !removableIds.includes(user.id));
+  livePresenceMembers = livePresenceMembers.filter((user) => !removableIds.includes(user.id));
+
+  for (let index = ephemeralMembers.length - 1; index >= 0; index -= 1) {
+    if (removableIds.includes(ephemeralMembers[index]?.id)) {
+      ephemeralMembers.splice(index, 1);
+    }
+  }
+
+  removableIds.forEach(removeUserModeration);
+
+  if (authState.userId && removableIds.includes(authState.userId)) {
+    resetIdentity();
+  }
+
+  if (supabaseClient) {
+    try {
+      const { error } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .delete()
+          .in("id", removableIds),
+        "Toplu uye sifirlama"
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      await withTimeout(
+        supabaseClient
+          .from("messages")
+          .delete()
+          .in("author_id", removableIds),
+        "Toplu mesaj temizligi"
+      ).catch(() => {});
+
+      const dmFilters = removableIds
+        .flatMap((id) => [`sender_id.eq.${id}`, `receiver_id.eq.${id}`])
+        .join(",");
+
+      if (dmFilters) {
+        await withTimeout(
+          supabaseClient
+            .from("direct_messages")
+            .delete()
+            .or(dmFilters),
+          "Toplu DM temizligi"
+        ).catch(() => {});
+      }
+    } catch (error) {
+      console.warn("Toplu uye sifirlama Supabase'de tamamlanamadi:", error.message);
+      window.alert("Veritabani silme yetkisi eksik olabilir. Sana SQL de verecegim; bir kez calistirinca tam sifirlanir.");
+    }
+  }
+
+  renderMembersSidebar();
+  renderAdminUsers();
+  scheduleDirectoryRefresh(120);
+}
+
 function renderChannelCheckboxes(container, selectedViewIds = [], namePrefix = "access") {
   if (!container) {
     return;
@@ -3995,6 +4119,22 @@ async function removeUserRecord(userId) {
       if (error) {
         throw error;
       }
+
+      await withTimeout(
+        supabaseClient
+          .from("messages")
+          .delete()
+          .eq("author_id", userId),
+        "Uye mesajlarini temizleme"
+      ).catch(() => {});
+
+      await withTimeout(
+        supabaseClient
+          .from("direct_messages")
+          .delete()
+          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`),
+        "Uye DM kayitlarini temizleme"
+      ).catch(() => {});
     } catch (error) {
       console.warn("Uye kaydi Supabase'den silinemedi:", error.message);
     }
@@ -4333,6 +4473,10 @@ if (adminPasswordInput) {
 
 if (adminRefreshUsersButton) {
   adminRefreshUsersButton.addEventListener("click", loadAdminUsers);
+}
+
+if (adminResetUsersButton) {
+  adminResetUsersButton.addEventListener("click", resetUsersExceptOwner);
 }
 
 if (adminViewSelect) {

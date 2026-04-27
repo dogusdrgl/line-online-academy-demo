@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260427-8" />
+    <link rel="stylesheet" href="./styles.css?v=20260427-9" />
   </head>
   <body>
     <div class="app-shell">
@@ -1095,7 +1095,10 @@
               <p class="eyebrow">Admin</p>
               <h3>Kontrol merkezi</h3>
             </div>
-            <button class="auth-secondary compact" type="button" id="admin-refresh-users">Uyeleri Yenile</button>
+            <div class="admin-head-actions">
+              <button class="auth-secondary compact" type="button" id="admin-refresh-users">Uyeleri Yenile</button>
+              <button class="auth-secondary compact danger" type="button" id="admin-reset-users">Doğuş Dışını Sıfırla</button>
+            </div>
           </div>
 
           <div class="admin-tabs">
@@ -1145,6 +1148,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260422-5"></script>
-    <script src="./app.js?v=20260427-8"></script>
+    <script src="./app.js?v=20260427-9"></script>
   </body>
 </html>
