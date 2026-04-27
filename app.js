@@ -2552,8 +2552,8 @@ async function loadDirectoryUsers() {
         roleId: user.role_id || "student",
         avatarImage: user.avatar_image || null,
         avatarClass: "blue",
-        subtitle: user.is_guest ? "Misafir" : user.is_online ? getRole(user.role_id)?.name || "Uye" : "Cevrimdisi",
-        isOnline: user.is_guest ? false : Boolean(user.is_online),
+        subtitle: user.is_online ? (user.is_guest ? "Misafir" : getRole(user.role_id)?.name || "Uye") : "Cevrimdisi",
+        isOnline: Boolean(user.is_online),
         isMuted: Boolean(user.is_muted),
         isBanned: Boolean(user.is_banned),
         isGuest: Boolean(user.is_guest)
@@ -2594,7 +2594,7 @@ async function loadDirectoryUsers() {
 }
 
 async function updatePresence(isOnline) {
-  if (!supabaseClient || !authState.userId || authState.roleId === "guest") {
+  if (!supabaseClient || !authState.userId) {
     return;
   }
 
