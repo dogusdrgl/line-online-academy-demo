@@ -18,15 +18,15 @@ const PERMISSION_OPTIONS = [
 ];
 
 const VOICE_ROOM_LABELS = {
-  "waiting-room": "Bekleme Odasi",
-  "meeting-room": "Gorusme Odasi",
-  "admin-room": "Yonetim Odasi",
-  "trainer-room": "Egitmen Odasi",
-  "board-room": "Toplanti Salonu",
-  "class-1": "Sinif 1",
-  "class-2": "Sinif 2",
-  "class-3": "Sinif 3",
-  "class-4": "Sinif 4",
+  "waiting-room": "Bekleme Odası",
+  "meeting-room": "Görüşme Odası",
+  "admin-room": "Yönetim Odası",
+  "trainer-room": "Eğitmen Odası",
+  "board-room": "Toplantı Salonu",
+  "class-1": "Sınıf 1",
+  "class-2": "Sınıf 2",
+  "class-3": "Sınıf 3",
+  "class-4": "Sınıf 4",
   "table-1": "Masa 1",
   "table-2": "Masa 2",
   "vip-loca": "Loca"
