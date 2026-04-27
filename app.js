@@ -253,6 +253,7 @@ let adminKnownUsers = [];
 let directoryUsers = [];
 let livePresenceMembers = [];
 let presenceChannel = null;
+let directoryRealtimeChannel = null;
 let selectedMember = null;
 let activeDmMember = null;
 let renderedMembersById = new Map();
@@ -2870,6 +2871,27 @@ async function untrackRealtimePresence() {
   }
 }
 
+function subscribeToDirectoryRealtime() {
+  if (!supabaseClient || directoryRealtimeChannel) {
+    return;
+  }
+
+  directoryRealtimeChannel = supabaseClient
+    .channel("line-online-academy-users")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "app_users" },
+      () => {
+        scheduleDirectoryRefresh(80);
+      }
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        scheduleDirectoryRefresh(80);
+      }
+    });
+}
+
 async function loadPersistedMessages() {
   if (!supabaseClient) {
     return;
@@ -5161,6 +5183,7 @@ loadPersistedMessages();
 subscribeToMessages();
 subscribeToDirectMessages();
 subscribeToPresence();
+subscribeToDirectoryRealtime();
 subscribeToVoiceRoomDirectory();
 
 window.setInterval(() => {
