@@ -1906,7 +1906,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 12px;
+  padding: 12px 10px;
   background: #23252a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -1914,40 +1914,40 @@ button {
 .members-topbar h3,
 .members-topbar span {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   color: #f2ebd5;
 }
 
 .members-group {
-  padding: 12px 12px 0;
+  padding: 10px 10px 0;
 }
 
 .member-heading {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: #d3cabf;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
 }
 
 .member-row {
   appearance: none;
   -webkit-appearance: none;
   display: grid;
-  grid-template-columns: 34px 1fr auto;
+  grid-template-columns: 30px 1fr auto;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   width: 100%;
-  min-height: 42px;
-  padding: 4px 6px;
+  min-height: 36px;
+  padding: 3px 5px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent !important;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   box-shadow: none;
 }
 
@@ -1982,15 +1982,15 @@ button {
 }
 
 .avatar {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   font-weight: 700;
   color: white;
   background: #ef5555;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .avatar.red {
@@ -2015,14 +2015,16 @@ button {
 
 .member-meta strong {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: #f3eee8;
+  line-height: 1.2;
 }
 
 .member-meta p {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: #ddd8d2;
-  font-size: 0.77rem;
+  font-size: 0.71rem;
+  line-height: 1.2;
 }
 
 .member-meta .role.green {
