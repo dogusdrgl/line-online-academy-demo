@@ -2926,7 +2926,7 @@ button {
 
 .member-admin-controls {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) auto auto;
+  grid-template-columns: minmax(130px, 1fr) auto auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -2958,6 +2958,12 @@ button {
 .member-action.danger {
   background: rgba(255, 94, 94, 0.12);
   color: #ffb0a8;
+}
+
+.member-action.ghost-danger {
+  background: rgba(255, 255, 255, 0.045);
+  color: #ffb0a8;
+  border: 1px solid rgba(255, 94, 94, 0.22);
 }
 
 .role-create {

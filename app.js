@@ -422,6 +422,16 @@ function setUserModeration(userId, updates) {
   return moderation[userId];
 }
 
+function removeUserModeration(userId) {
+  if (!userId) {
+    return;
+  }
+
+  const moderation = readModeration();
+  delete moderation[userId];
+  saveModeration(moderation);
+}
+
 function getRole(roleId) {
   return roles.find((role) => role.id === roleId);
 }
@@ -3515,14 +3525,14 @@ async function loadAdminUsers() {
   }
 
   try {
-    const { data, error } = await withTimeout(
-      supabaseClient
-        .from("app_users")
-        .select("id, display_name, role_id, is_guest, created_at, avatar_image")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      "Uyeleri yukleme"
-    );
+      const { data, error } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .select("id, display_name, role_id, is_guest, created_at, avatar_image, is_muted, is_banned, is_online, last_seen")
+          .order("created_at", { ascending: false })
+          .limit(100),
+        "Uyeleri yukleme"
+      );
 
     if (error) {
       throw error;
@@ -3563,14 +3573,25 @@ function renderAdminUsers() {
     return;
   }
 
-  const visibleAdminUsers = adminKnownUsers.filter((user) => !(user.isBanned ?? user.is_banned ?? false));
+  adminUsersList.innerHTML = [...adminKnownUsers]
+    .sort((firstUser, secondUser) => {
+      const firstBanned = Boolean(firstUser.isBanned ?? firstUser.is_banned);
+      const secondBanned = Boolean(secondUser.isBanned ?? secondUser.is_banned);
+      const firstOnline = Boolean(firstUser.isOnline ?? firstUser.is_online);
+      const secondOnline = Boolean(secondUser.isOnline ?? secondUser.is_online);
+      const firstSeen = getMemberRecency(firstUser);
+      const secondSeen = getMemberRecency(secondUser);
 
-  if (!visibleAdminUsers.length) {
-    adminUsersList.innerHTML = '<p class="admin-muted">Listelenecek aktif uye bulunamadi.</p>';
-    return;
-  }
+      if (firstBanned !== secondBanned) {
+        return firstBanned ? 1 : -1;
+      }
 
-  adminUsersList.innerHTML = visibleAdminUsers
+      if (firstOnline !== secondOnline) {
+        return firstOnline ? -1 : 1;
+      }
+
+      return secondSeen - firstSeen || String(firstUser.display_name || "").localeCompare(String(secondUser.display_name || ""), "tr");
+    })
     .map((user) => {
       const moderation = {
         isMuted: user.isMuted ?? user.is_muted ?? false,
@@ -3601,6 +3622,9 @@ function renderAdminUsers() {
             <button class="member-action danger" type="button" data-user-ban="${escapeHtml(user.id)}">
               ${moderation.isBanned ? "Geri Al" : "Sunucudan At"}
             </button>
+            <button class="member-action ghost-danger" type="button" data-user-remove="${escapeHtml(user.id)}">
+              Kalici Kaldir
+            </button>
           </div>
         </article>
       `;
@@ -3626,6 +3650,12 @@ function renderAdminUsers() {
       const userId = button.dataset.userBan;
       const user = adminKnownUsers.find((item) => item.id === userId);
       moderateUser(userId, { isBanned: !(user?.isBanned ?? user?.is_banned ?? false) });
+    });
+  });
+
+  adminUsersList.querySelectorAll("[data-user-remove]").forEach((button) => {
+    button.addEventListener("click", () => {
+      removeUserRecord(button.dataset.userRemove);
     });
   });
 }
@@ -3912,6 +3942,68 @@ async function moderateUser(userId, updates) {
   }
 
   renderAdminUsers();
+}
+
+async function removeUserRecord(userId) {
+  if (!userId) {
+    return;
+  }
+
+  const user = adminKnownUsers.find((item) => item.id === userId) || findMemberById(userId);
+  const displayName = user?.display_name || user?.name || "bu uye";
+  const confirmed = window.confirm(`${displayName} kaydini listeden kalici olarak kaldirmak istiyor musun?`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  if (authState.userId === userId) {
+    resetIdentity();
+  }
+
+  adminKnownUsers = adminKnownUsers.filter((item) => item.id !== userId);
+  directoryUsers = directoryUsers.filter((item) => item.id !== userId);
+  livePresenceMembers = livePresenceMembers.filter((item) => item.id !== userId);
+
+  const memberIndex = members.findIndex((item) => item.id === userId);
+  if (memberIndex >= 0) {
+    members.splice(memberIndex, 1);
+  }
+
+  for (let index = ephemeralMembers.length - 1; index >= 0; index -= 1) {
+    if (ephemeralMembers[index]?.id === userId) {
+      ephemeralMembers.splice(index, 1);
+    }
+  }
+
+  Object.keys(voiceRoomDirectory).forEach((roomId) => {
+    voiceRoomDirectory[roomId] = (voiceRoomDirectory[roomId] || []).filter((participant) => participant.id !== userId);
+  });
+
+  removeUserModeration(userId);
+
+  if (supabaseClient) {
+    try {
+      const { error } = await withTimeout(
+        supabaseClient
+          .from("app_users")
+          .delete()
+          .eq("id", userId),
+        "Uye kaydini kalici kaldirma"
+      );
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.warn("Uye kaydi Supabase'den silinemedi:", error.message);
+    }
+  }
+
+  renderSidebarVoiceMembers();
+  renderMembersSidebar();
+  renderAdminUsers();
+  scheduleDirectoryRefresh(150);
 }
 
 function positionMemberCard(anchorElement) {
