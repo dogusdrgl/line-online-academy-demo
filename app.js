@@ -255,6 +255,7 @@ let presenceChannel = null;
 let selectedMember = null;
 let activeDmMember = null;
 let renderedMembersById = new Map();
+let directoryRefreshTimer = null;
 
 const members = [
   {
@@ -1970,6 +1971,17 @@ function findMemberById(memberId) {
   return getAllMembers().find((member) => member.id === memberId);
 }
 
+function scheduleDirectoryRefresh(delay = 450) {
+  if (directoryRefreshTimer) {
+    window.clearTimeout(directoryRefreshTimer);
+  }
+
+  directoryRefreshTimer = window.setTimeout(() => {
+    directoryRefreshTimer = null;
+    loadDirectoryUsers();
+  }, delay);
+}
+
 function getConversationId(firstId, secondId) {
   return [firstId, secondId].sort().join("__");
 }
@@ -2614,6 +2626,32 @@ async function updatePresence(isOnline) {
   }
 }
 
+function sendPresenceKeepalive(userId, isOnline) {
+  if (!userId || !supabaseConfig.url || !supabaseConfig.anonKey || typeof fetch !== "function") {
+    return;
+  }
+
+  try {
+    const endpoint = `${supabaseConfig.url}/rest/v1/app_users?id=eq.${encodeURIComponent(userId)}`;
+    fetch(endpoint, {
+      method: "PATCH",
+      headers: {
+        apikey: supabaseConfig.anonKey,
+        Authorization: `Bearer ${supabaseConfig.anonKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({
+        is_online: isOnline,
+        last_seen: new Date().toISOString()
+      }),
+      keepalive: true
+    }).catch(() => {});
+  } catch (error) {
+    console.warn("Keepalive presence gonderilemedi:", error.message);
+  }
+}
+
 function getRealtimePresencePayload() {
   return {
     id: authState.userId,
@@ -2646,6 +2684,7 @@ function syncRealtimePresenceMembers() {
     }));
 
   renderMembersSidebar();
+  scheduleDirectoryRefresh();
 }
 
 async function trackRealtimePresence() {
@@ -3103,9 +3142,11 @@ function finishAuth(name, roleId, options = {}) {
 }
 
 function resetIdentity() {
+  const currentUserId = authState.userId;
   leaveVoiceRoom();
   untrackRealtimePresence();
   updatePresence(false);
+  sendPresenceKeepalive(currentUserId, false);
   authState = {
     mode: "visitor",
     name: "Ziyaretci",
@@ -3136,6 +3177,9 @@ function resetIdentity() {
   }
 
   renderMembersSidebar();
+  window.setTimeout(() => {
+    loadDirectoryUsers();
+  }, 250);
 }
 
 function restoreSavedSession() {
@@ -4782,8 +4826,36 @@ window.setInterval(() => {
   }
 }, 15000);
 
+window.setInterval(() => {
+  if (supabaseClient) {
+    loadDirectoryUsers();
+  }
+}, 10000);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && supabaseClient) {
+    scheduleDirectoryRefresh(120);
+  }
+});
+
+window.addEventListener("focus", () => {
+  if (supabaseClient) {
+    scheduleDirectoryRefresh(120);
+  }
+});
+
 window.addEventListener("beforeunload", () => {
+  const currentUserId = authState.userId;
   leaveVoiceRoom();
   untrackRealtimePresence();
   updatePresence(false);
+  sendPresenceKeepalive(currentUserId, false);
+});
+
+window.addEventListener("pagehide", () => {
+  const currentUserId = authState.userId;
+  if (!currentUserId) {
+    return;
+  }
+  sendPresenceKeepalive(currentUserId, false);
 });

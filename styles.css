@@ -1847,6 +1847,7 @@ button {
   background: #26282d;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   height: 100dvh;
   overflow: hidden;
 }
@@ -1855,14 +1856,18 @@ button {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0;
-  height: auto;
+  height: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 #members-groups {
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .channel-groups,
@@ -1903,6 +1908,9 @@ button {
 }
 
 .members-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3613,22 +3621,19 @@ button {
 
   .members-scroll-area {
     flex: 1 1 auto;
-    height: auto;
-    overflow: hidden;
+    height: 0;
+    overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     min-height: 0;
+    overscroll-behavior: contain;
     touch-action: pan-y;
   }
 
   #members-groups {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     height: auto;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-y;
+    overflow: visible;
     padding-bottom: 24px;
     min-height: 0;
   }
@@ -3690,17 +3695,4 @@ button {
     min-width: 60px;
   }
 
-  .mobile-profile-fab {
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    width: 52px;
-    height: 52px;
-    border-radius: 16px;
-  }
-
-  .mobile-profile-fab-avatar {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-  }
 }
