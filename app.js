@@ -1929,6 +1929,72 @@ function isVisibleRealMember(member) {
   return true;
 }
 
+function getMemberIdentityKey(member) {
+  if (!member?.id) {
+    return null;
+  }
+
+  if (member.bot) {
+    return `bot:${member.id}`;
+  }
+
+  if (member.isGuest || member.is_guest || member.roleId === "guest" || member.role_id === "guest") {
+    return `guest:${normalizeMention(member.name || member.display_name || member.id)}`;
+  }
+
+  return `user:${member.id}`;
+}
+
+function getMemberRecency(member) {
+  if (!member?.lastSeen && !member?.last_seen) {
+    return 0;
+  }
+
+  const value = new Date(member.lastSeen || member.last_seen).getTime();
+  return Number.isFinite(value) ? value : 0;
+}
+
+function mergeMembersPreferred(currentMember, nextMember) {
+  if (!currentMember) {
+    return { ...nextMember };
+  }
+
+  const currentOnline = Boolean(currentMember.isOnline || currentMember.bot);
+  const nextOnline = Boolean(nextMember.isOnline || nextMember.bot);
+  const currentRecency = getMemberRecency(currentMember);
+  const nextRecency = getMemberRecency(nextMember);
+
+  let primary = currentMember;
+  let secondary = nextMember;
+
+  if (nextOnline && !currentOnline) {
+    primary = nextMember;
+    secondary = currentMember;
+  } else if (nextOnline === currentOnline) {
+    if (nextRecency > currentRecency) {
+      primary = nextMember;
+      secondary = currentMember;
+    } else if (!currentMember.avatarImage && nextMember.avatarImage) {
+      primary = nextMember;
+      secondary = currentMember;
+    }
+  }
+
+  return {
+    ...secondary,
+    ...primary,
+    id: primary.id || secondary.id,
+    name: primary.name || secondary.name,
+    display_name: primary.display_name || secondary.display_name,
+    roleId: primary.roleId || secondary.roleId,
+    role_id: primary.role_id || secondary.role_id,
+    avatarImage: primary.avatarImage || secondary.avatarImage || null,
+    isOnline: Boolean(primary.isOnline || secondary.isOnline || primary.bot || secondary.bot),
+    isGuest: Boolean(primary.isGuest || secondary.isGuest || primary.is_guest || secondary.is_guest),
+    lastSeen: primary.lastSeen || secondary.lastSeen || primary.last_seen || secondary.last_seen || null
+  };
+}
+
 function getAllMembers() {
   const merged = new Map();
 
@@ -1936,17 +2002,25 @@ function getAllMembers() {
     if (!isVisibleRealMember(member)) {
       return;
     }
-    merged.set(member.id, member);
+    const identityKey = getMemberIdentityKey(member);
+    if (!identityKey) {
+      return;
+    }
+    merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), member));
   });
 
   ephemeralMembers.forEach((member) => {
     if (!isVisibleRealMember(member)) {
       return;
     }
-    merged.set(member.id, {
+    const identityKey = getMemberIdentityKey(member);
+    if (!identityKey) {
+      return;
+    }
+    merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), {
       ...member,
       isOnline: true
-    });
+    }));
   });
 
   return Array.from(merged.values());
@@ -2566,6 +2640,7 @@ async function loadDirectoryUsers() {
         avatarClass: "blue",
         subtitle: user.is_online ? (user.is_guest ? "Misafir" : getRole(user.role_id)?.name || "Uye") : "Cevrimdisi",
         isOnline: Boolean(user.is_online),
+        lastSeen: user.last_seen || null,
         isMuted: Boolean(user.is_muted),
         isBanned: Boolean(user.is_banned),
         isGuest: Boolean(user.is_guest)
@@ -2595,6 +2670,7 @@ async function loadDirectoryUsers() {
         avatarClass: "blue",
         subtitle: "Cevrimdisi",
         isOnline: false,
+        lastSeen: null,
         isGuest: Boolean(user.is_guest)
       }));
     } catch (fallbackError) {
@@ -3263,6 +3339,35 @@ function openGuestInline() {
   authPanelsWrap.classList.add("hidden");
   guestForm.classList.remove("hidden");
   guestNameInput.focus();
+}
+
+async function findReusableGuestIdByName(guestName) {
+  if (!supabaseClient || !guestName) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("id, display_name, is_banned, last_seen")
+        .eq("is_guest", true)
+        .eq("display_name", guestName)
+        .order("last_seen", { ascending: false, nullsFirst: false })
+        .limit(5),
+      "Misafir kaydi arama"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    const reusableGuest = (data || []).find((user) => !user.is_banned);
+    return reusableGuest?.id || null;
+  } catch (error) {
+    console.warn("Mevcut misafir kaydi aranirken hata:", error.message);
+    return null;
+  }
 }
 
 async function sendChannelMessage(panelId, text) {
@@ -4395,7 +4500,8 @@ guestForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  const guestId = `guest-${slugify(guestName)}-${Date.now()}`;
+  const reusableGuestId = await findReusableGuestIdByName(guestName);
+  const guestId = reusableGuestId || `guest-${slugify(guestName)}-${Date.now()}`;
   const guestUser = {
     id: guestId,
     name: guestName,
