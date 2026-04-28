@@ -1,4 +1,4 @@
-const PUBLIC_VIEWS = new Set(["dashboard", "about"]);
+﻿const PUBLIC_VIEWS = new Set(["dashboard", "about"]);
 const TEXT_CHANNEL_VIEWS = new Set([
   "contact",
   "support",
@@ -18,15 +18,15 @@ const PERMISSION_OPTIONS = [
 ];
 
 const VOICE_ROOM_LABELS = {
-  "waiting-room": "Bekleme Odası",
-  "meeting-room": "Görüşme Odası",
-  "admin-room": "Yönetim Odası",
-  "trainer-room": "Eğitmen Odası",
-  "board-room": "Toplantı Salonu",
-  "class-1": "Sınıf 1",
-  "class-2": "Sınıf 2",
-  "class-3": "Sınıf 3",
-  "class-4": "Sınıf 4",
+  "waiting-room": "Bekleme OdasÄ±",
+  "meeting-room": "GÃ¶rÃ¼ÅŸme OdasÄ±",
+  "admin-room": "YÃ¶netim OdasÄ±",
+  "trainer-room": "EÄŸitmen OdasÄ±",
+  "board-room": "ToplantÄ± Salonu",
+  "class-1": "SÄ±nÄ±f 1",
+  "class-2": "SÄ±nÄ±f 2",
+  "class-3": "SÄ±nÄ±f 3",
+  "class-4": "SÄ±nÄ±f 4",
   "table-1": "Masa 1",
   "table-2": "Masa 2",
   "vip-loca": "Loca"
@@ -198,6 +198,9 @@ let voiceDirectoryChannels = [];
 let voiceDirectoryReady = {};
 let notificationAudioContext = null;
 let focusedVoiceParticipantId = null;
+let voiceFullscreenRoomId = null;
+let voiceFullscreenUiVisible = true;
+let voiceFullscreenUiTimer = null;
 
 const rtcConfig = {
   iceServers: [
@@ -276,7 +279,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/help • /achievements",
+    subtitle: "/help â€¢ /achievements",
     bot: true
   },
   {
@@ -285,7 +288,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/soru • /cevap",
+    subtitle: "/soru â€¢ /cevap",
     bot: true
   },
   {
@@ -476,12 +479,12 @@ function escapeHtml(text) {
 function normalizeMention(text) {
   return (text || "")
     .toLowerCase()
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
+    .replace(/ÄŸ/g, "g")
+    .replace(/Ã¼/g, "u")
+    .replace(/ÅŸ/g, "s")
+    .replace(/Ä±/g, "i")
+    .replace(/Ã¶/g, "o")
+    .replace(/Ã§/g, "c")
     .replace(/[^a-z0-9]+/g, "");
 }
 
@@ -966,6 +969,10 @@ function getVoiceGrid(roomId = voiceState.roomId) {
   return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-grid]");
 }
 
+function getVoiceCallShell(roomId = voiceState.roomId) {
+  return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-call]");
+}
+
 function getVoiceChat(roomId = voiceState.roomId) {
   return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-chat-stream]");
 }
@@ -976,6 +983,86 @@ function getVoiceParticipantList(roomId = voiceState.roomId) {
 
 function getVoiceStatus(roomId = voiceState.roomId) {
   return getVoiceRoomPanel(roomId)?.querySelector("[data-voice-status]");
+}
+
+function clearVoiceFullscreenUiTimer() {
+  if (voiceFullscreenUiTimer) {
+    window.clearTimeout(voiceFullscreenUiTimer);
+    voiceFullscreenUiTimer = null;
+  }
+}
+
+function applyVoiceFullscreenUi(roomId = voiceState.roomId) {
+  const shell = getVoiceCallShell(roomId);
+  if (!shell) {
+    return;
+  }
+
+  shell.classList.toggle("voice-fullscreen", voiceFullscreenRoomId === roomId);
+  shell.classList.toggle("voice-fullscreen-ui-visible", voiceFullscreenUiVisible || voiceFullscreenRoomId !== roomId);
+}
+
+function scheduleVoiceFullscreenUiHide(roomId = voiceState.roomId) {
+  clearVoiceFullscreenUiTimer();
+  if (voiceFullscreenRoomId !== roomId) {
+    return;
+  }
+
+  voiceFullscreenUiTimer = window.setTimeout(() => {
+    voiceFullscreenUiVisible = false;
+    applyVoiceFullscreenUi(roomId);
+  }, 2200);
+}
+
+async function enterVoiceFullscreen(memberId = focusedVoiceParticipantId || authState.userId) {
+  const roomId = voiceState.roomId;
+  const shell = getVoiceCallShell(roomId);
+  if (!shell || !document.fullscreenEnabled) {
+    return;
+  }
+
+  if (memberId) {
+    setFocusedVoiceParticipant(memberId);
+  }
+
+  try {
+    await shell.requestFullscreen();
+    voiceFullscreenRoomId = roomId;
+    voiceFullscreenUiVisible = true;
+    applyVoiceFullscreenUi(roomId);
+    scheduleVoiceFullscreenUiHide(roomId);
+  } catch (error) {
+    console.warn("Tam ekran acilamadi:", error.message);
+  }
+}
+
+async function exitVoiceFullscreen() {
+  if (document.fullscreenElement) {
+    try {
+      await document.exitFullscreen();
+    } catch (error) {
+      console.warn("Tam ekrandan cikilamadi:", error.message);
+    }
+  }
+
+  clearVoiceFullscreenUiTimer();
+  voiceFullscreenRoomId = null;
+  voiceFullscreenUiVisible = true;
+  applyVoiceFullscreenUi();
+}
+
+function toggleVoiceFullscreenUi(roomId = voiceState.roomId) {
+  if (voiceFullscreenRoomId !== roomId) {
+    return;
+  }
+
+  voiceFullscreenUiVisible = !voiceFullscreenUiVisible;
+  applyVoiceFullscreenUi(roomId);
+  if (voiceFullscreenUiVisible) {
+    scheduleVoiceFullscreenUiHide(roomId);
+  } else {
+    clearVoiceFullscreenUiTimer();
+  }
 }
 
 function getVoiceName() {
@@ -1199,6 +1286,7 @@ function setFocusedVoiceParticipant(memberId) {
     tile.classList.toggle("spotlight", isFocused);
     tile.classList.toggle("dimmed", hasFocus && !isFocused && !isLocal);
     tile.classList.toggle("picture-in-picture", hasFocus && isLocal && !isFocused);
+    tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
   });
 }
 
@@ -1308,6 +1396,7 @@ function renderVoiceControls() {
     panel.querySelector("[data-voice-camera]")?.classList.toggle("active", isActiveRoom && voiceState.videoEnabled);
     panel.querySelector("[data-voice-mic]")?.classList.toggle("muted", isActiveRoom && !voiceState.audioEnabled);
     panel.querySelector("[data-voice-camera]")?.classList.toggle("muted", isActiveRoom && !voiceState.videoEnabled);
+    panel.querySelector("[data-voice-fullscreen]")?.classList.toggle("active", voiceFullscreenRoomId === panel.id);
   });
 }
 
@@ -1333,6 +1422,7 @@ function createVoiceTile(member, stream, isLocal = false) {
   tile.innerHTML = `
     <video autoplay playsinline ${isLocal ? "muted" : ""}></video>
     <div class="voice-avatar-fallback"></div>
+    <button class="voice-tile-expand${focusedVoiceParticipantId === member.id ? " visible" : ""}" type="button" aria-label="Tam ekrana al">&#9974;</button>
     <div class="voice-tile-meta">
       <strong>${escapeHtml(member.name || "Uye")}${isLocal ? " (Sen)" : ""}</strong>
       <span>${escapeHtml(role?.name || "Katilimci")}</span>
@@ -1341,10 +1431,28 @@ function createVoiceTile(member, stream, isLocal = false) {
 
   const video = tile.querySelector("video");
   const fallback = tile.querySelector(".voice-avatar-fallback");
+  const expandButton = tile.querySelector(".voice-tile-expand");
   video.srcObject = stream || null;
   video.muted = isLocal || voiceState.outputEnabled === false;
   paintAvatar(fallback, member.name, member.avatarImage, role?.color || "#f1a126");
-  tile.addEventListener("click", () => {
+  expandButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setFocusedVoiceParticipant(member.id);
+    enterVoiceFullscreen(member.id);
+  });
+  tile.addEventListener("click", (event) => {
+    if (voiceFullscreenRoomId === voiceState.roomId) {
+      event.stopPropagation();
+      if (focusedVoiceParticipantId !== member.id) {
+        setFocusedVoiceParticipant(member.id);
+        voiceFullscreenUiVisible = true;
+        applyVoiceFullscreenUi(voiceState.roomId);
+        scheduleVoiceFullscreenUiHide(voiceState.roomId);
+        return;
+      }
+      toggleVoiceFullscreenUi(voiceState.roomId);
+      return;
+    }
     if (focusedVoiceParticipantId === member.id) {
       setFocusedVoiceParticipant(null);
       return;
@@ -1646,6 +1754,9 @@ async function leaveVoiceRoom(options = {}) {
   }
 
   const { navigateToDashboard = true } = options;
+  if (voiceFullscreenRoomId === voiceState.roomId) {
+    exitVoiceFullscreen();
+  }
 
   sendVoiceSignal("leave", null);
   voiceState.peers.forEach((peer) => peer.close());
@@ -1788,7 +1899,7 @@ function initializeVoiceRooms() {
     callShell.dataset.voiceCall = panel.id;
     callShell.innerHTML = `
       <div class="voice-call-lobby">
-        <div class="voice-lobby-orb">🎧</div>
+        <div class="voice-lobby-orb">&#127911;</div>
         <p class="section-kicker">Sesli Toplanti</p>
         <h3>${escapeHtml(roomLabel)}</h3>
         <p>Bu odaya katilarak mikrofonunu kullanabilir, kamerani acabilir ve diger katilimcilarla gorusebilirsin.</p>
@@ -1796,6 +1907,7 @@ function initializeVoiceRooms() {
         <span data-voice-status>Odaya katilmaya hazir.</span>
       </div>
       <div class="voice-call-stage">
+        <button class="voice-fullscreen-exit" type="button" data-voice-exit-fullscreen aria-label="Tam ekrandan cik">&#10005;</button>
         <div class="voice-call-topline">
           <div>
             <p class="section-kicker">Canli Baglanti</p>
@@ -1824,12 +1936,12 @@ function initializeVoiceRooms() {
           </aside>
         </div>
         <div class="voice-call-dock">
-          <button class="voice-control active" type="button" data-voice-mic><span>🎙</span><small>Mik</small></button>
-          <button class="voice-control muted" type="button" data-voice-camera><span>📷</span><small>Kamera</small></button>
-          <button class="voice-control" type="button" data-voice-share><span>🖥</span><small>Ekran</small></button>
-          <button class="voice-control" type="button" data-voice-activity><span>✦</span><small>Aktivite</small></button>
-          <button class="voice-control" type="button" data-voice-more><span>⋯</span><small>Daha</small></button>
-          <button class="voice-control danger hidden" type="button" data-voice-leave><span>☎</span><small>Ayril</small></button>
+          <button class="voice-control active" type="button" data-voice-mic><span>&#127908;</span><small>Mik</small></button>
+          <button class="voice-control muted" type="button" data-voice-camera><span>&#128247;</span><small>Kamera</small></button>
+          <button class="voice-control" type="button" data-voice-share><span>&#128421;</span><small>Ekran</small></button>
+          <button class="voice-control" type="button" data-voice-activity><span>&#10022;</span><small>Aktivite</small></button>
+          <button class="voice-control" type="button" data-voice-more><span>&#8942;</span><small>Daha</small></button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#128222;</span><small>Ayril</small></button>
         </div>
       </div>
     `;
@@ -1837,11 +1949,17 @@ function initializeVoiceRooms() {
     panel.appendChild(callShell);
     const moreButton = callShell.querySelector("[data-voice-more]");
     const chatDockButton = document.createElement("button");
+    const fullscreenDockButton = document.createElement("button");
     chatDockButton.className = "voice-control voice-chat-dock-button";
     chatDockButton.type = "button";
     chatDockButton.dataset.voiceChatButton = "true";
     chatDockButton.innerHTML = `<span>&#128172;</span><small>Chat</small><strong class="voice-chat-dock-unread hidden" data-voice-chat-dock-unread>0</strong>`;
+    fullscreenDockButton.className = "voice-control";
+    fullscreenDockButton.type = "button";
+    fullscreenDockButton.dataset.voiceFullscreen = "true";
+    fullscreenDockButton.innerHTML = `<span>&#9974;</span><small>Tam Ekran</small>`;
     moreButton?.insertAdjacentElement("beforebegin", chatDockButton);
+    moreButton?.insertAdjacentElement("beforebegin", fullscreenDockButton);
 
     callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
@@ -1849,9 +1967,26 @@ function initializeVoiceRooms() {
     callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
     callShell.querySelector("[data-voice-chat-toggle]")?.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
     chatDockButton.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
+    fullscreenDockButton.addEventListener("click", () => {
+      if (voiceFullscreenRoomId === panel.id) {
+        exitVoiceFullscreen();
+        return;
+      }
+      enterVoiceFullscreen(focusedVoiceParticipantId || authState.userId);
+    });
+    callShell.querySelector("[data-voice-exit-fullscreen]")?.addEventListener("click", () => exitVoiceFullscreen());
     callShell.querySelector("[data-voice-share]").addEventListener("click", () => window.alert("Ekran paylasimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-activity]").addEventListener("click", () => window.alert("Aktivite secimi sonraki adimda entegre edilecek."));
-    callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplantı ayarlari sonraki adimda eklenecek."));
+    callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplanti ayarlari sonraki adimda eklenecek."));
+    callShell.querySelector(".voice-call-stage")?.addEventListener("click", (event) => {
+      if (voiceFullscreenRoomId !== panel.id) {
+        return;
+      }
+      if (event.target.closest("button, input, .voice-chat-panel, .voice-call-dock")) {
+        return;
+      }
+      toggleVoiceFullscreenUi(panel.id);
+    });
   });
 
   renderVoiceControls();
@@ -2399,7 +2534,7 @@ function renderMembersSidebar() {
 
       return `
         <div class="members-group">
-          <p class="member-heading">${group} — ${grouped[group].length}</p>
+          <p class="member-heading">${group} â€” ${grouped[group].length}</p>
           ${memberRows}
         </div>
       `;
@@ -2489,7 +2624,7 @@ function refreshChatAdminControls() {
       button.type = "button";
       button.dataset.deleteMessage = messageId;
       button.setAttribute("aria-label", "Mesaji sil");
-      button.textContent = "🗑";
+      button.textContent = "ğŸ—‘";
       line.appendChild(button);
     }
   });
@@ -2531,7 +2666,7 @@ function initializeStaticMessageControls() {
     const button = document.createElement("button");
     button.className = "static-message-delete message-delete";
     button.type = "button";
-    button.textContent = "🗑";
+    button.textContent = "ğŸ—‘";
     button.setAttribute("aria-label", "Sabit mesaji temizle");
     button.addEventListener("click", () => {
       if (!isAdminUser()) {
@@ -2550,7 +2685,7 @@ function createMessageLine(message) {
   line.classList.toggle("mentioned-me", messageMentionsCurrentUser(message));
   line.innerHTML = `
     <p>${renderMessageContent(message.content)}</p>
-    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">🗑</button>` : ""}
+    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">ğŸ—‘</button>` : ""}
   `;
   attachDeleteHandlers(line);
   return line;
@@ -3807,7 +3942,7 @@ function renderAdminUsers() {
 }
 
 async function resetUsersExceptOwner() {
-  const confirmed = window.confirm("Doğuş hesabi disindaki tum kullanici kayitlarini sifirlamak istiyor musun?");
+  const confirmed = window.confirm("DoÄŸuÅŸ hesabi disindaki tum kullanici kayitlarini sifirlamak istiyor musun?");
   if (!confirmed) {
     return;
   }
@@ -5285,6 +5420,20 @@ window.addEventListener("focus", () => {
   }
 });
 
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    clearVoiceFullscreenUiTimer();
+    voiceFullscreenRoomId = null;
+    voiceFullscreenUiVisible = true;
+    applyVoiceFullscreenUi();
+    return;
+  }
+
+  voiceFullscreenUiVisible = true;
+  applyVoiceFullscreenUi(voiceFullscreenRoomId || voiceState.roomId);
+  scheduleVoiceFullscreenUiHide(voiceFullscreenRoomId || voiceState.roomId);
+});
+
 window.addEventListener("beforeunload", () => {
   const currentUserId = authState.userId;
   leaveVoiceRoom({ navigateToDashboard: false });
@@ -5300,3 +5449,5 @@ window.addEventListener("pagehide", () => {
   }
   sendPresenceKeepalive(currentUserId, false);
 });
+
+

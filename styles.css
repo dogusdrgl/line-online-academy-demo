@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #111111;
   --panel: #1b1b1e;
   --panel-strong: #232327;
@@ -235,7 +235,7 @@ button {
 }
 
 .channel-item.voice::before {
-  content: "🔊";
+  content: "ğŸ”Š";
   margin-right: 10px;
 }
 
@@ -1445,8 +1445,9 @@ button {
 }
 
 .voice-call-grid.spotlight-active {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  align-content: start;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 21%);
+  align-content: stretch;
+  gap: 16px;
 }
 
 .voice-call-grid:empty::before {
@@ -1537,26 +1538,66 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  grid-column: 1 / span 9;
-  min-height: min(62vh, 560px);
+  grid-column: 1;
+  min-height: min(68vh, 620px);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 26px 56px rgba(0, 0, 0, 0.34);
 }
 
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
-  grid-column: 10 / -1;
-  min-height: 148px;
-  max-height: 196px;
+  grid-column: 2;
+  min-height: 156px;
+  max-height: 206px;
   align-self: end;
 }
 
 .voice-call-grid.spotlight-active .voice-tile.dimmed {
-  grid-column: 10 / -1;
-  min-height: 148px;
-  max-height: 196px;
-  opacity: 0.82;
+  grid-column: 2;
+  min-height: 156px;
+  max-height: 206px;
+  opacity: 0.78;
 }
 
 .voice-tile.audio-only .voice-avatar-fallback {
   color: white;
+}
+
+.voice-tile-expand {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(21, 22, 28, 0.88), rgba(12, 13, 18, 0.94));
+  color: #f4ede3;
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 140ms ease, transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  z-index: 3;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 16px 28px rgba(0, 0, 0, 0.3);
+}
+
+.voice-tile:hover .voice-tile-expand,
+.voice-tile-expand.visible,
+.voice-call-shell.voice-fullscreen .voice-tile.spotlight .voice-tile-expand {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.voice-tile-expand:hover {
+  background: rgba(226, 56, 74, 0.88);
+  box-shadow: 0 18px 32px rgba(124, 20, 33, 0.3);
 }
 
 .voice-tile-meta {
@@ -1582,6 +1623,7 @@ button {
   border-radius: 18px;
   background: rgba(18, 19, 24, 0.92);
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.4);
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .voice-call-dock .voice-control {
@@ -1642,6 +1684,52 @@ button {
   overflow: visible;
   transition: transform 180ms ease, opacity 180ms ease;
   box-shadow: 0 22px 46px rgba(0, 0, 0, 0.34);
+}
+
+.voice-fullscreen-exit {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 14px;
+  display: none;
+  place-items: center;
+  background: rgba(16, 17, 22, 0.74);
+  color: #f4ede3;
+  font-size: 1.5rem;
+  line-height: 1;
+  z-index: 5;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.voice-call-shell.voice-fullscreen .voice-fullscreen-exit {
+  display: grid;
+}
+
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-topline,
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-dock,
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-fullscreen-exit,
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-chat-handle,
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-tile-expand,
+.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-chat-panel:not(.collapsed) {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+}
+
+.voice-call-topline {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.voice-call-shell.voice-fullscreen {
+  background: #050608;
+}
+
+.voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
+  min-height: calc(100vh - 188px);
 }
 
 .voice-chat-handle {
@@ -3639,7 +3727,7 @@ button {
   }
 
   .composer-submit::before {
-    content: "➜";
+    content: "âœ";
     font-size: 1.05rem;
     font-weight: 900;
   }
@@ -3710,6 +3798,22 @@ button {
     min-height: clamp(180px, 28vh, 240px);
   }
 
+  .voice-call-grid.spotlight-active {
+    grid-template-columns: 1fr;
+  }
+
+  .voice-call-grid.spotlight-active .voice-tile.spotlight {
+      grid-column: 1 / -1;
+      min-height: min(56vh, 420px);
+    }
+
+  .voice-call-grid.spotlight-active .voice-tile.picture-in-picture,
+  .voice-call-grid.spotlight-active .voice-tile.dimmed {
+    grid-column: 1 / -1;
+    min-height: 104px;
+    max-height: 136px;
+  }
+
   .voice-chat-panel {
     width: calc(100% - 12px);
     right: 6px;
@@ -3733,3 +3837,5 @@ button {
   }
 
 }
+
+
