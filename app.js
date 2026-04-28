@@ -181,6 +181,7 @@ let voiceState = {
   channel: null,
   localStream: null,
   peers: new Map(),
+  remoteStreams: new Map(),
   pendingIce: new Map(),
   participants: new Map(),
   audioEnabled: true,
@@ -196,6 +197,7 @@ let voiceRoomDirectory = {};
 let voiceDirectoryChannels = [];
 let voiceDirectoryReady = {};
 let notificationAudioContext = null;
+let focusedVoiceParticipantId = null;
 
 const rtcConfig = {
   iceServers: [
@@ -985,7 +987,8 @@ function getVoiceMemberPayload() {
     id: authState.userId,
     name: getVoiceName(),
     roleId: authState.roleId,
-    avatarImage: authState.avatarImage || null
+    avatarImage: authState.avatarImage || null,
+    videoEnabled: Boolean(voiceState.videoEnabled)
   };
 }
 
@@ -1179,6 +1182,26 @@ function renderVoiceParticipants() {
     : '<p class="admin-muted">Odada henuz kimse yok.</p>';
 }
 
+function setFocusedVoiceParticipant(memberId) {
+  focusedVoiceParticipantId = memberId || null;
+  const grid = getVoiceGrid();
+  if (!grid) {
+    return;
+  }
+
+  const tiles = Array.from(grid.querySelectorAll(".voice-tile"));
+  const hasFocus = Boolean(focusedVoiceParticipantId && tiles.some((tile) => tile.dataset.voiceTile === focusedVoiceParticipantId));
+  grid.classList.toggle("spotlight-active", hasFocus);
+
+  tiles.forEach((tile) => {
+    const isFocused = hasFocus && tile.dataset.voiceTile === focusedVoiceParticipantId;
+    const isLocal = tile.classList.contains("local");
+    tile.classList.toggle("spotlight", isFocused);
+    tile.classList.toggle("dimmed", hasFocus && !isFocused && !isLocal);
+    tile.classList.toggle("picture-in-picture", hasFocus && isLocal && !isFocused);
+  });
+}
+
 function renderSidebarVoiceMembers() {
   document.querySelectorAll("[data-voice-members-for]").forEach((element) => element.remove());
 
@@ -1300,7 +1323,8 @@ function createVoiceTile(member, stream, isLocal = false) {
 
   const role = getRole(member.roleId);
   const tile = document.createElement("article");
-  const hasVideo = Boolean(stream?.getVideoTracks().length);
+  const hasVideoTrack = Boolean(stream?.getVideoTracks().some((track) => track.readyState === "live"));
+  const hasVideo = member.videoEnabled !== false && hasVideoTrack;
   tile.className = `voice-tile${isLocal ? " local" : ""}${hasVideo ? "" : " audio-only"}`;
   if (preserveSpeaking || (isLocal && voiceState.speaking)) {
     tile.classList.add("speaking");
@@ -1320,7 +1344,15 @@ function createVoiceTile(member, stream, isLocal = false) {
   video.srcObject = stream || null;
   video.muted = isLocal || voiceState.outputEnabled === false;
   paintAvatar(fallback, member.name, member.avatarImage, role?.color || "#f1a126");
+  tile.addEventListener("click", () => {
+    if (focusedVoiceParticipantId === member.id) {
+      setFocusedVoiceParticipant(null);
+      return;
+    }
+    setFocusedVoiceParticipant(member.id);
+  });
   grid.appendChild(tile);
+  setFocusedVoiceParticipant(focusedVoiceParticipantId);
 }
 
 function removeVoiceTile(memberId) {
@@ -1383,7 +1415,14 @@ async function createPeerConnection(remoteMember, shouldOffer = false) {
 
   peer.ontrack = (event) => {
     const [remoteStream] = event.streams;
-    createVoiceTile(remoteMember, remoteStream, false);
+    voiceState.remoteStreams.set(remoteMember.id, remoteStream);
+    const knownMember = voiceState.participants.get(remoteMember.id) || remoteMember;
+    voiceState.participants.set(remoteMember.id, {
+      ...knownMember,
+      ...remoteMember,
+      videoEnabled: knownMember.videoEnabled ?? Boolean(remoteStream?.getVideoTracks().length)
+    });
+    createVoiceTile(voiceState.participants.get(remoteMember.id), remoteStream, false);
   };
 
   peer.onicecandidate = (event) => {
@@ -1396,9 +1435,13 @@ async function createPeerConnection(remoteMember, shouldOffer = false) {
     if (["failed", "closed", "disconnected"].includes(peer.connectionState)) {
       peer.close();
       voiceState.peers.delete(remoteMember.id);
+      voiceState.remoteStreams.delete(remoteMember.id);
       voiceState.participants.delete(remoteMember.id);
       removeVoiceTile(remoteMember.id);
       renderVoiceParticipants();
+      if (focusedVoiceParticipantId === remoteMember.id) {
+        setFocusedVoiceParticipant(null);
+      }
     }
   };
 
@@ -1430,14 +1473,32 @@ async function handleVoiceSignal(payload) {
   if (payload.type === "leave") {
     voiceState.peers.get(payload.from)?.close();
     voiceState.peers.delete(payload.from);
+    voiceState.remoteStreams.delete(payload.from);
     voiceState.participants.delete(payload.from);
     removeVoiceTile(payload.from);
     renderVoiceParticipants();
+    if (focusedVoiceParticipantId === payload.from) {
+      setFocusedVoiceParticipant(null);
+    }
     return;
   }
 
   if (payload.type === "speaking") {
     getVoiceGrid()?.querySelector(`[data-voice-tile="${CSS.escape(payload.from)}"]`)?.classList.toggle("speaking", Boolean(payload.speaking));
+    return;
+  }
+
+  if (payload.type === "media_state") {
+    const existingMember = voiceState.participants.get(payload.from) || remoteMember;
+    const updatedMember = {
+      ...existingMember,
+      ...remoteMember,
+      videoEnabled: Boolean(payload.videoEnabled)
+    };
+    voiceState.participants.set(payload.from, updatedMember);
+    const remoteStream = voiceState.remoteStreams.get(payload.from) || null;
+    createVoiceTile(updatedMember, remoteStream, false);
+    renderVoiceParticipants();
     return;
   }
 
@@ -1495,7 +1556,7 @@ async function startVoiceRoom(roomId) {
   }
 
   if (voiceState.roomId && voiceState.roomId !== roomId) {
-    await leaveVoiceRoom();
+    await leaveVoiceRoom({ navigateToDashboard: false });
   }
 
   if (voiceState.roomId === roomId) {
@@ -1579,10 +1640,12 @@ async function startVoiceRoom(roomId) {
     });
 }
 
-async function leaveVoiceRoom() {
+async function leaveVoiceRoom(options = {}) {
   if (!voiceState.roomId) {
     return;
   }
+
+  const { navigateToDashboard = true } = options;
 
   sendVoiceSignal("leave", null);
   voiceState.peers.forEach((peer) => peer.close());
@@ -1603,11 +1666,13 @@ async function leaveVoiceRoom() {
   voiceRoomDirectory[previousRoom] = (voiceRoomDirectory[previousRoom] || []).filter(
     (participant) => participant.id !== authState.userId
   );
+  focusedVoiceParticipantId = null;
   voiceState = {
     roomId: null,
     channel: null,
     localStream: null,
     peers: new Map(),
+    remoteStreams: new Map(),
     pendingIce: new Map(),
     participants: new Map(),
     audioEnabled: true,
@@ -1625,6 +1690,10 @@ async function leaveVoiceRoom() {
   renderIdentityVoiceCard();
   renderQuickControls();
   playNotificationSound("voiceLeave");
+
+  if (navigateToDashboard) {
+    setActiveView("dashboard", "Anasayfa");
+  }
 }
 
 function renegotiateVoicePeers() {
@@ -1676,9 +1745,12 @@ async function toggleVoiceCamera() {
     voiceState.videoEnabled = false;
     controlState.camera = false;
     saveControlState();
-    createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+    const nextLocalMember = getVoiceMemberPayload();
+    voiceState.participants.set(authState.userId, nextLocalMember);
+    createVoiceTile(nextLocalMember, voiceState.localStream, true);
     renderVoiceControls();
     renderQuickControls();
+    sendVoiceSignal("media_state", null, { videoEnabled: false });
     renegotiateVoicePeers();
     return;
   }
@@ -1691,9 +1763,12 @@ async function toggleVoiceCamera() {
     voiceState.videoEnabled = true;
     controlState.camera = true;
     saveControlState();
-    createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
+    const nextLocalMember = getVoiceMemberPayload();
+    voiceState.participants.set(authState.userId, nextLocalMember);
+    createVoiceTile(nextLocalMember, voiceState.localStream, true);
     renderVoiceControls();
     renderQuickControls();
+    sendVoiceSignal("media_state", null, { videoEnabled: true });
     renegotiateVoicePeers();
   } catch (error) {
     window.alert(getMediaErrorMessage(error, "Kamera"));
@@ -3300,7 +3375,7 @@ function finishAuth(name, roleId, options = {}) {
 
 function resetIdentity() {
   const currentUserId = authState.userId;
-  leaveVoiceRoom();
+  leaveVoiceRoom({ navigateToDashboard: false });
   untrackRealtimePresence();
   updatePresence(false);
   sendPresenceKeepalive(currentUserId, false);
@@ -4969,7 +5044,7 @@ if (identityVoiceRoomButton) {
 if (identityVoiceLeaveButton) {
   identityVoiceLeaveButton.addEventListener("click", (event) => {
     event.stopPropagation();
-    leaveVoiceRoom();
+    leaveVoiceRoom({ navigateToDashboard: true });
   });
 }
 
@@ -5212,7 +5287,7 @@ window.addEventListener("focus", () => {
 
 window.addEventListener("beforeunload", () => {
   const currentUserId = authState.userId;
-  leaveVoiceRoom();
+  leaveVoiceRoom({ navigateToDashboard: false });
   untrackRealtimePresence();
   updatePresence(false);
   sendPresenceKeepalive(currentUserId, false);

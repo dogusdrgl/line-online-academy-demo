@@ -1444,6 +1444,11 @@ button {
   overflow-y: auto;
 }
 
+.voice-call-grid.spotlight-active {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-content: start;
+}
+
 .voice-call-grid:empty::before {
   min-height: 420px;
   border: 0;
@@ -1461,6 +1466,7 @@ button {
     #111318;
   border: 1px solid rgba(255, 255, 255, 0.05);
   transition: box-shadow 140ms ease, border-color 140ms ease, transform 140ms ease;
+  cursor: pointer;
 }
 
 .voice-tile::after {
@@ -1528,6 +1534,25 @@ button {
 
 .voice-tile.audio-only {
   background: #f4f2f1;
+}
+
+.voice-call-grid.spotlight-active .voice-tile.spotlight {
+  grid-column: 1 / span 9;
+  min-height: min(62vh, 560px);
+}
+
+.voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
+  grid-column: 10 / -1;
+  min-height: 148px;
+  max-height: 196px;
+  align-self: end;
+}
+
+.voice-call-grid.spotlight-active .voice-tile.dimmed {
+  grid-column: 10 / -1;
+  min-height: 148px;
+  max-height: 196px;
+  opacity: 0.82;
 }
 
 .voice-tile.audio-only .voice-avatar-fallback {
