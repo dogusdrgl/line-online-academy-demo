@@ -1271,19 +1271,51 @@ async function loadVoiceRoomMessages(roomId) {
 
 function renderVoiceParticipants() {
   const list = getVoiceParticipantList();
-  if (!list) {
-    return;
-  }
-
   const participants = Array.from(voiceState.participants.values());
-  list.innerHTML = participants.length
-    ? participants.map((participant) => `
+  if (list) {
+    list.innerHTML = participants.length
+      ? participants.map((participant) => `
         <div class="voice-participant">
           <div class="voice-dot"></div>
           <span>${escapeHtml(participant.name || "Uye")}</span>
         </div>
       `).join("")
-    : '<p class="admin-muted">Odada henuz kimse yok.</p>';
+      : '<p class="admin-muted">Odada henuz kimse yok.</p>';
+  }
+
+  const grid = getVoiceGrid();
+  if (!grid) {
+    return;
+  }
+
+  const orderedParticipants = participants
+    .slice()
+    .sort((a, b) => {
+      if (a.id === authState.userId) return -1;
+      if (b.id === authState.userId) return 1;
+      return (a.name || "").localeCompare(b.name || "", "tr");
+    });
+
+  const visibleIds = new Set(orderedParticipants.map((participant) => participant.id));
+  Array.from(grid.querySelectorAll(".voice-tile")).forEach((tile) => {
+    const tileId = tile.dataset.voiceTile;
+    if (!visibleIds.has(tileId)) {
+      tile.remove();
+    }
+  });
+
+  orderedParticipants.forEach((participant) => {
+    const isLocal = participant.id === authState.userId;
+    const stream = isLocal
+      ? voiceState.localStream
+      : (voiceState.remoteStreams.get(participant.id) || null);
+    createVoiceTile(participant, stream, isLocal);
+  });
+
+  if (focusedVoiceParticipantId && !visibleIds.has(focusedVoiceParticipantId)) {
+    focusedVoiceParticipantId = null;
+  }
+  setFocusedVoiceParticipant(focusedVoiceParticipantId);
 }
 
 function setFocusedVoiceParticipant(memberId) {
