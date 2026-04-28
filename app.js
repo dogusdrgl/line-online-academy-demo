@@ -1196,6 +1196,19 @@ function getVoiceDirectoryChannel(roomId) {
   return voiceDirectoryChannels.find((item) => item.roomId === roomId)?.channel || null;
 }
 
+function pruneLocalVoiceDirectoryMembership(userId = authState.userId, keepRoomId = null) {
+  if (!userId) {
+    return;
+  }
+
+  Object.keys(voiceRoomDirectory).forEach((roomId) => {
+    if (keepRoomId && roomId === keepRoomId) {
+      return;
+    }
+    voiceRoomDirectory[roomId] = (voiceRoomDirectory[roomId] || []).filter((participant) => participant.id !== userId);
+  });
+}
+
 function clearVoiceRoomMessages(roomId, deleteRemote = false) {
   if (!roomId) {
     return;
@@ -1705,6 +1718,7 @@ async function startVoiceRoom(roomId) {
   voiceState.localStream.getAudioTracks().forEach((track) => {
     track.enabled = voiceState.audioEnabled;
   });
+  pruneLocalVoiceDirectoryMembership(authState.userId, roomId);
   createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
   startVoiceActivityMonitor(voiceState.localStream);
   voiceFullscreenUiVisible = true;
@@ -1749,6 +1763,7 @@ async function startVoiceRoom(roomId) {
       if (status === "SUBSCRIBED") {
         await voiceState.channel.track(getVoiceMemberPayload());
         sendVoiceSignal("join", null);
+        pruneLocalVoiceDirectoryMembership(authState.userId, roomId);
         voiceRoomDirectory[roomId] = [
           ...voiceRoomDirectory[roomId]?.filter((participant) => participant.id !== authState.userId) || [],
           getVoiceMemberPayload()
@@ -1785,6 +1800,7 @@ async function leaveVoiceRoom(options = {}) {
   }
 
   const previousRoom = voiceState.roomId;
+  pruneLocalVoiceDirectoryMembership(authState.userId);
   getVoiceGrid(previousRoom)?.replaceChildren();
   voiceRoomDirectory[previousRoom] = (voiceRoomDirectory[previousRoom] || []).filter(
     (participant) => participant.id !== authState.userId
@@ -3527,6 +3543,7 @@ function updateIdentity(name, roleId, options = {}) {
     voiceState.participants.set(authState.userId, localMember);
     createVoiceTile(localMember, voiceState.localStream, true);
     renderVoiceParticipants();
+    pruneLocalVoiceDirectoryMembership(authState.userId, voiceState.roomId);
     voiceRoomDirectory[voiceState.roomId] = [
       ...(voiceRoomDirectory[voiceState.roomId] || []).filter((participant) => participant.id !== authState.userId),
       localMember

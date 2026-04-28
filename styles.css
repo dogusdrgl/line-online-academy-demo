@@ -1434,12 +1434,22 @@ button {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.voice-call-shell.in-call .voice-call-topline,
+.voice-call-shell.in-call .voice-call-dock,
+.voice-call-shell.in-call .voice-stage-utilities,
+.voice-call-shell.in-call .voice-chat-handle,
+.voice-call-shell.in-call .voice-tile-expand,
+.voice-call-shell.in-call .voice-chat-panel {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
 .voice-call-grid {
   height: 100%;
   min-height: 0;
   align-content: start;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  justify-content: center;
+  gap: 16px;
   padding: 4px;
   overflow-y: auto;
 }
@@ -1460,7 +1470,7 @@ button {
 }
 
 .voice-tile {
-  min-height: clamp(220px, 34vh, 320px);
+  min-height: clamp(240px, 38vh, 360px);
   border-radius: 14px;
   background:
     radial-gradient(circle at 50% 42%, rgba(241, 161, 38, 0.12), transparent 22%),
