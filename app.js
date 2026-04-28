@@ -1312,6 +1312,38 @@ function renderVoiceParticipants() {
     createVoiceTile(participant, stream, isLocal);
   });
 
+  const shouldShowPromo = orderedParticipants.length === 1 && !focusedVoiceParticipantId;
+  grid.classList.toggle("solo-layout", shouldShowPromo);
+  grid.querySelector(".voice-promo-card")?.remove();
+  if (shouldShowPromo) {
+    const promo = document.createElement("article");
+    promo.className = "voice-promo-card";
+    promo.innerHTML = `
+      <div class="voice-promo-visual">
+        <div class="voice-promo-orb voice-promo-orb-large"></div>
+        <div class="voice-promo-orb voice-promo-orb-small"></div>
+        <div class="voice-promo-trophy"></div>
+      </div>
+      <div class="voice-promo-actions">
+        <button type="button" class="voice-promo-action" data-voice-invite-action>
+          <span>&#128101;</span>
+          <strong>Sesli Sohbete Davet Et</strong>
+        </button>
+        <button type="button" class="voice-promo-action" data-voice-activity-action>
+          <span>&#10022;</span>
+          <strong>Aktivite Sec</strong>
+        </button>
+      </div>
+    `;
+    promo.querySelector("[data-voice-invite-action]")?.addEventListener("click", () => {
+      window.alert("Davet sistemi sonraki adimda eklenecek.");
+    });
+    promo.querySelector("[data-voice-activity-action]")?.addEventListener("click", () => {
+      window.alert("Aktivite secimi sonraki adimda entegre edilecek.");
+    });
+    grid.appendChild(promo);
+  }
+
   if (focusedVoiceParticipantId && !visibleIds.has(focusedVoiceParticipantId)) {
     focusedVoiceParticipantId = null;
   }
@@ -1969,11 +2001,14 @@ function initializeVoiceRooms() {
       <div class="voice-call-stage">
         <button class="voice-fullscreen-exit" type="button" data-voice-exit-fullscreen aria-label="Tam ekrandan cik">&#10005;</button>
         <div class="voice-call-topline">
-          <div>
-            <p class="section-kicker">Canli Baglanti</p>
+          <div class="voice-call-room-badge">
+            <span>&#128266;</span>
             <h4>${escapeHtml(roomLabel)}</h4>
           </div>
-          <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
+          <div class="voice-call-top-actions">
+            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
+            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">&#128172;</button>
+          </div>
         </div>
         <div class="voice-stage-layout">
           <div class="voice-call-grid" data-voice-grid></div>
@@ -1982,12 +2017,6 @@ function initializeVoiceRooms() {
               <span class="voice-chat-handle-icon" data-voice-chat-toggle-label>></span>
               <strong class="voice-chat-handle-unread hidden" data-voice-chat-handle-unread>0</strong>
             </button>
-            <div class="voice-chat-head">
-              <div>
-                <p class="section-kicker">Oda Sohbeti</p>
-                <strong>${escapeHtml(roomLabel)} Metin Alani</strong>
-              </div>
-            </div>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
               <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasina mesaj yaz..." maxlength="240" />
@@ -2041,7 +2070,9 @@ function initializeVoiceRooms() {
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
     callShell.querySelector("[data-voice-mic]").addEventListener("click", toggleVoiceMic);
     callShell.querySelector("[data-voice-camera]").addEventListener("click", toggleVoiceCamera);
-    callShell.querySelector("[data-voice-chat-toggle]")?.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
+    callShell.querySelectorAll("[data-voice-chat-toggle]").forEach((element) => {
+      element.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
+    });
     chatDockButton.addEventListener("click", () => toggleVoiceChatPanel(panel.id));
     fullscreenDockButton.addEventListener("click", () => {
       if (voiceFullscreenRoomId === panel.id) {
