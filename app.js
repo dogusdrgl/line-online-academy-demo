@@ -1312,7 +1312,10 @@ function renderVoiceParticipants() {
     createVoiceTile(participant, stream, isLocal);
   });
 
-  const shouldShowPromo = orderedParticipants.length === 1 && !focusedVoiceParticipantId;
+  const shouldShowPromo = orderedParticipants.length === 1 && voiceFullscreenRoomId !== voiceState.roomId;
+  if (orderedParticipants.length === 1 && focusedVoiceParticipantId === authState.userId) {
+    focusedVoiceParticipantId = null;
+  }
   grid.classList.toggle("solo-layout", shouldShowPromo);
   grid.querySelector(".voice-promo-card")?.remove();
   if (shouldShowPromo) {
