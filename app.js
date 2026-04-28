@@ -1000,11 +1000,15 @@ function applyVoiceFullscreenUi(roomId = voiceState.roomId) {
 
   shell.classList.toggle("voice-fullscreen", voiceFullscreenRoomId === roomId);
   shell.classList.toggle("voice-fullscreen-ui-visible", voiceFullscreenUiVisible || voiceFullscreenRoomId !== roomId);
+  shell.classList.toggle(
+    "voice-stage-ui-visible",
+    isMobileLayout() || voiceState.roomId !== roomId || voiceFullscreenUiVisible
+  );
 }
 
 function scheduleVoiceFullscreenUiHide(roomId = voiceState.roomId) {
   clearVoiceFullscreenUiTimer();
-  if (voiceFullscreenRoomId !== roomId) {
+  if (isMobileLayout() || voiceState.roomId !== roomId) {
     return;
   }
 
@@ -1052,7 +1056,7 @@ async function exitVoiceFullscreen() {
 }
 
 function toggleVoiceFullscreenUi(roomId = voiceState.roomId) {
-  if (voiceFullscreenRoomId !== roomId) {
+  if (voiceState.roomId !== roomId) {
     return;
   }
 
@@ -1282,12 +1286,13 @@ function setFocusedVoiceParticipant(memberId) {
 
   tiles.forEach((tile) => {
     const isFocused = hasFocus && tile.dataset.voiceTile === focusedVoiceParticipantId;
-    const isLocal = tile.classList.contains("local");
-    tile.classList.toggle("spotlight", isFocused);
-    tile.classList.toggle("dimmed", hasFocus && !isFocused && !isLocal);
-    tile.classList.toggle("picture-in-picture", hasFocus && isLocal && !isFocused);
-    tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
-  });
+      const isLocal = tile.classList.contains("local");
+      tile.classList.toggle("spotlight", isFocused);
+      tile.classList.toggle("dimmed", hasFocus && !isFocused && !isLocal);
+      tile.classList.toggle("picture-in-picture", hasFocus && isLocal && !isFocused);
+      tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
+    });
+  renderVoiceControls();
 }
 
 function renderSidebarVoiceMembers() {
@@ -1397,6 +1402,10 @@ function renderVoiceControls() {
     panel.querySelector("[data-voice-mic]")?.classList.toggle("muted", isActiveRoom && !voiceState.audioEnabled);
     panel.querySelector("[data-voice-camera]")?.classList.toggle("muted", isActiveRoom && !voiceState.videoEnabled);
     panel.querySelector("[data-voice-fullscreen]")?.classList.toggle("active", voiceFullscreenRoomId === panel.id);
+    panel.querySelector("[data-voice-stage-fullscreen]")?.classList.toggle("active", voiceFullscreenRoomId === panel.id);
+    panel.querySelector("[data-voice-window]")?.classList.toggle("active", isActiveRoom && Boolean(focusedVoiceParticipantId));
+    panel.querySelector("[data-voice-window]")?.classList.toggle("hidden", !isActiveRoom || !focusedVoiceParticipantId);
+    applyVoiceFullscreenUi(panel.id);
   });
 }
 
@@ -1698,11 +1707,14 @@ async function startVoiceRoom(roomId) {
   });
   createVoiceTile(getVoiceMemberPayload(), voiceState.localStream, true);
   startVoiceActivityMonitor(voiceState.localStream);
+  voiceFullscreenUiVisible = true;
   renderVoiceParticipants();
   renderVoiceControls();
   renderIdentityVoiceCard();
   renderQuickControls();
   clearVoiceChatUnread(roomId);
+  applyVoiceFullscreenUi(roomId);
+  scheduleVoiceFullscreenUiHide(roomId);
   await loadVoiceRoomMessages(roomId);
 
   const directoryChannel = getVoiceDirectoryChannel(roomId);
@@ -1950,6 +1962,9 @@ function initializeVoiceRooms() {
     const moreButton = callShell.querySelector("[data-voice-more]");
     const chatDockButton = document.createElement("button");
     const fullscreenDockButton = document.createElement("button");
+    const stageUtilityDock = document.createElement("div");
+    const windowModeButton = document.createElement("button");
+    const stageFullscreenButton = document.createElement("button");
     chatDockButton.className = "voice-control voice-chat-dock-button";
     chatDockButton.type = "button";
     chatDockButton.dataset.voiceChatButton = "true";
@@ -1958,8 +1973,21 @@ function initializeVoiceRooms() {
     fullscreenDockButton.type = "button";
     fullscreenDockButton.dataset.voiceFullscreen = "true";
     fullscreenDockButton.innerHTML = `<span>&#9974;</span><small>Tam Ekran</small>`;
+    stageUtilityDock.className = "voice-stage-utilities";
+    windowModeButton.className = "voice-stage-utility hidden";
+    windowModeButton.type = "button";
+    windowModeButton.dataset.voiceWindow = "true";
+    windowModeButton.setAttribute("aria-label", "Spotlight gorunumunden cik");
+    windowModeButton.innerHTML = `&#9635;`;
+    stageFullscreenButton.className = "voice-stage-utility";
+    stageFullscreenButton.type = "button";
+    stageFullscreenButton.dataset.voiceStageFullscreen = "true";
+    stageFullscreenButton.setAttribute("aria-label", "Tam ekran gecisi");
+    stageFullscreenButton.innerHTML = `&#9974;`;
+    stageUtilityDock.append(windowModeButton, stageFullscreenButton);
     moreButton?.insertAdjacentElement("beforebegin", chatDockButton);
     moreButton?.insertAdjacentElement("beforebegin", fullscreenDockButton);
+    callShell.querySelector(".voice-call-stage")?.appendChild(stageUtilityDock);
 
     callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
@@ -1974,18 +2002,51 @@ function initializeVoiceRooms() {
       }
       enterVoiceFullscreen(focusedVoiceParticipantId || authState.userId);
     });
+    stageFullscreenButton.addEventListener("click", () => {
+      if (voiceFullscreenRoomId === panel.id) {
+        exitVoiceFullscreen();
+        return;
+      }
+      enterVoiceFullscreen(focusedVoiceParticipantId || authState.userId);
+    });
+    windowModeButton.addEventListener("click", () => {
+      setFocusedVoiceParticipant(null);
+      voiceFullscreenUiVisible = true;
+      applyVoiceFullscreenUi(panel.id);
+      scheduleVoiceFullscreenUiHide(panel.id);
+      renderVoiceControls();
+    });
     callShell.querySelector("[data-voice-exit-fullscreen]")?.addEventListener("click", () => exitVoiceFullscreen());
     callShell.querySelector("[data-voice-share]").addEventListener("click", () => window.alert("Ekran paylasimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-activity]").addEventListener("click", () => window.alert("Aktivite secimi sonraki adimda entegre edilecek."));
     callShell.querySelector("[data-voice-more]").addEventListener("click", () => window.alert("Ek toplanti ayarlari sonraki adimda eklenecek."));
+    callShell.addEventListener("mousemove", () => {
+      if (voiceState.roomId !== panel.id || isMobileLayout()) {
+        return;
+      }
+      voiceFullscreenUiVisible = true;
+      applyVoiceFullscreenUi(panel.id);
+      scheduleVoiceFullscreenUiHide(panel.id);
+    });
+    callShell.addEventListener("mouseleave", () => {
+      if (voiceState.roomId !== panel.id || isMobileLayout()) {
+        return;
+      }
+      scheduleVoiceFullscreenUiHide(panel.id);
+    });
     callShell.querySelector(".voice-call-stage")?.addEventListener("click", (event) => {
-      if (voiceFullscreenRoomId !== panel.id) {
+      if (voiceState.roomId !== panel.id) {
         return;
       }
-      if (event.target.closest("button, input, .voice-chat-panel, .voice-call-dock")) {
+      if (event.target.closest("button, input, .voice-chat-panel, .voice-call-dock, .voice-stage-utilities")) {
         return;
       }
-      toggleVoiceFullscreenUi(panel.id);
+      voiceFullscreenUiVisible = true;
+      applyVoiceFullscreenUi(panel.id);
+      scheduleVoiceFullscreenUiHide(panel.id);
+      if (voiceFullscreenRoomId === panel.id) {
+        toggleVoiceFullscreenUi(panel.id);
+      }
     });
   });
 

@@ -1709,6 +1709,17 @@ button {
   display: grid;
 }
 
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-call-topline,
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-call-dock,
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-stage-utilities,
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-chat-handle,
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-tile-expand,
+.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-chat-panel:not(.collapsed) {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px);
+}
+
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-topline,
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-dock,
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-fullscreen-exit,
@@ -1730,6 +1741,48 @@ button {
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
   min-height: calc(100vh - 188px);
+}
+
+.voice-stage-utilities {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 5;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.voice-stage-utility {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(18, 19, 24, 0.84);
+  color: #f4ede3;
+  font-size: 1.1rem;
+  backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 16px 32px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.voice-stage-utility:hover {
+  transform: translateY(-1px);
+  background: rgba(34, 36, 42, 0.94);
+}
+
+.voice-stage-utility.active {
+  background: rgba(241, 161, 38, 0.18);
+  color: #ffd79c;
+  box-shadow:
+    inset 0 0 0 1px rgba(241, 161, 38, 0.16),
+    0 16px 32px rgba(0, 0, 0, 0.28);
 }
 
 .voice-chat-handle {
@@ -3812,6 +3865,16 @@ button {
     grid-column: 1 / -1;
     min-height: 104px;
     max-height: 136px;
+  }
+
+  .voice-stage-utilities {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .voice-stage-utility {
+    width: 40px;
+    height: 40px;
   }
 
   .voice-chat-panel {
