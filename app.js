@@ -1478,7 +1478,6 @@ function createVoiceTile(member, stream, isLocal = false) {
   tile.innerHTML = `
     <video autoplay playsinline ${isLocal ? "muted" : ""}></video>
     <div class="voice-avatar-fallback"></div>
-    <button class="voice-tile-expand${focusedVoiceParticipantId === member.id ? " visible" : ""}" type="button" aria-label="Tam ekrana al">&#9974;</button>
     <div class="voice-tile-meta">
       <strong>${escapeHtml(member.name || "Uye")}${isLocal ? " (Sen)" : ""}</strong>
       <span>${escapeHtml(role?.name || "Katilimci")}</span>
@@ -1487,15 +1486,9 @@ function createVoiceTile(member, stream, isLocal = false) {
 
   const video = tile.querySelector("video");
   const fallback = tile.querySelector(".voice-avatar-fallback");
-  const expandButton = tile.querySelector(".voice-tile-expand");
   video.srcObject = stream || null;
   video.muted = isLocal || voiceState.outputEnabled === false;
   paintAvatar(fallback, member.name, member.avatarImage, role?.color || "#f1a126");
-  expandButton?.addEventListener("click", (event) => {
-    event.stopPropagation();
-    setFocusedVoiceParticipant(member.id);
-    enterVoiceFullscreen(member.id);
-  });
   tile.addEventListener("click", (event) => {
     if (voiceFullscreenRoomId === voiceState.roomId) {
       event.stopPropagation();
@@ -2033,8 +2026,8 @@ function initializeVoiceRooms() {
     stageFullscreenButton.innerHTML = `&#9974;`;
     stageUtilityDock.append(windowModeButton, stageFullscreenButton);
     moreButton?.insertAdjacentElement("beforebegin", chatDockButton);
-    moreButton?.insertAdjacentElement("beforebegin", fullscreenDockButton);
     callShell.querySelector(".voice-call-stage")?.appendChild(stageUtilityDock);
+    callShell.querySelector("[data-voice-leave]")?.insertAdjacentElement("afterend", fullscreenDockButton);
 
     callShell.querySelector("[data-voice-join]").addEventListener("click", () => startVoiceRoom(panel.id));
     callShell.querySelector("[data-voice-leave]").addEventListener("click", leaveVoiceRoom);
