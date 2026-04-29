@@ -1387,6 +1387,12 @@ button {
   overflow: hidden;
 }
 
+.voice-call-shell.in-call .voice-call-stage {
+  grid-template-rows: 1fr auto;
+  gap: 18px;
+  padding-top: 14px;
+}
+
 .voice-stage-layout {
   min-height: 0;
   display: block;
@@ -1406,6 +1412,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.voice-call-shell.in-call .voice-call-topline {
+  display: none;
 }
 
 .voice-call-room-badge {
@@ -1483,10 +1493,10 @@ button {
 }
 
 .voice-call-grid.spotlight-active {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
   grid-auto-rows: minmax(132px, 160px);
   align-content: start;
-  justify-content: stretch;
+  justify-content: center;
   gap: 14px;
   overflow: hidden;
   padding-bottom: 10px;
@@ -1594,8 +1604,8 @@ button {
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
   min-height: 132px;
   max-height: 160px;
-  width: 100%;
-  justify-self: stretch;
+  width: min(100%, 220px);
+  justify-self: center;
   order: 2;
 }
 
@@ -1603,6 +1613,8 @@ button {
   min-height: 132px;
   max-height: 160px;
   opacity: 0.9;
+  width: min(100%, 220px);
+  justify-self: center;
   order: 2;
 }
 
