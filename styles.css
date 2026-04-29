@@ -1623,8 +1623,8 @@ button {
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
   width: 100%;
-  min-height: min(64vh, 700px);
-  max-height: min(64vh, 700px);
+  min-height: min(74vh, 860px);
+  max-height: min(74vh, 860px);
   margin-bottom: 0;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
@@ -1772,7 +1772,6 @@ button {
 }
 
 .voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-call-topline,
-.voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-call-dock,
 .voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-stage-utilities,
 .voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-chat-handle,
 .voice-call-shell.in-call:not(.voice-stage-ui-visible) .voice-tile-expand,
@@ -1783,7 +1782,6 @@ button {
 }
 
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-topline,
-.voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-call-dock,
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-fullscreen-exit,
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-chat-handle,
 .voice-call-shell.voice-fullscreen:not(.voice-fullscreen-ui-visible) .voice-tile-expand,
@@ -1802,8 +1800,8 @@ button {
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  min-height: calc(100vh - 260px);
-  max-height: calc(100vh - 260px);
+  min-height: calc(100vh - 220px);
+  max-height: calc(100vh - 220px);
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight video {
