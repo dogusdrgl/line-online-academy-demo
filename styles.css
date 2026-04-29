@@ -546,6 +546,8 @@ button {
 }
 
 .view-panel.active.voice-channel-view {
+  display: flex;
+  flex-direction: column;
   height: calc(100vh - var(--topbar-height));
   padding: 0;
 }
@@ -1304,12 +1306,14 @@ button {
 
 .voice-channel-view {
   height: 100%;
+  min-height: 0;
   padding: 0;
   background: #050608;
   overflow: hidden;
 }
 
 .voice-call-shell {
+  flex: 1 1 auto;
   height: 100%;
   min-height: 100%;
   display: grid;
@@ -1391,6 +1395,7 @@ button {
   grid-template-rows: 1fr auto;
   gap: 18px;
   padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .voice-stage-layout {
@@ -1399,6 +1404,7 @@ button {
   overflow: hidden;
   position: relative;
   height: 100%;
+  flex: 1 1 auto;
   padding-right: 0;
   transition: padding-right 180ms ease;
 }
@@ -1793,6 +1799,10 @@ button {
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight video {
   object-fit: contain;
   object-position: center;
+}
+
+.voice-call-shell.voice-fullscreen .voice-call-stage {
+  padding: 14px 20px 18px;
 }
 
 .voice-call-shell.in-call .voice-participants-mini {
