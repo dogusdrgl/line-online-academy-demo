@@ -1593,14 +1593,18 @@ button {
   flex: 0 0 100%;
   width: 100%;
   justify-self: stretch;
-  min-height: min(42vh, 380px);
-  max-height: min(42vh, 380px);
+  min-height: min(58vh, 620px);
+  max-height: min(58vh, 620px);
   order: 1;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
     0 26px 56px rgba(0, 0, 0, 0.34);
+}
+
+.voice-call-grid.spotlight-active .voice-tile.spotlight video {
+  object-fit: cover;
 }
 
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
@@ -1766,8 +1770,8 @@ button {
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  min-height: calc(100vh - 320px);
-  max-height: calc(100vh - 320px);
+  min-height: calc(100vh - 240px);
+  max-height: calc(100vh - 240px);
 }
 
 .voice-stage-utilities {
@@ -3879,8 +3883,8 @@ button {
 
   .voice-call-grid.spotlight-active .voice-tile.spotlight {
       flex: 0 0 100%;
-      min-height: min(44vh, 360px);
-      max-height: min(44vh, 360px);
+      min-height: min(54vh, 500px);
+      max-height: min(54vh, 500px);
     }
 
   .voice-call-grid.spotlight-active .voice-tile.picture-in-picture,
