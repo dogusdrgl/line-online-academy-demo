@@ -1505,7 +1505,7 @@ button {
 
 .voice-call-grid.spotlight-active {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 220px;
   align-items: stretch;
   gap: 16px;
   overflow: hidden;
@@ -1623,8 +1623,8 @@ button {
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
   width: 100%;
-  min-height: min(58vh, 620px);
-  max-height: min(58vh, 620px);
+  min-height: min(64vh, 700px);
+  max-height: min(64vh, 700px);
   margin-bottom: 0;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
