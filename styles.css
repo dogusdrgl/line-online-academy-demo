@@ -1493,9 +1493,10 @@ button {
 }
 
 .voice-call-grid.spotlight-active {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
-  grid-auto-rows: minmax(132px, 160px);
-  align-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
   justify-content: center;
   gap: 14px;
   overflow: hidden;
@@ -1589,12 +1590,13 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  grid-column: 1 / -1;
+  flex: 0 0 100%;
   width: 100%;
   justify-self: stretch;
   min-height: min(42vh, 380px);
   max-height: min(42vh, 380px);
   order: 1;
+  margin-bottom: 4px;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
@@ -1602,6 +1604,7 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
+  flex: 0 0 220px;
   min-height: 132px;
   max-height: 160px;
   width: min(100%, 220px);
@@ -1610,6 +1613,7 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.dimmed {
+  flex: 0 0 220px;
   min-height: 132px;
   max-height: 160px;
   opacity: 0.9;
@@ -3868,18 +3872,20 @@ button {
   }
 
   .voice-call-grid.spotlight-active {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .voice-call-grid.spotlight-active .voice-tile.spotlight {
-      grid-column: 1 / -1;
+      flex: 0 0 100%;
       min-height: min(44vh, 360px);
       max-height: min(44vh, 360px);
     }
 
   .voice-call-grid.spotlight-active .voice-tile.picture-in-picture,
   .voice-call-grid.spotlight-active .voice-tile.dimmed {
-    grid-column: auto;
+    flex: 0 0 160px;
     min-height: 104px;
     max-height: 136px;
   }
