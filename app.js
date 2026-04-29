@@ -1322,18 +1322,37 @@ function renderVoiceParticipants() {
 }
 
 function setFocusedVoiceParticipant(memberId) {
-  focusedVoiceParticipantId = memberId || null;
   const grid = getVoiceGrid();
   if (!grid) {
     return;
   }
 
   const tiles = Array.from(grid.querySelectorAll(".voice-tile"));
-  if (tiles.length <= 1) {
-    focusedVoiceParticipantId = null;
-  }
-  const hasFocus = Boolean(focusedVoiceParticipantId && tiles.some((tile) => tile.dataset.voiceTile === focusedVoiceParticipantId));
+  const validFocusId = memberId && tiles.some((tile) => tile.dataset.voiceTile === memberId)
+    ? memberId
+    : (tiles.find((tile) => tile.dataset.voiceTile === authState.userId)?.dataset.voiceTile || tiles[0]?.dataset.voiceTile || null);
+  focusedVoiceParticipantId = validFocusId;
+  const hasFocus = Boolean(focusedVoiceParticipantId);
   grid.classList.toggle("spotlight-active", hasFocus);
+  grid.classList.toggle("solo-focus", hasFocus && tiles.length <= 1);
+
+  let spotlightColumn = grid.querySelector(".voice-spotlight-column");
+  let sidebarColumn = grid.querySelector(".voice-sidebar-column");
+  if (hasFocus) {
+    if (!spotlightColumn) {
+      spotlightColumn = document.createElement("div");
+      spotlightColumn.className = "voice-spotlight-column";
+      grid.appendChild(spotlightColumn);
+    }
+    if (!sidebarColumn) {
+      sidebarColumn = document.createElement("div");
+      sidebarColumn.className = "voice-sidebar-column";
+      grid.appendChild(sidebarColumn);
+    }
+  } else {
+    spotlightColumn?.remove();
+    sidebarColumn?.remove();
+  }
 
   tiles.forEach((tile) => {
     const isFocused = hasFocus && tile.dataset.voiceTile === focusedVoiceParticipantId;
@@ -1341,7 +1360,20 @@ function setFocusedVoiceParticipant(memberId) {
     tile.classList.toggle("dimmed", false);
     tile.classList.toggle("picture-in-picture", hasFocus && !isFocused);
     tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
+    if (!hasFocus) {
+      grid.appendChild(tile);
+    }
   });
+
+  if (hasFocus) {
+    const focusedTile = tiles.find((tile) => tile.dataset.voiceTile === focusedVoiceParticipantId);
+    if (focusedTile && spotlightColumn) {
+      spotlightColumn.replaceChildren(focusedTile);
+    }
+    if (sidebarColumn) {
+      sidebarColumn.replaceChildren(...tiles.filter((tile) => tile.dataset.voiceTile !== focusedVoiceParticipantId));
+    }
+  }
   renderVoiceControls();
 }
 
@@ -1503,10 +1535,6 @@ function createVoiceTile(member, stream, isLocal = false) {
         return;
       }
       toggleVoiceFullscreenUi(voiceState.roomId);
-      return;
-    }
-    if (focusedVoiceParticipantId === member.id) {
-      setFocusedVoiceParticipant(null);
       return;
     }
     setFocusedVoiceParticipant(member.id);
