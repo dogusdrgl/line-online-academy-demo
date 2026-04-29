@@ -1493,14 +1493,14 @@ button {
 }
 
 .voice-call-grid.spotlight-active {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-auto-rows: 156px;
+  align-items: stretch;
+  align-content: start;
+  gap: 16px;
   overflow: hidden;
-  padding-bottom: 10px;
+  padding-bottom: 0;
 }
 
 .voice-call-grid:empty::before {
@@ -1590,13 +1590,12 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  flex: 0 0 100%;
+  grid-column: 1;
+  grid-row: 1 / span 3;
   width: 100%;
-  justify-self: stretch;
-  min-height: min(58vh, 620px);
-  max-height: min(58vh, 620px);
-  order: 1;
-  margin-bottom: 10px;
+  min-height: calc(156px * 3 + 32px);
+  max-height: calc(156px * 3 + 32px);
+  margin-bottom: 0;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03),
@@ -1608,21 +1607,21 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
-  flex: 0 0 220px;
-  min-height: 132px;
-  max-height: 160px;
-  width: min(100%, 220px);
-  justify-self: center;
+  grid-column: 2;
+  min-height: 156px;
+  max-height: 156px;
+  width: 100%;
+  justify-self: stretch;
   order: 2;
 }
 
 .voice-call-grid.spotlight-active .voice-tile.dimmed {
-  flex: 0 0 220px;
-  min-height: 132px;
-  max-height: 160px;
+  grid-column: 2;
+  min-height: 156px;
+  max-height: 156px;
   opacity: 0.9;
-  width: min(100%, 220px);
-  justify-self: center;
+  width: 100%;
+  justify-self: stretch;
   order: 2;
 }
 
@@ -1770,8 +1769,12 @@ button {
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  min-height: calc(100vh - 240px);
-  max-height: calc(100vh - 240px);
+  min-height: calc(100vh - 260px);
+  max-height: calc(100vh - 260px);
+}
+
+.voice-call-shell.in-call .voice-participants-mini {
+  display: none !important;
 }
 
 .voice-stage-utilities {
