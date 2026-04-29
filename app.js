@@ -1329,6 +1329,9 @@ function setFocusedVoiceParticipant(memberId) {
   }
 
   const tiles = Array.from(grid.querySelectorAll(".voice-tile"));
+  if (tiles.length <= 1) {
+    focusedVoiceParticipantId = null;
+  }
   const hasFocus = Boolean(focusedVoiceParticipantId && tiles.some((tile) => tile.dataset.voiceTile === focusedVoiceParticipantId));
   grid.classList.toggle("spotlight-active", hasFocus);
 
@@ -1955,11 +1958,11 @@ function initializeVoiceRooms() {
     callShell.innerHTML = `
       <div class="voice-call-lobby">
         <div class="voice-lobby-orb">&#127911;</div>
-        <p class="section-kicker">Sesli Toplanti</p>
+        <p class="section-kicker">Sesli Toplantı</p>
         <h3>${escapeHtml(roomLabel)}</h3>
-        <p>Bu odaya katilarak mikrofonunu kullanabilir, kamerani acabilir ve diger katilimcilarla gorusebilirsin.</p>
-        <button class="accent-button" type="button" data-voice-join>Sesli Toplantiya Gir</button>
-        <span data-voice-status>Odaya katilmaya hazir.</span>
+        <p>Bu odaya katılarak mikrofonunu kullanabilir, kameranı açabilir ve diğer katılımcılarla görüşebilirsin.</p>
+        <button class="accent-button" type="button" data-voice-join>Sesli Toplantıya Gir</button>
+        <span data-voice-status>Odaya katılmaya hazır.</span>
       </div>
       <div class="voice-call-stage">
         <button class="voice-fullscreen-exit" type="button" data-voice-exit-fullscreen aria-label="Tam ekrandan cik">&#10005;</button>
@@ -1969,21 +1972,21 @@ function initializeVoiceRooms() {
             <h4>${escapeHtml(roomLabel)}</h4>
           </div>
           <div class="voice-call-top-actions">
-            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
-            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">&#128172;</button>
+            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henüz kimse yok.</p></div>
+            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini aç veya kapat">&#128172;</button>
           </div>
         </div>
         <div class="voice-stage-layout">
           <div class="voice-call-grid" data-voice-grid></div>
           <aside class="voice-chat-panel">
-            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">
+            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini aç veya kapat">
               <span class="voice-chat-handle-icon" data-voice-chat-toggle-label>></span>
               <strong class="voice-chat-handle-unread hidden" data-voice-chat-handle-unread>0</strong>
             </button>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
-              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasina mesaj yaz..." maxlength="240" />
-              <button class="composer-submit" type="submit">Gonder</button>
+              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasına mesaj yaz..." maxlength="240" />
+              <button class="composer-submit" type="submit">Gönder</button>
             </form>
           </aside>
         </div>
