@@ -1409,7 +1409,7 @@ button {
   position: relative;
   height: 100%;
   flex: 1 1 auto;
-  padding-bottom: 112px;
+  padding-bottom: 136px;
   padding-right: 0;
   transition: padding-right 180ms ease;
 }
@@ -1634,7 +1634,8 @@ button {
 }
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight video {
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .voice-call-grid.spotlight-active .voice-tile.picture-in-picture {
