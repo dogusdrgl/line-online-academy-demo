@@ -1404,7 +1404,7 @@ button {
 }
 
 .voice-stage-layout.chat-open {
-  padding-right: 360px;
+  padding-right: 0;
 }
 
 .voice-call-topline {
@@ -1700,9 +1700,9 @@ button {
 
 .voice-chat-panel {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
   width: 336px;
   min-height: 0;
   display: grid;
@@ -1713,6 +1713,7 @@ button {
   overflow: visible;
   transition: transform 180ms ease, opacity 180ms ease;
   box-shadow: 0 22px 46px rgba(0, 0, 0, 0.34);
+  z-index: 6;
 }
 
 .voice-fullscreen-exit {
@@ -1771,6 +1772,11 @@ button {
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
   min-height: calc(100vh - 260px);
   max-height: calc(100vh - 260px);
+}
+
+.voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight video {
+  object-fit: contain;
+  object-position: center;
 }
 
 .voice-call-shell.in-call .voice-participants-mini {
