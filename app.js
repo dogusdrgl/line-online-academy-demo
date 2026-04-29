@@ -18,15 +18,15 @@ const PERMISSION_OPTIONS = [
 ];
 
 const VOICE_ROOM_LABELS = {
-  "waiting-room": "Bekleme OdasÄ±",
-  "meeting-room": "GÃ¶rÃ¼ÅŸme OdasÄ±",
-  "admin-room": "YÃ¶netim OdasÄ±",
-  "trainer-room": "EÄŸitmen OdasÄ±",
-  "board-room": "ToplantÄ± Salonu",
-  "class-1": "SÄ±nÄ±f 1",
-  "class-2": "SÄ±nÄ±f 2",
-  "class-3": "SÄ±nÄ±f 3",
-  "class-4": "SÄ±nÄ±f 4",
+  "waiting-room": "Bekleme Odası",
+  "meeting-room": "Görüşme Odası",
+  "admin-room": "Yönetim Odası",
+  "trainer-room": "Eğitmen Odası",
+  "board-room": "Toplantı Salonu",
+  "class-1": "Sınıf 1",
+  "class-2": "Sınıf 2",
+  "class-3": "Sınıf 3",
+  "class-4": "Sınıf 4",
   "table-1": "Masa 1",
   "table-2": "Masa 2",
   "vip-loca": "Loca"
@@ -279,7 +279,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/help â€¢ /achievements",
+    subtitle: "/help • /achievements",
     bot: true
   },
   {
@@ -288,7 +288,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/soru â€¢ /cevap",
+    subtitle: "/soru • /cevap",
     bot: true
   },
   {
@@ -1312,40 +1312,8 @@ function renderVoiceParticipants() {
     createVoiceTile(participant, stream, isLocal);
   });
 
-  const shouldShowPromo = orderedParticipants.length === 1 && voiceFullscreenRoomId !== voiceState.roomId;
-  if (orderedParticipants.length === 1 && focusedVoiceParticipantId === authState.userId) {
-    focusedVoiceParticipantId = null;
-  }
-  grid.classList.toggle("solo-layout", shouldShowPromo);
+  grid.classList.remove("solo-layout");
   grid.querySelector(".voice-promo-card")?.remove();
-  if (shouldShowPromo) {
-    const promo = document.createElement("article");
-    promo.className = "voice-promo-card";
-    promo.innerHTML = `
-      <div class="voice-promo-visual">
-        <div class="voice-promo-orb voice-promo-orb-large"></div>
-        <div class="voice-promo-orb voice-promo-orb-small"></div>
-        <div class="voice-promo-trophy"></div>
-      </div>
-      <div class="voice-promo-actions">
-        <button type="button" class="voice-promo-action" data-voice-invite-action>
-          <span>&#128101;</span>
-          <strong>Sesli Sohbete Davet Et</strong>
-        </button>
-        <button type="button" class="voice-promo-action" data-voice-activity-action>
-          <span>&#10022;</span>
-          <strong>Aktivite Sec</strong>
-        </button>
-      </div>
-    `;
-    promo.querySelector("[data-voice-invite-action]")?.addEventListener("click", () => {
-      window.alert("Davet sistemi sonraki adimda eklenecek.");
-    });
-    promo.querySelector("[data-voice-activity-action]")?.addEventListener("click", () => {
-      window.alert("Aktivite secimi sonraki adimda entegre edilecek.");
-    });
-    grid.appendChild(promo);
-  }
 
   if (focusedVoiceParticipantId && !visibleIds.has(focusedVoiceParticipantId)) {
     focusedVoiceParticipantId = null;
@@ -1366,12 +1334,11 @@ function setFocusedVoiceParticipant(memberId) {
 
   tiles.forEach((tile) => {
     const isFocused = hasFocus && tile.dataset.voiceTile === focusedVoiceParticipantId;
-      const isLocal = tile.classList.contains("local");
-      tile.classList.toggle("spotlight", isFocused);
-      tile.classList.toggle("dimmed", hasFocus && !isFocused && !isLocal);
-      tile.classList.toggle("picture-in-picture", hasFocus && isLocal && !isFocused);
-      tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
-    });
+    tile.classList.toggle("spotlight", isFocused);
+    tile.classList.toggle("dimmed", false);
+    tile.classList.toggle("picture-in-picture", hasFocus && !isFocused);
+    tile.querySelector(".voice-tile-expand")?.classList.toggle("visible", isFocused);
+  });
   renderVoiceControls();
 }
 
@@ -2677,7 +2644,7 @@ function renderMembersSidebar() {
 
       return `
         <div class="members-group">
-          <p class="member-heading">${group} â€” ${grouped[group].length}</p>
+          <p class="member-heading">${group} — ${grouped[group].length}</p>
           ${memberRows}
         </div>
       `;
@@ -4086,7 +4053,7 @@ function renderAdminUsers() {
 }
 
 async function resetUsersExceptOwner() {
-  const confirmed = window.confirm("DoÄŸuÅŸ hesabi disindaki tum kullanici kayitlarini sifirlamak istiyor musun?");
+  const confirmed = window.confirm("Doğuş hesabı dışındaki tüm kullanıcı kayıtlarını sıfırlamak istiyor musun?");
   if (!confirmed) {
     return;
   }
