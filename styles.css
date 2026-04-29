@@ -1409,7 +1409,7 @@ button {
   position: relative;
   height: 100%;
   flex: 1 1 auto;
-  padding-bottom: 184px;
+  padding-bottom: 132px;
   padding-right: 0;
   transition: padding-right 180ms ease;
 }
@@ -1623,8 +1623,8 @@ button {
 
 .voice-call-grid.spotlight-active .voice-tile.spotlight {
   width: 100%;
-  min-height: min(62vh, 680px);
-  max-height: min(62vh, 680px);
+  min-height: min(66vh, 730px);
+  max-height: min(66vh, 730px);
   margin-bottom: 0;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
@@ -1801,8 +1801,8 @@ button {
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight {
-  min-height: calc(100vh - 280px);
-  max-height: calc(100vh - 280px);
+  min-height: calc(100vh - 248px);
+  max-height: calc(100vh - 248px);
 }
 
 .voice-call-shell.voice-fullscreen .voice-call-grid.spotlight-active .voice-tile.spotlight video {
