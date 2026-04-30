@@ -1734,6 +1734,11 @@ button {
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
 }
 
+.voice-call-dock .voice-control.danger span {
+  font-size: 1.22rem;
+  font-family: "Segoe UI Symbol", "Apple Symbols", sans-serif;
+}
+
 .voice-chat-panel {
   position: absolute;
   top: 14px;

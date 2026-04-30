@@ -2024,7 +2024,7 @@ function initializeVoiceRooms() {
           <button class="voice-control" type="button" data-voice-share><span>&#128421;</span><small>Ekran</small></button>
           <button class="voice-control" type="button" data-voice-activity><span>&#10022;</span><small>Aktivite</small></button>
           <button class="voice-control" type="button" data-voice-more><span>&#8942;</span><small>Daha</small></button>
-          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#128222;</span><small>Ayril</small></button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#9742;</span><small>Ayrıl</small></button>
         </div>
       </div>
     `;
