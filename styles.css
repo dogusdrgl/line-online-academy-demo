@@ -1725,10 +1725,13 @@ button {
   min-width: 82px;
   background: #e2384a;
   color: white;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.voice-call-dock .voice-control.danger span,
 .voice-call-dock .voice-control.danger small {
   color: white;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
 }
 
 .voice-chat-panel {
@@ -1859,20 +1862,21 @@ button {
 
 .voice-chat-handle {
   position: absolute;
-  top: 10px;
-  left: -26px;
-  width: 26px;
-  min-height: 88px;
+  top: auto;
+  bottom: 30px;
+  left: -18px;
+  width: 18px;
+  min-height: 58px;
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 8px;
+  gap: 5px;
   border: 0;
-  border-radius: 12px 0 0 12px;
-  background: linear-gradient(180deg, rgba(52, 56, 66, 0.96), rgba(33, 36, 43, 0.98));
-  color: #e9edf5;
+  border-radius: 10px 0 0 10px;
+  background: linear-gradient(180deg, rgba(58, 62, 74, 0.92), rgba(34, 37, 45, 0.96));
+  color: rgba(236, 240, 247, 0.92);
   cursor: pointer;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.26);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
   z-index: 4;
 }
 
@@ -1883,21 +1887,21 @@ button {
 }
 
 .voice-chat-handle-icon {
-  font-size: 1rem;
+  font-size: 0.88rem;
   font-weight: 900;
   line-height: 1;
 }
 
 .voice-chat-handle-unread {
-  min-width: 22px;
-  height: 22px;
+  min-width: 16px;
+  height: 16px;
   display: inline-grid;
   place-items: center;
-  padding: 0 6px;
+  padding: 0 3px;
   border-radius: 999px;
   background: white;
   color: #be2235;
-  font-size: 0.7rem;
+  font-size: 0.58rem;
   font-weight: 800;
 }
 
@@ -3976,9 +3980,10 @@ button {
   }
 
   .voice-chat-handle {
-    left: -22px;
-    width: 22px;
-    min-height: 72px;
+    left: -16px;
+    width: 16px;
+    min-height: 54px;
+    bottom: 22px;
   }
 
   .voice-call-dock {
