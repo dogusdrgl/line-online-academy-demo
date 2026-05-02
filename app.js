@@ -38,6 +38,7 @@ const MESSAGE_CHANNEL_VIEWS = new Set([
 ]);
 
 const channelButtons = document.querySelectorAll(".channel-item");
+const viewJumpButtons = document.querySelectorAll("[data-view-jump]");
 const channelGroups = document.querySelector(".channel-groups");
 const viewPanels = document.querySelectorAll(".view-panel");
 const viewTitle = document.getElementById("view-title");
@@ -4798,6 +4799,30 @@ channelButtons.forEach((button) => {
     }
 
     setActiveView(nextView, label);
+  });
+});
+
+viewJumpButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const nextView = button.dataset.viewJump;
+    if (!nextView) {
+      return;
+    }
+    const targetButton = Array.from(channelButtons).find((item) => item.dataset.view === nextView);
+    const nextLabel = targetButton?.textContent.trim() || button.textContent.trim();
+
+    if (!PUBLIC_VIEWS.has(nextView) && authState.mode === "visitor") {
+      pendingView = nextView;
+      openAuthModal("signin");
+      return;
+    }
+
+    if (!canAccessView(nextView)) {
+      showAccessDenied(nextLabel);
+      return;
+    }
+
+    setActiveView(nextView, nextLabel);
   });
 });
 

@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260430-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260502-1" />
   </head>
   <body>
     <div class="app-shell">
@@ -98,54 +98,23 @@
         </header>
 
         <section id="dashboard" class="view-panel active">
-          <div class="hero-card">
-            <div>
-              <p class="eyebrow">Hos Geldin</p>
-              <h3>Online muzigi topluluk hissiyle bulusturan kampus</h3>
+          <section class="home-landing">
+            <img class="home-landing-image" src="./public/assets/home-hero.jpg" alt="Line Online Academy anasayfa görseli" />
+            <div class="home-landing-overlay"></div>
+            <div class="home-landing-copy">
+              <img class="home-landing-logo" src="./logo.png" alt="LINE Online Academy" />
+              <h3>Müziği topluluk hissiyle buluşturan kampüs</h3>
               <p>
-                Line Online Academy, Discord akisini taniyip egitim ihtiyacina gore
-                yeniden duzenlenmis tek kampus yapisiyla calisir. Ogrenciler siniflara,
-                etut odalarina ve materyallere ayni deneyim icinde ulasir.
+                Line Online olarak müzik eğitiminin herkes tarafından erişilebilir olması gerektiğine
+                inanıyoruz, bu nedenle yoğun yaşam tarzınıza uyacak uygun fiyatlar ve esnek programlar
+                sunuyoruz. Ayrıca çevrimiçi platformumuz ile evinizin rahatlığında veya internet
+                erişiminizin olduğu her yerde öğrenebilirsiniz.
               </p>
+              <button type="button" class="home-landing-cta" data-view-jump="about">
+                Bilgi Almak İçin Tıklayın
+              </button>
             </div>
-            <div class="hero-stats">
-              <div>
-                <strong>42</strong>
-                <span>Aktif Ogrenci</span>
-              </div>
-              <div>
-                <strong>6</strong>
-                <span>Bugunku Ders</span>
-              </div>
-              <div>
-                <strong>3</strong>
-                <span>Canli Oda</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid-layout">
-            <article class="info-card">
-              <p class="section-kicker">Akis</p>
-              <h4>Bugun okulde neler oluyor?</h4>
-              <ul class="feed-list">
-                <li>18:00 sinif 1 odasinda temel ritim dersi basliyor.</li>
-                <li>19:30 gorusme odasinda yeni ogrenci tanisma gorusmeleri var.</li>
-                <li>21:00 kantin alaninda serbest etut ve topluluk bulusmasi acik.</li>
-              </ul>
-            </article>
-
-            <article class="info-card">
-              <p class="section-kicker">Ozellikler</p>
-              <h4>Bu yapida neleri kurabiliriz?</h4>
-              <ul class="feature-list">
-                <li>Tek kampus yapisinda sabit kanal ve oda hiyerarsisi</li>
-                <li>Canli ders odalari, ekran paylasimi, kamera ve mikrofon</li>
-                <li>Sinif bazli materyal paylasimi ve not kutuphanesi</li>
-                <li>Ogretmen-ogrenci iletisim ve yonetim alanlari</li>
-              </ul>
-            </article>
-          </div>
+          </section>
         </section>
 
         <section id="about" class="view-panel">
@@ -1149,6 +1118,6 @@
     <!-- deploy-refresh: 2026-04-28T19:12:00+03:00 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260422-5"></script>
-    <script src="./app.js?v=20260430-2"></script>
+    <script src="./app.js?v=20260502-1"></script>
   </body>
 </html>
