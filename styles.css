@@ -3855,6 +3855,11 @@ button {
     min-height: calc(100vh - var(--topbar-height));
   }
 
+  .home-landing-image {
+    object-fit: cover;
+    object-position: center center;
+  }
+
   .home-landing-cta {
     right: 20px;
     bottom: 20px;
@@ -4014,6 +4019,11 @@ button {
 
   .home-landing {
     min-height: calc(100dvh - 124px);
+  }
+
+  .home-landing-image {
+    object-fit: cover;
+    object-position: center top;
   }
 
   .home-landing-cta {
