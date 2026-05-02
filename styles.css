@@ -17,6 +17,7 @@
   --surface-main: #303238;
   --surface-raised: #373a40;
   --surface-ink: #24262b;
+  --topbar-height: 69px;
 }
 
 * {
