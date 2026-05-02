@@ -569,10 +569,13 @@ button {
 }
 
 #dashboard {
+  padding: 0;
+}
+
+#dashboard.active {
   display: block;
   height: calc(100vh - var(--topbar-height));
   min-height: calc(100vh - var(--topbar-height));
-  padding: 0;
 }
 
 .home-landing {
@@ -3831,6 +3834,10 @@ button {
   }
 
   #dashboard {
+    padding: 0;
+  }
+
+  #dashboard.active {
     height: auto;
     min-height: auto;
   }
