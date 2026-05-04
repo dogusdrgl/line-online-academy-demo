@@ -574,7 +574,7 @@ button {
 
 #dashboard.active {
   display: block;
-  height: calc(100vh - var(--topbar-height));
+  height: auto;
   min-height: calc(100vh - var(--topbar-height));
 }
 
@@ -582,7 +582,8 @@ button {
   display: grid;
   gap: 20px;
   min-height: calc(100vh - var(--topbar-height));
-  padding: 28px 26px 24px;
+  padding: 28px 26px 36px;
+  align-content: start;
   background:
     radial-gradient(circle at 15% 18%, rgba(241, 161, 38, 0.14), transparent 22%),
     radial-gradient(circle at 88% 14%, rgba(255, 255, 255, 0.05), transparent 20%),
