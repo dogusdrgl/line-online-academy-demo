@@ -3428,7 +3428,7 @@ function updateSearchVisibility(viewId) {
 }
 
 function isMobileLayout() {
-  return window.matchMedia("(max-width: 920px)").matches;
+  return window.matchMedia("(max-width: 920px), (max-width: 1024px) and (orientation: portrait)").matches;
 }
 
 function syncMobileDrawerUi() {
