@@ -4731,7 +4731,7 @@ function resetIdentity() {
   }, 250);
 }
 
-function restoreSavedSession() {
+async function restoreSavedSession() {
   const savedSession = readSavedSession();
   if (!savedSession?.name || !savedSession.roleId || !savedSession.userId) {
     return;
@@ -4745,6 +4745,35 @@ function restoreSavedSession() {
     avatarImage: savedSession.avatarImage,
     persist: false
   });
+
+  if (!supabaseClient) {
+    return;
+  }
+
+  try {
+    const latestProfile = await getStoredUserProfile(savedSession.userId);
+    const nextRoleId = latestProfile.roleId || savedSession.roleId;
+    const roleChanged = nextRoleId !== authState.roleId;
+    const moderationChanged =
+      Boolean(latestProfile.isMuted) !== Boolean(authState.isMuted) ||
+      Boolean(latestProfile.isBanned) !== Boolean(authState.isBanned);
+    const avatarChanged = (latestProfile.avatarImage || null) !== (authState.avatarImage || null);
+
+    if (!roleChanged && !moderationChanged && !avatarChanged) {
+      return;
+    }
+
+    updateIdentity(savedSession.name, nextRoleId, {
+      mode: savedSession.mode,
+      userId: savedSession.userId,
+      isMuted: latestProfile.isMuted,
+      isBanned: latestProfile.isBanned,
+      avatarImage: latestProfile.avatarImage || savedSession.avatarImage || null,
+      persist: true
+    });
+  } catch (error) {
+    console.warn("Kayitli oturum rolu guncellenemedi:", error.message);
+  }
 }
 
 function openProfileModal() {
