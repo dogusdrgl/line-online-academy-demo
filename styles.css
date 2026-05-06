@@ -4273,9 +4273,10 @@ button {
   .topbar-title-group {
     width: 100%;
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 10px;
   }
 
   .topbar-channel h2 {
@@ -4284,17 +4285,21 @@ button {
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    flex: 0 1 auto;
   }
 
   .dashboard-editor-toolbar {
-    width: 100%;
+    width: auto;
     justify-content: flex-start;
     flex-wrap: wrap;
+    margin-left: auto;
   }
 
   .dashboard-editor-button {
     flex: 0 1 auto;
-    min-width: 110px;
+    min-width: 92px;
+    min-height: 34px;
+    padding-inline: 12px;
   }
 
   .topbar-meta {
@@ -4962,12 +4967,26 @@ button {
 
 @media (max-width: 920px), (max-width: 1024px) and (orientation: portrait) {
   .dashboard-editor-toolbar {
-    width: 100%;
-    margin-top: 2px;
+    width: auto;
+    margin-top: 0;
   }
 
   .dashboard-editor-button {
     flex: 0 1 auto;
+  }
+
+  .home-dashboard.is-editing [data-home-box],
+  .about-editor-page.is-editing [data-about-box] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    transform: none !important;
+  }
+
+  .home-dashboard.is-editing .home-hero-copy,
+  .about-editor-page.is-editing .channel-intro-copy,
+  .about-editor-page.is-editing .info-card {
+    overflow-x: hidden;
   }
 
   .home-dashboard-grid {

@@ -6526,11 +6526,21 @@ if (dmForm) {
 });
 
 if (mobileChannelsToggle) {
-  mobileChannelsToggle.addEventListener("click", () => toggleMobileDrawer("channels"));
+  mobileChannelsToggle.addEventListener("click", () => {
+    if (isAnyPageEditorActive()) {
+      return;
+    }
+    toggleMobileDrawer("channels");
+  });
 }
 
 if (mobileMembersToggle) {
-  mobileMembersToggle.addEventListener("click", () => toggleMobileDrawer("members"));
+  mobileMembersToggle.addEventListener("click", () => {
+    if (isAnyPageEditorActive()) {
+      return;
+    }
+    toggleMobileDrawer("members");
+  });
 }
 
 if (mobileDrawerBackdrop) {
@@ -6546,7 +6556,7 @@ window.addEventListener("resize", () => {
 let mobileGestureStart = null;
 
 document.addEventListener("touchstart", (event) => {
-  if (!isMobileLayout()) {
+  if (!isMobileLayout() || isAnyPageEditorActive()) {
     mobileGestureStart = null;
     return;
   }
@@ -6564,7 +6574,7 @@ document.addEventListener("touchstart", (event) => {
 }, { passive: true });
 
 document.addEventListener("touchend", (event) => {
-  if (!isMobileLayout() || !mobileGestureStart) {
+  if (!isMobileLayout() || isAnyPageEditorActive() || !mobileGestureStart) {
     return;
   }
 
