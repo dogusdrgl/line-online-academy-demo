@@ -5186,9 +5186,7 @@ button {
 }
 
 #about .about-intro-card,
-#about .statement-panel,
-#about .info-card,
-#about .composer-shell {
+#about .info-card {
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
@@ -5208,29 +5206,11 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-top: 0;
-  align-items: start;
+  align-items: stretch;
 }
 
-#about .statement-panel {
-  grid-column: 1 / -1;
-  padding: 20px;
-}
-
-#about .statement-visual {
-  display: none;
-}
-
-#about .statement-card {
-  margin-top: 18px;
-}
-
-#about .insight-column {
-  display: contents;
-}
-
-#about .composer-shell {
-  grid-column: 1 / -1;
-  min-height: 78px;
+#about .info-card {
+  min-height: 220px;
 }
 
 .editable-box-drag-handle {
@@ -5280,8 +5260,4 @@ button {
     grid-template-columns: 1fr;
   }
 
-  #about .statement-panel,
-  #about .composer-shell {
-    grid-column: auto;
-  }
 }
