@@ -221,11 +221,15 @@ let homePageEditMode = false;
 let homePageSettingsChannel = null;
 let homePageResizeState = null;
 let homePageSettings = null;
+let homePageSettingsStore = null;
 let aboutPageEditMode = false;
 let aboutPageSettingsChannel = null;
 let aboutPageResizeState = null;
 let aboutPageSettings = null;
+let aboutPageSettingsStore = null;
 let activeEditableBoxDrag = null;
+let currentResponsiveLayoutVariant = null;
+let responsiveLayoutRefreshTimer = null;
 
 const DEFAULT_HOME_PAGE_SETTINGS = {
   text: {
@@ -300,6 +304,115 @@ const DEFAULT_ABOUT_PAGE_SETTINGS = {
     composerText: { width: 320, height: 40, x: 0, y: 0 }
   }
 };
+
+function getResponsiveLayoutVariant() {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const isPortrait = viewportHeight >= viewportWidth;
+  const isTabletWidth = viewportWidth >= 768;
+  const isDesktopLikeLandscape = isTabletWidth && !isPortrait;
+
+  if (isDesktopLikeLandscape) {
+    return "desktop";
+  }
+
+  return isPortrait ? "mobilePortrait" : "mobileLandscape";
+}
+
+function getResponsiveLayoutVariantLabel(variant = getResponsiveLayoutVariant()) {
+  if (variant === "mobilePortrait") {
+    return "Telefon Dikey";
+  }
+
+  if (variant === "mobileLandscape") {
+    return "Telefon Yatay";
+  }
+
+  return "Masaustu / Tablet Yatay";
+}
+
+function isResponsiveSettingsStore(value) {
+  return Boolean(value && typeof value === "object" && value.variants && typeof value.variants === "object");
+}
+
+function buildResponsiveSettingsStore(rawValue, defaults, sanitizeFn) {
+  const nextStore = { variants: {} };
+
+  if (isResponsiveSettingsStore(rawValue)) {
+    Object.entries(rawValue.variants).forEach(([variant, settings]) => {
+      nextStore.variants[variant] = sanitizeFn(settings);
+    });
+  } else if (rawValue && typeof rawValue === "object") {
+    nextStore.variants.desktop = sanitizeFn(rawValue);
+  }
+
+  if (!nextStore.variants.desktop) {
+    nextStore.variants.desktop = sanitizeFn(defaults);
+  }
+
+  return nextStore;
+}
+
+function resolveResponsiveSettingsVariant(storeValue, defaults, sanitizeFn, variant = getResponsiveLayoutVariant()) {
+  const nextStore = buildResponsiveSettingsStore(storeValue, defaults, sanitizeFn);
+  return cloneHomePageSettings(nextStore.variants[variant] || nextStore.variants.desktop || sanitizeFn(defaults));
+}
+
+function mergeResponsiveSettingsVariant(storeValue, defaults, sanitizeFn, variant, settings) {
+  const nextStore = buildResponsiveSettingsStore(storeValue, defaults, sanitizeFn);
+  nextStore.variants[variant] = sanitizeFn(settings);
+  return nextStore;
+}
+
+function applyResponsiveSettingsForCurrentVariant() {
+  if (homePageSettingsStore) {
+    applyHomePageSettings(resolveResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+  }
+
+  if (aboutPageSettingsStore) {
+    applyAboutPageSettings(resolveResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+  }
+}
+
+function handleResponsiveLayoutVariantChange() {
+  const nextVariant = getResponsiveLayoutVariant();
+  if (nextVariant === currentResponsiveLayoutVariant) {
+    renderDashboardEditorToolbar();
+    return;
+  }
+
+  const wasEditingHome = homePageEditMode;
+  const wasEditingAbout = aboutPageEditMode;
+  currentResponsiveLayoutVariant = nextVariant;
+
+  if (wasEditingHome) {
+    setHomePageEditMode(false, { restoreSaved: true, silent: true });
+  }
+
+  if (wasEditingAbout) {
+    setAboutPageEditMode(false, { restoreSaved: true, silent: true });
+  }
+
+  applyResponsiveSettingsForCurrentVariant();
+  renderDashboardEditorToolbar();
+
+  if ((wasEditingHome || wasEditingAbout) && isAdminUser()) {
+    window.alert("Ekran profili degisti. Bu profilin kayitli duzeni yuklendi.");
+
+    if (wasEditingHome) {
+      setHomePageEditMode(true, { restoreSaved: false });
+    }
+
+    if (wasEditingAbout) {
+      setAboutPageEditMode(true, { restoreSaved: false });
+    }
+  }
+}
+
+function scheduleResponsiveLayoutRefresh() {
+  window.clearTimeout(responsiveLayoutRefreshTimer);
+  responsiveLayoutRefreshTimer = window.setTimeout(handleResponsiveLayoutVariantChange, 120);
+}
 
 const rtcConfig = {
   iceServers: [
@@ -3148,8 +3261,11 @@ function renderDashboardEditorToolbar() {
   }
 
   const currentEditMode = activeEditablePage === "about" ? aboutPageEditMode : homePageEditMode;
+  const layoutLabel = getResponsiveLayoutVariantLabel(currentResponsiveLayoutVariant || getResponsiveLayoutVariant());
   dashboardEditToggle.textContent = currentEditMode ? "Iptal" : "Duzenle";
+  dashboardEditToggle.title = "Aktif profil: " + layoutLabel;
   dashboardSaveButton.classList.toggle("hidden", !currentEditMode);
+  dashboardSaveButton.title = "Bu duzen " + layoutLabel + " profiline kaydedilir.";
 }
 
 function setHomePageEditMode(nextMode, options = {}) {
@@ -3182,7 +3298,7 @@ function setHomePageEditMode(nextMode, options = {}) {
 }
 
 async function loadHomePageSettings() {
-  let nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+  let rawSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
 
   if (supabaseClient) {
     try {
@@ -3200,17 +3316,18 @@ async function loadHomePageSettings() {
       }
 
       if (response.data && response.data.config_json) {
-        nextSettings = sanitizeHomePageSettings(response.data.config_json);
+        rawSettings = response.data.config_json;
       }
     } catch (error) {
       console.warn("Anasayfa ayarlari Supabase'den okunamadi:", error.message);
-      nextSettings = sanitizeHomePageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS));
+      rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS);
     }
   } else {
-    nextSettings = sanitizeHomePageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS));
+    rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS);
   }
 
-  applyHomePageSettings(nextSettings);
+  homePageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
+  applyHomePageSettings(resolveResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
 }
 
 async function saveHomePageSettings() {
@@ -3219,6 +3336,8 @@ async function saveHomePageSettings() {
   }
 
   const nextSettings = collectHomePageSettingsFromDom();
+  const activeVariant = currentResponsiveLayoutVariant || getResponsiveLayoutVariant();
+  const nextStore = mergeResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, activeVariant, nextSettings);
   dashboardSaveButton.disabled = true;
   dashboardSaveButton.textContent = "Kaydediliyor...";
 
@@ -3229,7 +3348,7 @@ async function saveHomePageSettings() {
           .from("home_page_settings")
           .upsert({
             id: "dashboard",
-            config_json: nextSettings,
+            config_json: nextStore,
             updated_at: new Date().toISOString()
           }),
         "Anasayfa ayarlarini kaydetme"
@@ -3239,16 +3358,18 @@ async function saveHomePageSettings() {
         throw response.error;
       }
     } else {
-      writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextSettings);
+      writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
     }
 
-    homePageSettings = nextSettings;
+    homePageSettingsStore = nextStore;
+    homePageSettings = sanitizeHomePageSettings(nextSettings);
     applyHomePageSettings(nextSettings);
     setHomePageEditMode(false, { restoreSaved: false });
   } catch (error) {
     console.warn("Anasayfa ayarlari kaydedilemedi:", error.message);
-    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextSettings);
-    homePageSettings = nextSettings;
+    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
+    homePageSettingsStore = nextStore;
+    homePageSettings = sanitizeHomePageSettings(nextSettings);
     applyHomePageSettings(nextSettings);
     setHomePageEditMode(false, { restoreSaved: false });
     window.alert("Ortak kayit alinamadi. Ayarlar bu tarayicida kaydedildi.");
@@ -3481,7 +3602,7 @@ function setAboutPageEditMode(nextMode, options = {}) {
 }
 
 async function loadAboutPageSettings() {
-  let nextSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+  let rawSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
 
   if (supabaseClient) {
     try {
@@ -3493,17 +3614,18 @@ async function loadAboutPageSettings() {
         throw response.error;
       }
       if (response.data && response.data.config_json) {
-        nextSettings = sanitizeAboutPageSettings(response.data.config_json);
+        rawSettings = response.data.config_json;
       }
     } catch (error) {
       console.warn("Hakkimizda ayarlari okunamadi:", error.message);
-      nextSettings = sanitizeAboutPageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS));
+      rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS);
     }
   } else {
-    nextSettings = sanitizeAboutPageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS));
+    rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS);
   }
 
-  applyAboutPageSettings(nextSettings);
+  aboutPageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
+  applyAboutPageSettings(resolveResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
 }
 
 async function saveAboutPageSettings() {
@@ -3512,6 +3634,8 @@ async function saveAboutPageSettings() {
   }
 
   const nextSettings = collectAboutPageSettingsFromDom();
+  const activeVariant = currentResponsiveLayoutVariant || getResponsiveLayoutVariant();
+  const nextStore = mergeResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, activeVariant, nextSettings);
   dashboardSaveButton.disabled = true;
   dashboardSaveButton.textContent = "Kaydediliyor...";
 
@@ -3520,7 +3644,7 @@ async function saveAboutPageSettings() {
       const response = await withTimeout(
         supabaseClient.from("home_page_settings").upsert({
           id: "about",
-          config_json: nextSettings,
+          config_json: nextStore,
           updated_at: new Date().toISOString()
         }),
         "Hakkimizda ayarlarini kaydetme"
@@ -3528,15 +3652,19 @@ async function saveAboutPageSettings() {
       if (response.error) {
         throw response.error;
       }
+    } else {
+      writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
     }
 
-    aboutPageSettings = nextSettings;
+    aboutPageSettingsStore = nextStore;
+    aboutPageSettings = sanitizeAboutPageSettings(nextSettings);
     applyAboutPageSettings(nextSettings);
     setAboutPageEditMode(false, { restoreSaved: false });
   } catch (error) {
     console.warn("Hakkimizda ayarlari kaydedilemedi:", error.message);
-    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextSettings);
-    aboutPageSettings = nextSettings;
+    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
+    aboutPageSettingsStore = nextStore;
+    aboutPageSettings = sanitizeAboutPageSettings(nextSettings);
     applyAboutPageSettings(nextSettings);
     setAboutPageEditMode(false, { restoreSaved: false });
     window.alert("Ortak kayit alinamadi. Hakkimizda ayarlari bu tarayicida saklandi.");
@@ -3619,7 +3747,8 @@ function subscribeAboutPageSettings() {
           return;
         }
         if (payload.new && payload.new.config_json) {
-          applyAboutPageSettings(payload.new.config_json);
+          aboutPageSettingsStore = buildResponsiveSettingsStore(payload.new.config_json, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
+          applyAboutPageSettings(resolveResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
         } else {
           loadAboutPageSettings();
         }
@@ -3645,7 +3774,8 @@ function subscribeToHomePageSettings() {
         }
 
         if (payload.new && payload.new.config_json) {
-          applyHomePageSettings(payload.new.config_json);
+          homePageSettingsStore = buildResponsiveSettingsStore(payload.new.config_json, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
+          applyHomePageSettings(resolveResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
         } else {
           loadHomePageSettings();
         }
@@ -6499,6 +6629,7 @@ initializeAboutPageEditor();
 controlState = readControlState();
 renderQuickControls();
 updateSearchVisibility("dashboard");
+currentResponsiveLayoutVariant = getResponsiveLayoutVariant();
 loadNotificationState();
 loadHomePageSettings();
 loadAboutPageSettings();
@@ -6546,6 +6677,9 @@ window.addEventListener("focus", () => {
     scheduleDirectoryRefresh(120);
   }
 });
+
+window.addEventListener("resize", scheduleResponsiveLayoutRefresh);
+window.addEventListener("orientationchange", scheduleResponsiveLayoutRefresh);
 
 document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement) {
