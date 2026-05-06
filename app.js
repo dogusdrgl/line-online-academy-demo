@@ -2968,11 +2968,14 @@ function applyHomePageSettings(settings) {
       return;
     }
 
+    box.style.display = "block";
     box.style.width = boxSettings.width + "px";
+    box.style.maxWidth = "none";
+    box.style.minHeight = boxSettings.height + "px";
     box.style.height = boxSettings.height + "px";
     box.dataset.boxX = String(boxSettings.x || 0);
     box.dataset.boxY = String(boxSettings.y || 0);
-    box.style.transform =       "translate(" + (boxSettings.x || 0) + "px, " + (boxSettings.y || 0) + "px)";
+    box.style.transform = "translate(" + (boxSettings.x || 0) + "px, " + (boxSettings.y || 0) + "px)";
   });
 }
 
@@ -3382,7 +3385,10 @@ function applyAboutPageSettings(settings) {
     if (!boxSettings) {
       return;
     }
+    box.style.display = "block";
     box.style.width = boxSettings.width + "px";
+    box.style.maxWidth = "none";
+    box.style.minHeight = boxSettings.height + "px";
     box.style.height = boxSettings.height + "px";
     box.dataset.boxX = String(boxSettings.x || 0);
     box.dataset.boxY = String(boxSettings.y || 0);
