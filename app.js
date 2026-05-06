@@ -49,7 +49,13 @@ const homeDashboard = document.getElementById("home-dashboard");
 const homeDashboardGrid = document.getElementById("home-dashboard-grid");
 const homeEditableFields = document.querySelectorAll("[data-home-field]");
 const homeCards = document.querySelectorAll("[data-home-card]");
+const homeBoxFields = document.querySelectorAll("[data-home-box]");
 const homeResizeHandles = document.querySelectorAll("[data-home-resize]");
+const aboutEditableFields = document.querySelectorAll("[data-about-field]");
+const aboutCards = document.querySelectorAll("[data-about-card]");
+const aboutBoxFields = document.querySelectorAll("[data-about-box]");
+const aboutResizeHandles = document.querySelectorAll("[data-about-resize]");
+const aboutPageRoot = document.getElementById("about");
 const messageSearchInput = document.getElementById("message-search");
 const cameraButton = document.getElementById("camera-button");
 const cameraPreview = document.getElementById("camera-preview");
@@ -215,31 +221,82 @@ let homePageEditMode = false;
 let homePageSettingsChannel = null;
 let homePageResizeState = null;
 let homePageSettings = null;
+let aboutPageEditMode = false;
+let aboutPageSettingsChannel = null;
+let aboutPageResizeState = null;
+let aboutPageSettings = null;
 
 const DEFAULT_HOME_PAGE_SETTINGS = {
   text: {
     heroEyebrow: "LINE Online Academy",
-    heroTitle: "M�zi�i topluluk hissiyle bulu�turan kamp�s",
-    heroDescription: "Line Online Academy; ��rencinin s�n�f�na, materyaline ve canl� ileti�ime tek ak��ta ula�abilece�i premium bir dijital m�zik okulu olarak tasarland�. Ders, sohbet, canl� oda ve k�t�phane deneyimini tek kamp�s mant���nda bir araya getiriyoruz.",
-    primaryButtonText: "Bilgi Almak ��in T�klay�n",
-    secondaryButtonText: "Kamp�se G�z At",
+    heroTitle: "Muzigi topluluk hissiyle bulusturan kampus",
+    heroDescription: "Line Online Academy; ogrencinin sinifina, materyaline ve canli iletisime tek akista ulasabilecegi premium bir dijital muzik okulu olarak tasarlandi. Ders, sohbet, canli oda ve kutuphane deneyimini tek kampus mantiginda bir araya getiriyoruz.",
+    primaryButtonText: "Bilgi Almak Icin Tiklayin",
+    secondaryButtonText: "Kampuse Goz At",
     heroPulseLabel: "Topluluk",
-    heroPulseText: "Canl� s�n�flar, mesajla�ma ve not k�t�phanesi ayn� deneyimde.",
+    heroPulseText: "Canli siniflar, mesajlasma ve not kutuphanesi ayni deneyimde.",
     featuredKicker: "Deneyim",
-    featuredTitle: "Tek panelde okul ak���",
-    featuredBody: "Solda odalar ve s�n�flar, ortada aktif ders ve i�erikler, sa�da ise �yeler ve kimlik kart� yer al�r. Kullan�c� ilk anda kamp�s�n mant���n� kavrar ve kaybolmadan dersine ge�er.",
-    stat1Value: "Canl�",
-    stat1Title: "Sesli ve g�r�nt�l� s�n�flar",
-    stat1Body: "Canl� dersler, et�t odalar� ve y�netim g�r��meleri ayn� �at� alt�nda.",
-    stat2Value: "Ak��",
+    featuredTitle: "Tek panelde okul akisi",
+    featuredBody: "Solda odalar ve siniflar, ortada aktif ders ve icerikler, sagda ise uyeler ve kimlik karti yer alir. Kullanici ilk anda kampusun mantigini kavrar ve kaybolmadan dersine gecer.",
+    stat1Value: "Canli",
+    stat1Title: "Sesli ve goruntulu siniflar",
+    stat1Body: "Canli dersler, etut odalari ve yonetim gorusmeleri ayni cati altinda.",
+    stat2Value: "Akis",
     stat2Title: "Mesaj, oda ve kaynak bir arada",
-    stat2Body: "Metin kanallar�, anl�k ileti�im ve materyal payla��m� kopmadan ilerler."
+    stat2Body: "Metin kanallari, anlik iletisim ve materyal paylasimi kopmadan ilerler."
   },
   cards: {
     hero: { minHeight: 224 },
     featured: { minHeight: 146, colSpan: 2 },
     stat1: { minHeight: 146, colSpan: 1 },
     stat2: { minHeight: 146, colSpan: 1 }
+  },
+  boxes: {
+    heroTitle: { width: 260, height: 150 },
+    heroDescription: { width: 560, height: 96 },
+    heroPulseText: { width: 250, height: 58 },
+    featuredTitle: { width: 240, height: 42 },
+    featuredBody: { width: 560, height: 78 },
+    stat1Title: { width: 240, height: 48 },
+    stat1Body: { width: 240, height: 54 },
+    stat2Title: { width: 240, height: 48 },
+    stat2Body: { width: 240, height: 54 }
+  }
+};
+
+const DEFAULT_ABOUT_PAGE_SETTINGS = {
+  text: {
+    introEyebrow: "Marka Kimligi",
+    introTitle: "Welcome to #hakkimizda.",
+    introBody: "Burasi Line Online Academy'nin giris noktasi. Kampusun tonu, topluluk yaklasimi ve premium egitim deneyimi burada baslar; kullanici ilk anda bir sunucuda degil, ozel tasarlanmis bir dijital okulda oldugunu hisseder.",
+    statementLabel: "Kampus Tasarimi",
+    statementTitle: "Topluluk, ders ve oda deneyimi tek omurgada",
+    statementBody: "Sol tarafta yapisal navigasyon, merkezde icerik ve etkilesim, sagda ise kisi ve kimlik alani bulunur. Bu denge Discord hissini korurken urunu daha premium ve kurumsal hale getirir.",
+    visionKicker: "Vizyon",
+    visionTitle: "Her ders bir oda, her oda bir topluluk",
+    visionBody: "Ogrenci sinifina girer, materyaline ulasir, hocasiyla gorusur ve toplulukla ayni akista kalir. Arayuz bu gecisi hizlandirmak icin olabildigince tanidik ve net tasarlandi.",
+    experienceKicker: "Deneyim",
+    experienceTitle: "Discord hissi, okul mantigi",
+    experienceBody: "Solda kanal bazli okul haritasi, ortada aktif ders veya bilgi sayfasi, sagda ise roller ve anlik kullanici listesi bulunur. Bu iskelet ileride tam canli ders sistemine kolayca donusebilir.",
+    composerText: "Line Online Academy icinde gezin..."
+  },
+  cards: {
+    intro: { minHeight: 180 },
+    statement: { minHeight: 330 },
+    vision: { minHeight: 180 },
+    experience: { minHeight: 180 },
+    composer: { minHeight: 58 }
+  },
+  boxes: {
+    introTitle: { width: 420, height: 58 },
+    introBody: { width: 700, height: 110 },
+    statementTitle: { width: 350, height: 52 },
+    statementBody: { width: 360, height: 112 },
+    visionTitle: { width: 320, height: 46 },
+    visionBody: { width: 330, height: 92 },
+    experienceTitle: { width: 320, height: 46 },
+    experienceBody: { width: 330, height: 92 },
+    composerText: { width: 260, height: 34 }
   }
 };
 
@@ -2816,11 +2873,24 @@ function repairPossiblyBrokenText(value) {
     .trim();
 }
 
+function sanitizeResizableBox(candidate, fallback, options = {}) {
+  const minWidth = options.minWidth || 120;
+  const maxWidth = options.maxWidth || 900;
+  const minHeight = options.minHeight || 42;
+  const maxHeight = options.maxHeight || 420;
+
+  return {
+    width: Math.round(Math.max(minWidth, Math.min(maxWidth, Number(candidate?.width) || fallback.width))),
+    height: Math.round(Math.max(minHeight, Math.min(maxHeight, Number(candidate?.height) || fallback.height)))
+  };
+}
+
 function sanitizeHomePageSettings(input) {
   const nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
   const incoming = input && typeof input === "object" ? input : {};
   const incomingText = incoming.text && typeof incoming.text === "object" ? incoming.text : {};
   const incomingCards = incoming.cards && typeof incoming.cards === "object" ? incoming.cards : {};
+  const incomingBoxes = incoming.boxes && typeof incoming.boxes === "object" ? incoming.boxes : {};
 
   Object.keys(nextSettings.text).forEach((field) => {
     const fallback = nextSettings.text[field];
@@ -2838,6 +2908,10 @@ function sanitizeHomePageSettings(input) {
       const colSpan = Math.max(1, Math.min(4, Number(candidate.colSpan) || fallback.colSpan));
       nextSettings.cards[cardId].colSpan = Math.round(colSpan);
     }
+  });
+
+  Object.keys(nextSettings.boxes).forEach((boxId) => {
+    nextSettings.boxes[boxId] = sanitizeResizableBox(incomingBoxes[boxId], nextSettings.boxes[boxId], { minWidth: 120, maxWidth: 760, minHeight: 42, maxHeight: 280 });
   });
 
   return nextSettings;
@@ -2868,6 +2942,17 @@ function applyHomePageSettings(settings) {
       card.dataset.homeColSpan = String(cardSettings.colSpan);
       card.style.gridColumn = "span " + cardSettings.colSpan;
     }
+  });
+
+  homeBoxFields.forEach((box) => {
+    const boxId = box.dataset.homeBox;
+    const boxSettings = homePageSettings.boxes[boxId];
+    if (!boxSettings) {
+      return;
+    }
+
+    box.style.width = boxSettings.width + "px";
+    box.style.minHeight = boxSettings.height + "px";
   });
 }
 
@@ -2900,6 +2985,18 @@ function collectHomePageSettingsFromDom() {
     }
   });
 
+  homeBoxFields.forEach((box) => {
+    const boxId = box.dataset.homeBox;
+    const currentBox = nextSettings.boxes[boxId];
+    if (!currentBox) {
+      return;
+    }
+
+    const rect = box.getBoundingClientRect();
+    currentBox.width = Math.round(rect.width);
+    currentBox.height = Math.round(rect.height);
+  });
+
   return sanitizeHomePageSettings(nextSettings);
 }
 
@@ -2919,12 +3016,22 @@ function setHomeFieldEditable(field, editable) {
   }
 }
 
+function getActiveEditablePageId() {
+  const viewId = getActiveViewId();
+  return viewId === "dashboard" || viewId === "about" ? viewId : null;
+}
+
+function isAnyPageEditorActive() {
+  return homePageEditMode || aboutPageEditMode;
+}
+
 function renderDashboardEditorToolbar() {
   if (!dashboardEditorToolbar || !dashboardEditToggle || !dashboardSaveButton) {
     return;
   }
 
-  const shouldShow = getActiveViewId() === "dashboard" && isAdminUser();
+  const activeEditablePage = getActiveEditablePageId();
+  const shouldShow = Boolean(activeEditablePage && isAdminUser());
   dashboardEditorToolbar.classList.toggle("hidden", !shouldShow);
 
   if (!shouldShow) {
@@ -2933,16 +3040,23 @@ function renderDashboardEditorToolbar() {
     if (homePageEditMode) {
       setHomePageEditMode(false, { restoreSaved: true, silent: true });
     }
+    if (aboutPageEditMode) {
+      setAboutPageEditMode(false, { restoreSaved: true, silent: true });
+    }
     return;
   }
 
-  dashboardEditToggle.textContent = homePageEditMode ? "Iptal" : "Duzenle";
-  dashboardSaveButton.classList.toggle("hidden", !homePageEditMode);
+  const currentEditMode = activeEditablePage === "about" ? aboutPageEditMode : homePageEditMode;
+  dashboardEditToggle.textContent = currentEditMode ? "Iptal" : "Duzenle";
+  dashboardSaveButton.classList.toggle("hidden", !currentEditMode);
 }
 
 function setHomePageEditMode(nextMode, options = {}) {
   const allowEdit = isAdminUser();
   const shouldEdit = Boolean(nextMode && allowEdit);
+  if (shouldEdit && aboutPageEditMode) {
+    setAboutPageEditMode(false, { restoreSaved: true, silent: true });
+  }
   homePageEditMode = shouldEdit;
 
   if (!shouldEdit && options.restoreSaved !== false && homePageSettings) {
@@ -3115,6 +3229,287 @@ function initializeHomePageEditor() {
   homeResizeHandles.forEach((handle) => {
     handle.addEventListener("pointerdown", startHomePageResize);
   });
+}
+
+function sanitizeAboutPageSettings(input) {
+  const nextSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+  const incoming = input && typeof input === "object" ? input : {};
+  const incomingText = incoming.text && typeof input.text === "object" ? input.text : {};
+  const incomingCards = incoming.cards && typeof input.cards === "object" ? input.cards : {};
+  const incomingBoxes = incoming.boxes && typeof input.boxes === "object" ? input.boxes : {};
+
+  Object.keys(nextSettings.text).forEach((field) => {
+    const fallback = nextSettings.text[field];
+    const nextValue = typeof incomingText[field] === "string" ? repairPossiblyBrokenText(incomingText[field]) : "";
+    nextSettings.text[field] = nextValue || fallback;
+  });
+
+  Object.keys(nextSettings.cards).forEach((cardId) => {
+    const fallback = nextSettings.cards[cardId];
+    const candidate = incomingCards[cardId] || {};
+    nextSettings.cards[cardId].minHeight = Math.round(Math.max(58, Math.min(640, Number(candidate.minHeight) || fallback.minHeight)));
+  });
+
+  Object.keys(nextSettings.boxes).forEach((boxId) => {
+    nextSettings.boxes[boxId] = sanitizeResizableBox(incomingBoxes[boxId], nextSettings.boxes[boxId], { minWidth: 120, maxWidth: 820, minHeight: 34, maxHeight: 320 });
+  });
+
+  return nextSettings;
+}
+
+function applyAboutPageSettings(settings) {
+  aboutPageSettings = sanitizeAboutPageSettings(settings);
+
+  aboutEditableFields.forEach((field) => {
+    const key = field.dataset.aboutField;
+    if (!key || !(key in aboutPageSettings.text)) {
+      return;
+    }
+    field.textContent = aboutPageSettings.text[key];
+  });
+
+  aboutCards.forEach((card) => {
+    const cardId = card.dataset.aboutCard;
+    const cardSettings = aboutPageSettings.cards[cardId];
+    if (!cardSettings) {
+      return;
+    }
+    card.style.minHeight = cardSettings.minHeight + "px";
+  });
+
+  aboutBoxFields.forEach((box) => {
+    const boxId = box.dataset.aboutBox;
+    const boxSettings = aboutPageSettings.boxes[boxId];
+    if (!boxSettings) {
+      return;
+    }
+    box.style.width = boxSettings.width + "px";
+    box.style.minHeight = boxSettings.height + "px";
+  });
+}
+
+function collectAboutPageSettingsFromDom() {
+  const nextSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+
+  aboutEditableFields.forEach((field) => {
+    const key = field.dataset.aboutField;
+    if (!key) {
+      return;
+    }
+
+    const nextValue = repairPossiblyBrokenText(field.innerText || field.textContent || "");
+    if (nextValue) {
+      nextSettings.text[key] = nextValue;
+    }
+  });
+
+  aboutCards.forEach((card) => {
+    const cardId = card.dataset.aboutCard;
+    const currentCard = nextSettings.cards[cardId];
+    if (!currentCard) {
+      return;
+    }
+    currentCard.minHeight = Math.round(card.getBoundingClientRect().height);
+  });
+
+  aboutBoxFields.forEach((box) => {
+    const boxId = box.dataset.aboutBox;
+    const currentBox = nextSettings.boxes[boxId];
+    if (!currentBox) {
+      return;
+    }
+    const rect = box.getBoundingClientRect();
+    currentBox.width = Math.round(rect.width);
+    currentBox.height = Math.round(rect.height);
+  });
+
+  return sanitizeAboutPageSettings(nextSettings);
+}
+
+function setAboutFieldEditable(field, editable) {
+  if (!field) {
+    return;
+  }
+  if (editable) {
+    field.setAttribute("contenteditable", "plaintext-only");
+    field.setAttribute("spellcheck", "false");
+    field.classList.add("about-field-editable");
+  } else {
+    field.removeAttribute("contenteditable");
+    field.removeAttribute("spellcheck");
+    field.classList.remove("about-field-editable");
+  }
+}
+
+function setAboutPageEditMode(nextMode, options = {}) {
+  const allowEdit = isAdminUser();
+  const shouldEdit = Boolean(nextMode && allowEdit);
+  if (shouldEdit && homePageEditMode) {
+    setHomePageEditMode(false, { restoreSaved: true, silent: true });
+  }
+  aboutPageEditMode = shouldEdit;
+
+  if (!shouldEdit && options.restoreSaved !== false && aboutPageSettings) {
+    applyAboutPageSettings(aboutPageSettings);
+  }
+
+  if (aboutPageRoot) {
+    aboutPageRoot.classList.toggle("is-editing", shouldEdit);
+  }
+
+  aboutEditableFields.forEach((field) => {
+    setAboutFieldEditable(field, shouldEdit);
+  });
+
+  aboutResizeHandles.forEach((handle) => {
+    handle.classList.toggle("hidden", !shouldEdit);
+  });
+
+  if (!options.silent) {
+    renderDashboardEditorToolbar();
+  }
+}
+
+async function loadAboutPageSettings() {
+  let nextSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+
+  if (supabaseClient) {
+    try {
+      const response = await withTimeout(
+        supabaseClient.from("home_page_settings").select("config_json").eq("id", "about").maybeSingle(),
+        "Hakkimizda ayarlarini yukleme"
+      );
+      if (response.error) {
+        throw response.error;
+      }
+      if (response.data && response.data.config_json) {
+        nextSettings = sanitizeAboutPageSettings(response.data.config_json);
+      }
+    } catch (error) {
+      console.warn("Hakkimizda ayarlari okunamadi:", error.message);
+    }
+  }
+
+  applyAboutPageSettings(nextSettings);
+}
+
+async function saveAboutPageSettings() {
+  if (!isAdminUser()) {
+    return;
+  }
+
+  const nextSettings = collectAboutPageSettingsFromDom();
+  dashboardSaveButton.disabled = true;
+  dashboardSaveButton.textContent = "Kaydediliyor...";
+
+  try {
+    if (supabaseClient) {
+      const response = await withTimeout(
+        supabaseClient.from("home_page_settings").upsert({
+          id: "about",
+          config_json: nextSettings,
+          updated_at: new Date().toISOString()
+        }),
+        "Hakkimizda ayarlarini kaydetme"
+      );
+      if (response.error) {
+        throw response.error;
+      }
+    }
+
+    aboutPageSettings = nextSettings;
+    applyAboutPageSettings(nextSettings);
+    setAboutPageEditMode(false, { restoreSaved: false });
+  } catch (error) {
+    console.warn("Hakkimizda ayarlari kaydedilemedi:", error.message);
+    window.alert("Hakkimizda ayarlari kaydedilemedi.");
+  } finally {
+    dashboardSaveButton.disabled = false;
+    dashboardSaveButton.textContent = "Kaydet";
+    renderDashboardEditorToolbar();
+  }
+}
+
+function startAboutPageResize(event) {
+  if (!aboutPageEditMode) {
+    return;
+  }
+
+  const handle = event.target.closest("[data-about-resize]");
+  const card = handle ? handle.closest("[data-about-card]") : null;
+  const cardId = card ? card.dataset.aboutCard : null;
+  if (!card || !cardId) {
+    return;
+  }
+
+  event.preventDefault();
+  const rect = card.getBoundingClientRect();
+  aboutPageResizeState = {
+    pointerId: event.pointerId,
+    card,
+    cardId,
+    startY: event.clientY,
+    startHeight: rect.height
+  };
+
+  handle.setPointerCapture(event.pointerId);
+  document.addEventListener("pointermove", onAboutPageResizeMove);
+  document.addEventListener("pointerup", stopAboutPageResize);
+  document.addEventListener("pointercancel", stopAboutPageResize);
+}
+
+function onAboutPageResizeMove(event) {
+  if (!aboutPageResizeState) {
+    return;
+  }
+  const deltaY = event.clientY - aboutPageResizeState.startY;
+  const nextHeight = Math.max(58, Math.min(640, aboutPageResizeState.startHeight + deltaY));
+  aboutPageResizeState.card.style.minHeight = Math.round(nextHeight) + "px";
+}
+
+function stopAboutPageResize(event) {
+  if (!aboutPageResizeState) {
+    return;
+  }
+  if (event && event.pointerId !== undefined && event.pointerId !== aboutPageResizeState.pointerId) {
+    return;
+  }
+  aboutPageResizeState = null;
+  document.removeEventListener("pointermove", onAboutPageResizeMove);
+  document.removeEventListener("pointerup", stopAboutPageResize);
+  document.removeEventListener("pointercancel", stopAboutPageResize);
+}
+
+function initializeAboutPageEditor() {
+  applyAboutPageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+  aboutResizeHandles.forEach((handle) => {
+    handle.addEventListener("pointerdown", startAboutPageResize);
+  });
+}
+
+function subscribeAboutPageSettings() {
+  if (!supabaseClient || aboutPageSettingsChannel) {
+    return;
+  }
+
+  try {
+    aboutPageSettingsChannel = supabaseClient
+      .channel("line-online-about-page-settings")
+      .on("postgres_changes", { event: "*", schema: "public", table: "home_page_settings" }, (payload) => {
+        const nextRow = payload.new || payload.old;
+        if (!nextRow || nextRow.id !== "about") {
+          return;
+        }
+        if (payload.new && payload.new.config_json) {
+          applyAboutPageSettings(payload.new.config_json);
+        } else {
+          loadAboutPageSettings();
+        }
+      })
+      .subscribe();
+  } catch (error) {
+    console.warn("Hakkimizda realtime baglantisi kurulamad�:", error.message);
+  }
 }
 
 function subscribeToHomePageSettings() {
@@ -5184,7 +5579,7 @@ async function unlockAdminPanel() {
 channelButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const nextView = button.dataset.view;
-    if (homePageEditMode && nextView !== "dashboard") {
+    if (isAnyPageEditorActive() && nextView !== getActiveEditablePageId()) {
       return;
     }
     const label = button.textContent.trim();
@@ -5210,7 +5605,7 @@ channelButtons.forEach((button) => {
 
 viewJumpButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    if (homePageEditMode) {
+    if (isAnyPageEditorActive()) {
       return;
     }
 
@@ -5242,6 +5637,16 @@ if (dashboardEditToggle) {
       return;
     }
 
+    const activeEditablePage = getActiveEditablePageId();
+    if (activeEditablePage === "about") {
+      if (aboutPageEditMode) {
+        setAboutPageEditMode(false, { restoreSaved: true });
+      } else {
+        setAboutPageEditMode(true, { restoreSaved: false });
+      }
+      return;
+    }
+
     if (homePageEditMode) {
       setHomePageEditMode(false, { restoreSaved: true });
       return;
@@ -5252,7 +5657,14 @@ if (dashboardEditToggle) {
 }
 
 if (dashboardSaveButton) {
-  dashboardSaveButton.addEventListener("click", saveHomePageSettings);
+  dashboardSaveButton.addEventListener("click", () => {
+    const activeEditablePage = getActiveEditablePageId();
+    if (activeEditablePage === "about") {
+      saveAboutPageSettings();
+      return;
+    }
+    saveHomePageSettings();
+  });
 }
 
 if (adminMenuButton) {
@@ -5963,12 +6375,15 @@ if (cameraButton && cameraPreview) {
 
 initializeAdminState();
 initializeHomePageEditor();
+initializeAboutPageEditor();
 controlState = readControlState();
 renderQuickControls();
 updateSearchVisibility("dashboard");
 loadNotificationState();
 loadHomePageSettings();
+loadAboutPageSettings();
 subscribeToHomePageSettings();
+subscribeAboutPageSettings();
 loadDmUnreadState();
 renderNotifications();
 renderDmBadge();

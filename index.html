@@ -107,8 +107,8 @@
               <button class="home-card-resize-handle hidden" type="button" data-home-resize="hero" aria-label="Ana kart boyutunu ayarla"></button>
               <div class="home-hero-copy">
                 <p class="eyebrow" data-home-field="heroEyebrow">LINE Online Academy</p>
-                <h3 data-home-field="heroTitle">Muzigi topluluk hissiyle bulusturan kampus</h3>
-                <p data-home-field="heroDescription">
+                <h3 data-home-field="heroTitle" data-home-box="heroTitle">Muzigi topluluk hissiyle bulusturan kampus</h3>
+                <p data-home-field="heroDescription" data-home-box="heroDescription">
                   Line Online Academy; ogrencinin sinifina, materyaline ve canli iletisime
                   tek akista ulasabilecegi premium bir dijital muzik okulu olarak tasarlandi.
                   Ders, sohbet, canli oda ve kutuphane deneyimini tek kampus mantiginda
@@ -127,7 +127,7 @@
                 <img class="home-hero-logo" src="./logo.png" alt="LINE Online Academy logosu" />
                 <div class="home-hero-pulse">
                   <span data-home-field="heroPulseLabel">Topluluk</span>
-                  <strong data-home-field="heroPulseText">Canli siniflar, mesajlasma ve not kutuphanesi ayni deneyimde.</strong>
+                  <strong data-home-field="heroPulseText" data-home-box="heroPulseText">Canli siniflar, mesajlasma ve not kutuphanesi ayni deneyimde.</strong>
                 </div>
               </div>
             </article>
@@ -136,8 +136,8 @@
               <article class="home-info-card featured" data-home-card="featured">
                 <button class="home-card-resize-handle hidden" type="button" data-home-resize="featured" aria-label="Deneyim kartini boyutlandir"></button>
                 <p class="section-kicker" data-home-field="featuredKicker">Deneyim</p>
-                <h4 data-home-field="featuredTitle">Tek panelde okul akisi</h4>
-                <p data-home-field="featuredBody">
+                <h4 data-home-field="featuredTitle" data-home-box="featuredTitle">Tek panelde okul akisi</h4>
+                <p data-home-field="featuredBody" data-home-box="featuredBody">
                   Solda odalar ve siniflar, ortada aktif ders ve icerikler, sagda ise
                   uyeler ve kimlik karti yer alir. Kullanici ilk anda kampusun mantigini
                   kavrar ve kaybolmadan dersine gecer.
@@ -147,26 +147,27 @@
               <article class="home-info-card stat" data-home-card="stat1">
                 <button class="home-card-resize-handle hidden" type="button" data-home-resize="stat1" aria-label="Canli kartini boyutlandir"></button>
                 <span class="home-stat-value" data-home-field="stat1Value">Canli</span>
-                <strong data-home-field="stat1Title">Sesli ve goruntulu siniflar</strong>
-                <p data-home-field="stat1Body">Canli dersler, etut odalari ve yonetim gorusmeleri ayni cati altinda.</p>
+                <strong data-home-field="stat1Title" data-home-box="stat1Title">Sesli ve goruntulu siniflar</strong>
+                <p data-home-field="stat1Body" data-home-box="stat1Body">Canli dersler, etut odalari ve yonetim gorusmeleri ayni cati altinda.</p>
               </article>
 
               <article class="home-info-card stat" data-home-card="stat2">
                 <button class="home-card-resize-handle hidden" type="button" data-home-resize="stat2" aria-label="Akis kartini boyutlandir"></button>
                 <span class="home-stat-value" data-home-field="stat2Value">Akis</span>
-                <strong data-home-field="stat2Title">Mesaj, oda ve kaynak bir arada</strong>
-                <p data-home-field="stat2Body">Metin kanallari, anlik iletisim ve materyal paylasimi kopmadan ilerler.</p>
+                <strong data-home-field="stat2Title" data-home-box="stat2Title">Mesaj, oda ve kaynak bir arada</strong>
+                <p data-home-field="stat2Body" data-home-box="stat2Body">Metin kanallari, anlik iletisim ve materyal paylasimi kopmadan ilerler.</p>
               </article>
             </div>
           </section>
         </section>
-        <section id="about" class="view-panel">
-          <div class="channel-intro">
+        <section id="about" class="view-panel about-editor-page">
+          <div class="channel-intro" data-about-card="intro">
+            <button class="page-card-resize-handle hidden" type="button" data-about-resize="intro" aria-label="Hakkimizda giris alanini boyutlandir"></button>
             <div class="channel-intro-mark">#</div>
             <div class="channel-intro-copy">
-              <p class="eyebrow">Marka Kimligi</p>
-              <h3>Welcome to #hakkimizda.</h3>
-              <p>
+              <p class="eyebrow" data-about-field="introEyebrow">Marka Kimligi</p>
+              <h3 data-about-field="introTitle" data-about-box="introTitle">Welcome to #hakkimizda.</h3>
+              <p data-about-field="introBody" data-about-box="introBody">
                 Burasi Line Online Academy'nin giris noktasi. Kampusun tonu, topluluk
                 yaklasimi ve premium egitim deneyimi burada baslar; kullanici ilk anda
                 bir sunucuda degil, ozel tasarlanmis bir dijital okulda oldugunu hisseder.
@@ -178,19 +179,20 @@
             </div>
           </div>
           <div class="about-layout">
-            <article class="feature-panel statement-panel">
+            <article class="feature-panel statement-panel" data-about-card="statement">
+              <button class="page-card-resize-handle hidden" type="button" data-about-resize="statement" aria-label="Aciklama panelini boyutlandir"></button>
               <div class="message-head">
                 <div class="avatar amber">LA</div>
                 <div>
                   <strong>Line Academy</strong>
-                  <p>Aciklama â€¢ Sabit Mesaj</p>
+                  <p>Aciklama &bull; Sabit Mesaj</p>
                 </div>
               </div>
               <div class="statement-visual"></div>
               <div class="statement-card">
-                <span>Kampus Tasarimi</span>
-                <strong>Topluluk, ders ve oda deneyimi tek omurgada</strong>
-                <p>
+                <span data-about-field="statementLabel">Kampus Tasarimi</span>
+                <strong data-about-field="statementTitle" data-about-box="statementTitle">Topluluk, ders ve oda deneyimi tek omurgada</strong>
+                <p data-about-field="statementBody" data-about-box="statementBody">
                   Sol tarafta yapisal navigasyon, merkezde icerik ve etkilesim, sagda
                   ise kisi ve kimlik alani bulunur. Bu denge Discord hissini korurken
                   urunu daha premium ve kurumsal hale getirir.
@@ -198,30 +200,33 @@
               </div>
             </article>
             <div class="insight-column">
-              <article class="info-card">
-                <p class="section-kicker">Vizyon</p>
-                <h4>Her ders bir oda, her oda bir topluluk</h4>
-                <p>
+              <article class="info-card" data-about-card="vision">
+                <button class="page-card-resize-handle hidden" type="button" data-about-resize="vision" aria-label="Vizyon kartini boyutlandir"></button>
+                <p class="section-kicker" data-about-field="visionKicker">Vizyon</p>
+                <h4 data-about-field="visionTitle" data-about-box="visionTitle">Her ders bir oda, her oda bir topluluk</h4>
+                <p data-about-field="visionBody" data-about-box="visionBody">
                   Ogrenci sinifina girer, materyaline ulasir, hocasiyla gorusur ve
                   toplulukla ayni akista kalir. Arayuz bu gecisi hizlandirmak icin
                   olabildigince tanidik ve net tasarlandi.
                 </p>
               </article>
-              <article class="info-card">
-                <p class="section-kicker">Deneyim</p>
-                <h4>Discord hissi, okul mantigi</h4>
-                <p>
+              <article class="info-card" data-about-card="experience">
+                <button class="page-card-resize-handle hidden" type="button" data-about-resize="experience" aria-label="Deneyim kartini boyutlandir"></button>
+                <p class="section-kicker" data-about-field="experienceKicker">Deneyim</p>
+                <h4 data-about-field="experienceTitle" data-about-box="experienceTitle">Discord hissi, okul mantigi</h4>
+                <p data-about-field="experienceBody" data-about-box="experienceBody">
                   Solda kanal bazli okul haritasi, ortada aktif ders veya bilgi sayfasi,
                   sagda ise roller ve anlik kullanici listesi bulunur. Bu iskelet ileride
                   tam canli ders sistemine kolayca donusebilir.
                 </p>
               </article>
-              <div class="composer-shell">
-                <span>Line Online Academy icinde gezin...</span>
+              <div class="composer-shell" data-about-card="composer">
+                <button class="page-card-resize-handle hidden" type="button" data-about-resize="composer" aria-label="Alt metin alanini boyutlandir"></button>
+                <span data-about-field="composerText" data-about-box="composerText">Line Online Academy icinde gezin...</span>
                 <div class="composer-actions">
                   <span>+</span>
                   <span>GIF</span>
-                  <span>â˜º</span>
+                  <span>&#9786;</span>
                 </div>
               </div>
             </div>
