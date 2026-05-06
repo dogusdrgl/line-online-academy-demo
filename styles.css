@@ -5136,12 +5136,14 @@ button {
 .home-dashboard.is-editing [data-home-box],
 .about-editor-page.is-editing [data-about-box] {
   display: block;
+  position: relative;
   overflow: auto;
   resize: both;
-  max-width: 100%;
+  max-width: none;
   min-width: 120px;
   min-height: 34px;
-  padding: 2px 4px;
+  padding: 8px 10px 10px;
+  z-index: 1;
 }
 
 .home-dashboard.is-editing [data-home-box]:focus,
@@ -5157,4 +5159,129 @@ button {
 .about-editor-page.is-editing .info-card,
 .about-editor-page.is-editing .composer-shell {
   position: relative;
+}
+
+
+.home-dashboard,
+#about.active {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#about.active {
+  display: block;
+  height: calc(100vh - var(--topbar-height));
+  padding: 18px 18px 110px;
+}
+
+#about .channel-intro-mark,
+#about .logo-badge {
+  display: none;
+}
+
+#about .channel-intro {
+  display: block;
+  padding: 0 0 18px;
+  border-bottom: 0;
+}
+
+#about .about-intro-card,
+#about .statement-panel,
+#about .info-card,
+#about .composer-shell {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+}
+
+#about .about-intro-card {
+  padding: 24px 22px;
+}
+
+#about .channel-intro-copy {
+  max-width: none;
+}
+
+#about .about-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 0;
+  align-items: start;
+}
+
+#about .statement-panel {
+  grid-column: 1 / -1;
+  padding: 20px;
+}
+
+#about .statement-visual {
+  display: none;
+}
+
+#about .statement-card {
+  margin-top: 18px;
+}
+
+#about .insight-column {
+  display: contents;
+}
+
+#about .composer-shell {
+  grid-column: 1 / -1;
+  min-height: 78px;
+}
+
+.editable-box-drag-handle {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(241, 161, 38, 0.94);
+  color: transparent;
+  cursor: grab;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  display: none;
+}
+
+.editable-box-drag-handle::before {
+  content: "Tasi";
+  color: #1f1304;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.home-dashboard.is-editing .editable-box-drag-handle,
+.about-editor-page.is-editing .editable-box-drag-handle {
+  display: inline-grid;
+  place-items: center;
+}
+
+.home-dashboard.is-editing .editable-box-drag-handle:active,
+.about-editor-page.is-editing .editable-box-drag-handle:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 920px), (max-width: 1024px) and (orientation: portrait) {
+  #about.active {
+    height: auto;
+    min-height: calc(100dvh - 70px);
+    padding: 16px 14px 120px;
+  }
+
+  #about .about-layout {
+    grid-template-columns: 1fr;
+  }
+
+  #about .statement-panel,
+  #about .composer-shell {
+    grid-column: auto;
+  }
 }

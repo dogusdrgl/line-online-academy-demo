@@ -1,4 +1,4 @@
-﻿const PUBLIC_VIEWS = new Set(["dashboard", "about"]);
+const PUBLIC_VIEWS = new Set(["dashboard", "about"]);
 const TEXT_CHANNEL_VIEWS = new Set([
   "contact",
   "support",
@@ -18,15 +18,15 @@ const PERMISSION_OPTIONS = [
 ];
 
 const VOICE_ROOM_LABELS = {
-  "waiting-room": "Bekleme Odası",
-  "meeting-room": "Görüşme Odası",
-  "admin-room": "Yönetim Odası",
-  "trainer-room": "Eğitmen Odası",
-  "board-room": "Toplantı Salonu",
-  "class-1": "Sınıf 1",
-  "class-2": "Sınıf 2",
-  "class-3": "Sınıf 3",
-  "class-4": "Sınıf 4",
+  "waiting-room": "Bekleme Odas�",
+  "meeting-room": "G�r��me Odas�",
+  "admin-room": "Y�netim Odas�",
+  "trainer-room": "E�itmen Odas�",
+  "board-room": "Toplant� Salonu",
+  "class-1": "S�n�f 1",
+  "class-2": "S�n�f 2",
+  "class-3": "S�n�f 3",
+  "class-4": "S�n�f 4",
   "table-1": "Masa 1",
   "table-2": "Masa 2",
   "vip-loca": "Loca"
@@ -225,6 +225,7 @@ let aboutPageEditMode = false;
 let aboutPageSettingsChannel = null;
 let aboutPageResizeState = null;
 let aboutPageSettings = null;
+let activeEditableBoxDrag = null;
 
 const DEFAULT_HOME_PAGE_SETTINGS = {
   text: {
@@ -252,22 +253,22 @@ const DEFAULT_HOME_PAGE_SETTINGS = {
     stat2: { minHeight: 146, colSpan: 1 }
   },
   boxes: {
-    heroTitle: { width: 260, height: 150 },
-    heroDescription: { width: 560, height: 96 },
-    heroPulseText: { width: 250, height: 58 },
-    featuredTitle: { width: 240, height: 42 },
-    featuredBody: { width: 560, height: 78 },
-    stat1Title: { width: 240, height: 48 },
-    stat1Body: { width: 240, height: 54 },
-    stat2Title: { width: 240, height: 48 },
-    stat2Body: { width: 240, height: 54 }
+    heroTitle: { width: 720, height: 98, x: 0, y: 0 },
+    heroDescription: { width: 620, height: 116, x: 0, y: 0 },
+    heroPulseText: { width: 300, height: 70, x: 0, y: 0 },
+    featuredTitle: { width: 310, height: 52, x: 0, y: 0 },
+    featuredBody: { width: 560, height: 108, x: 0, y: 0 },
+    stat1Title: { width: 280, height: 52, x: 0, y: 0 },
+    stat1Body: { width: 260, height: 92, x: 0, y: 0 },
+    stat2Title: { width: 290, height: 52, x: 0, y: 0 },
+    stat2Body: { width: 260, height: 92, x: 0, y: 0 }
   }
 };
 
 const DEFAULT_ABOUT_PAGE_SETTINGS = {
   text: {
     introEyebrow: "Marka Kimligi",
-    introTitle: "Welcome to #hakkimizda.",
+    introTitle: "Welcome to hakkimizda.",
     introBody: "Burasi Line Online Academy'nin giris noktasi. Kampusun tonu, topluluk yaklasimi ve premium egitim deneyimi burada baslar; kullanici ilk anda bir sunucuda degil, ozel tasarlanmis bir dijital okulda oldugunu hisseder.",
     statementLabel: "Kampus Tasarimi",
     statementTitle: "Topluluk, ders ve oda deneyimi tek omurgada",
@@ -281,22 +282,22 @@ const DEFAULT_ABOUT_PAGE_SETTINGS = {
     composerText: "Line Online Academy icinde gezin..."
   },
   cards: {
-    intro: { minHeight: 180 },
-    statement: { minHeight: 330 },
-    vision: { minHeight: 180 },
-    experience: { minHeight: 180 },
-    composer: { minHeight: 58 }
+    intro: { minHeight: 232 },
+    statement: { minHeight: 360 },
+    vision: { minHeight: 210 },
+    experience: { minHeight: 210 },
+    composer: { minHeight: 78 }
   },
   boxes: {
-    introTitle: { width: 420, height: 58 },
-    introBody: { width: 700, height: 110 },
-    statementTitle: { width: 350, height: 52 },
-    statementBody: { width: 360, height: 112 },
-    visionTitle: { width: 320, height: 46 },
-    visionBody: { width: 330, height: 92 },
-    experienceTitle: { width: 320, height: 46 },
-    experienceBody: { width: 330, height: 92 },
-    composerText: { width: 260, height: 34 }
+    introTitle: { width: 560, height: 130, x: 0, y: 0 },
+    introBody: { width: 760, height: 120, x: 0, y: 0 },
+    statementTitle: { width: 420, height: 58, x: 0, y: 0 },
+    statementBody: { width: 420, height: 110, x: 0, y: 0 },
+    visionTitle: { width: 360, height: 58, x: 0, y: 0 },
+    visionBody: { width: 360, height: 104, x: 0, y: 0 },
+    experienceTitle: { width: 360, height: 58, x: 0, y: 0 },
+    experienceBody: { width: 360, height: 110, x: 0, y: 0 },
+    composerText: { width: 320, height: 40, x: 0, y: 0 }
   }
 };
 
@@ -377,7 +378,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/help • /achievements",
+    subtitle: "/help � /achievements",
     bot: true
   },
   {
@@ -386,7 +387,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/soru • /cevap",
+    subtitle: "/soru � /cevap",
     bot: true
   },
   {
@@ -577,12 +578,12 @@ function escapeHtml(text) {
 function normalizeMention(text) {
   return (text || "")
     .toLowerCase()
-    .replace(/ÄŸ/g, "g")
-    .replace(/Ã¼/g, "u")
-    .replace(/ÅŸ/g, "s")
-    .replace(/Ä±/g, "i")
-    .replace(/Ã¶/g, "o")
-    .replace(/Ã§/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
     .replace(/[^a-z0-9]+/g, "");
 }
 
@@ -2084,11 +2085,11 @@ function initializeVoiceRooms() {
     callShell.innerHTML = `
       <div class="voice-call-lobby">
         <div class="voice-lobby-orb">&#127911;</div>
-        <p class="section-kicker">Sesli Toplantı</p>
+        <p class="section-kicker">Sesli Toplant�</p>
         <h3>${escapeHtml(roomLabel)}</h3>
-        <p>Bu odaya katılarak mikrofonunu kullanabilir, kameranı açabilir ve diğer katılımcılarla görüşebilirsin.</p>
-        <button class="accent-button" type="button" data-voice-join>Sesli Toplantıya Gir</button>
-        <span data-voice-status>Odaya katılmaya hazır.</span>
+        <p>Bu odaya kat�larak mikrofonunu kullanabilir, kameran� a�abilir ve di�er kat�l�mc�larla g�r��ebilirsin.</p>
+        <button class="accent-button" type="button" data-voice-join>Sesli Toplant�ya Gir</button>
+        <span data-voice-status>Odaya kat�lmaya haz�r.</span>
       </div>
       <div class="voice-call-stage">
         <button class="voice-fullscreen-exit" type="button" data-voice-exit-fullscreen aria-label="Tam ekrandan cik">&#10005;</button>
@@ -2098,21 +2099,21 @@ function initializeVoiceRooms() {
             <h4>${escapeHtml(roomLabel)}</h4>
           </div>
           <div class="voice-call-top-actions">
-            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henüz kimse yok.</p></div>
-            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini aç veya kapat">&#128172;</button>
+            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada hen�z kimse yok.</p></div>
+            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini a� veya kapat">&#128172;</button>
           </div>
         </div>
         <div class="voice-stage-layout">
           <div class="voice-call-grid" data-voice-grid></div>
           <aside class="voice-chat-panel">
-            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini aç veya kapat">
+            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini a� veya kapat">
               <span class="voice-chat-handle-icon" data-voice-chat-toggle-label>></span>
               <strong class="voice-chat-handle-unread hidden" data-voice-chat-handle-unread>0</strong>
             </button>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
-              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasına mesaj yaz..." maxlength="240" />
-              <button class="composer-submit" type="submit">Gönder</button>
+              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odas�na mesaj yaz..." maxlength="240" />
+              <button class="composer-submit" type="submit">G�nder</button>
             </form>
           </aside>
         </div>
@@ -2122,7 +2123,7 @@ function initializeVoiceRooms() {
           <button class="voice-control" type="button" data-voice-share><span>&#128421;</span><small>Ekran</small></button>
           <button class="voice-control" type="button" data-voice-activity><span>&#10022;</span><small>Aktivite</small></button>
           <button class="voice-control" type="button" data-voice-more><span>&#8942;</span><small>Daha</small></button>
-          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#9742;</span><small>Ayrıl</small></button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#9742;</span><small>Ayr�l</small></button>
         </div>
       </div>
     `;
@@ -2766,7 +2767,7 @@ function renderMembersSidebar() {
 
       return `
         <div class="members-group">
-          <p class="member-heading">${group} — ${grouped[group].length}</p>
+          <p class="member-heading">${group} � ${grouped[group].length}</p>
           ${memberRows}
         </div>
       `;
@@ -2845,30 +2846,40 @@ function cloneHomePageSettings(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function readEditableFieldText(field) {
+  if (!field) {
+    return "";
+  }
+
+  const clone = field.cloneNode(true);
+  clone.querySelectorAll(".editable-box-drag-handle").forEach((handle) => handle.remove());
+  return repairPossiblyBrokenText(clone.innerText || clone.textContent || "");
+}
+
 function repairPossiblyBrokenText(value) {
   if (typeof value !== "string") {
     return "";
   }
 
   return value
-    .replace(/Ã¼/g, "u")
-    .replace(/Ãœ/g, "U")
-    .replace(/Ã¶/g, "o")
-    .replace(/Ã–/g, "O")
-    .replace(/Ä±/g, "i")
-    .replace(/Ä°/g, "I")
-    .replace(/ÅŸ/g, "s")
-    .replace(/Åž/g, "S")
-    .replace(/Ã§/g, "c")
-    .replace(/Ã‡/g, "C")
-    .replace(/ÄŸ/g, "g")
-    .replace(/Äž/g, "G")
-    .replace(/â€¢/g, "•")
-    .replace(/â€“/g, "-")
-    .replace(/â€”/g, "-")
-    .replace(/â€œ|â€/g, '"')
-    .replace(/â€˜|â€™/g, "'")
-    .replace(/ï¿½|�/g, "")
+    .replace(/\u00c3\u00bc/g, "u")
+    .replace(/\u00c3\u0153/g, "U")
+    .replace(/\u00c3\u00b6/g, "o")
+    .replace(/\u00c3\u2013/g, "O")
+    .replace(/\u00c4\u00b1/g, "i")
+    .replace(/\u00c4\u00b0/g, "I")
+    .replace(/\u00c5\u0178/g, "s")
+    .replace(/\u00c5\u017d/g, "S")
+    .replace(/\u00c3\u00a7/g, "c")
+    .replace(/\u00c3\u2021/g, "C")
+    .replace(/\u00c4\u0178/g, "g")
+    .replace(/\u00c4\u017e/g, "G")
+    .replace(/\u00e2\u20ac\u00a2/g, "•")
+    .replace(/\u00e2\u20ac\u201c/g, "-")
+    .replace(/\u00e2\u20ac\u201d/g, "-")
+    .replace(/\u00e2\u20ac\u0153|\u00e2\u20ac\u009d/g, '"')
+    .replace(/\u00e2\u20ac\u02dc|\u00e2\u20ac\u2122/g, "'")
+    .replace(/\u00ef\u00bf\u00bd|�/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -2878,10 +2889,16 @@ function sanitizeResizableBox(candidate, fallback, options = {}) {
   const maxWidth = options.maxWidth || 900;
   const minHeight = options.minHeight || 42;
   const maxHeight = options.maxHeight || 420;
+  const minOffsetX = options.minOffsetX || -420;
+  const maxOffsetX = options.maxOffsetX || 420;
+  const minOffsetY = options.minOffsetY || -260;
+  const maxOffsetY = options.maxOffsetY || 260;
 
   return {
     width: Math.round(Math.max(minWidth, Math.min(maxWidth, Number(candidate?.width) || fallback.width))),
-    height: Math.round(Math.max(minHeight, Math.min(maxHeight, Number(candidate?.height) || fallback.height)))
+    height: Math.round(Math.max(minHeight, Math.min(maxHeight, Number(candidate?.height) || fallback.height))),
+    x: Math.round(Math.max(minOffsetX, Math.min(maxOffsetX, Number(candidate?.x) || fallback.x || 0))),
+    y: Math.round(Math.max(minOffsetY, Math.min(maxOffsetY, Number(candidate?.y) || fallback.y || 0)))
   };
 }
 
@@ -2911,7 +2928,7 @@ function sanitizeHomePageSettings(input) {
   });
 
   Object.keys(nextSettings.boxes).forEach((boxId) => {
-    nextSettings.boxes[boxId] = sanitizeResizableBox(incomingBoxes[boxId], nextSettings.boxes[boxId], { minWidth: 120, maxWidth: 760, minHeight: 42, maxHeight: 280 });
+    nextSettings.boxes[boxId] = sanitizeResizableBox(incomingBoxes[boxId], nextSettings.boxes[boxId], { minWidth: 120, maxWidth: 960, minHeight: 42, maxHeight: 320 });
   });
 
   return nextSettings;
@@ -2952,7 +2969,10 @@ function applyHomePageSettings(settings) {
     }
 
     box.style.width = boxSettings.width + "px";
-    box.style.minHeight = boxSettings.height + "px";
+    box.style.height = boxSettings.height + "px";
+    box.dataset.boxX = String(boxSettings.x || 0);
+    box.dataset.boxY = String(boxSettings.y || 0);
+    box.style.transform =       "translate(" + (boxSettings.x || 0) + "px, " + (boxSettings.y || 0) + "px)";
   });
 }
 
@@ -2965,7 +2985,7 @@ function collectHomePageSettingsFromDom() {
       return;
     }
 
-    const nextValue = repairPossiblyBrokenText(field.innerText || field.textContent || "");
+    const nextValue = readEditableFieldText(field);
     if (nextValue) {
       nextSettings.text[key] = nextValue;
     }
@@ -2995,6 +3015,8 @@ function collectHomePageSettingsFromDom() {
     const rect = box.getBoundingClientRect();
     currentBox.width = Math.round(rect.width);
     currentBox.height = Math.round(rect.height);
+    currentBox.x = Number(box.dataset.boxX || 0);
+    currentBox.y = Number(box.dataset.boxY || 0);
   });
 
   return sanitizeHomePageSettings(nextSettings);
@@ -3014,6 +3036,82 @@ function setHomeFieldEditable(field, editable) {
     field.removeAttribute("spellcheck");
     field.classList.remove("home-field-editable");
   }
+}
+
+function ensureEditableBoxHandles(boxes, type) {
+  boxes.forEach((box) => {
+    if (box.querySelector(".editable-box-drag-handle")) {
+      return;
+    }
+    const handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "editable-box-drag-handle";
+    handle.dataset.dragType = type;
+    handle.setAttribute("aria-label", "Kutuyu tasi");
+    handle.setAttribute("title", "Kutuyu tasi");
+    handle.setAttribute("contenteditable", "false");
+    box.appendChild(handle);
+  });
+}
+
+function startEditableBoxDrag(event) {
+  const handle = event.target.closest(".editable-box-drag-handle");
+  if (!handle) {
+    return;
+  }
+
+  const box = handle.parentElement;
+  if (!box) {
+    return;
+  }
+
+  const isHomeBox = box.hasAttribute("data-home-box");
+  const isAboutBox = box.hasAttribute("data-about-box");
+  if (!(isHomeBox && homePageEditMode) && !(isAboutBox && aboutPageEditMode)) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  activeEditableBoxDrag = {
+    pointerId: event.pointerId,
+    box,
+    startX: event.clientX,
+    startY: event.clientY,
+    originX: Number(box.dataset.boxX || 0),
+    originY: Number(box.dataset.boxY || 0)
+  };
+
+  handle.setPointerCapture(event.pointerId);
+  document.addEventListener("pointermove", onEditableBoxDragMove);
+  document.addEventListener("pointerup", stopEditableBoxDrag);
+  document.addEventListener("pointercancel", stopEditableBoxDrag);
+}
+
+function onEditableBoxDragMove(event) {
+  if (!activeEditableBoxDrag) {
+    return;
+  }
+
+  const nextX = Math.round(activeEditableBoxDrag.originX + (event.clientX - activeEditableBoxDrag.startX));
+  const nextY = Math.round(activeEditableBoxDrag.originY + (event.clientY - activeEditableBoxDrag.startY));
+  activeEditableBoxDrag.box.dataset.boxX = String(nextX);
+  activeEditableBoxDrag.box.dataset.boxY = String(nextY);
+  activeEditableBoxDrag.box.style.transform = "translate(" + nextX + "px, " + nextY + "px)";
+}
+
+function stopEditableBoxDrag(event) {
+  if (!activeEditableBoxDrag) {
+    return;
+  }
+  if (event && event.pointerId !== undefined && event.pointerId !== activeEditableBoxDrag.pointerId) {
+    return;
+  }
+  activeEditableBoxDrag = null;
+  document.removeEventListener("pointermove", onEditableBoxDragMove);
+  document.removeEventListener("pointerup", stopEditableBoxDrag);
+  document.removeEventListener("pointercancel", stopEditableBoxDrag);
 }
 
 function getActiveEditablePageId() {
@@ -3226,6 +3324,7 @@ function stopHomePageResize(event) {
 function initializeHomePageEditor() {
   applyHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
   renderDashboardEditorToolbar();
+  ensureEditableBoxHandles(homeBoxFields, "home");
   homeResizeHandles.forEach((handle) => {
     handle.addEventListener("pointerdown", startHomePageResize);
   });
@@ -3284,7 +3383,10 @@ function applyAboutPageSettings(settings) {
       return;
     }
     box.style.width = boxSettings.width + "px";
-    box.style.minHeight = boxSettings.height + "px";
+    box.style.height = boxSettings.height + "px";
+    box.dataset.boxX = String(boxSettings.x || 0);
+    box.dataset.boxY = String(boxSettings.y || 0);
+    box.style.transform = "translate(" + (boxSettings.x || 0) + "px, " + (boxSettings.y || 0) + "px)";
   });
 }
 
@@ -3297,7 +3399,7 @@ function collectAboutPageSettingsFromDom() {
       return;
     }
 
-    const nextValue = repairPossiblyBrokenText(field.innerText || field.textContent || "");
+    const nextValue = readEditableFieldText(field);
     if (nextValue) {
       nextSettings.text[key] = nextValue;
     }
@@ -3321,6 +3423,8 @@ function collectAboutPageSettingsFromDom() {
     const rect = box.getBoundingClientRect();
     currentBox.width = Math.round(rect.width);
     currentBox.height = Math.round(rect.height);
+    currentBox.x = Number(box.dataset.boxX || 0);
+    currentBox.y = Number(box.dataset.boxY || 0);
   });
 
   return sanitizeAboutPageSettings(nextSettings);
@@ -3387,7 +3491,10 @@ async function loadAboutPageSettings() {
       }
     } catch (error) {
       console.warn("Hakkimizda ayarlari okunamadi:", error.message);
+      nextSettings = sanitizeAboutPageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS));
     }
+  } else {
+    nextSettings = sanitizeAboutPageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS));
   }
 
   applyAboutPageSettings(nextSettings);
@@ -3422,7 +3529,11 @@ async function saveAboutPageSettings() {
     setAboutPageEditMode(false, { restoreSaved: false });
   } catch (error) {
     console.warn("Hakkimizda ayarlari kaydedilemedi:", error.message);
-    window.alert("Hakkimizda ayarlari kaydedilemedi.");
+    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextSettings);
+    aboutPageSettings = nextSettings;
+    applyAboutPageSettings(nextSettings);
+    setAboutPageEditMode(false, { restoreSaved: false });
+    window.alert("Ortak kayit alinamadi. Hakkimizda ayarlari bu tarayicida saklandi.");
   } finally {
     dashboardSaveButton.disabled = false;
     dashboardSaveButton.textContent = "Kaydet";
@@ -3482,6 +3593,7 @@ function stopAboutPageResize(event) {
 
 function initializeAboutPageEditor() {
   applyAboutPageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+  ensureEditableBoxHandles(aboutBoxFields, "about");
   aboutResizeHandles.forEach((handle) => {
     handle.addEventListener("pointerdown", startAboutPageResize);
   });
@@ -3508,7 +3620,7 @@ function subscribeAboutPageSettings() {
       })
       .subscribe();
   } catch (error) {
-    console.warn("Hakkimizda realtime baglantisi kurulamad�:", error.message);
+    console.warn("Hakkimizda realtime baglantisi kurulamad?:", error.message);
   }
 }
 
@@ -3534,7 +3646,7 @@ function subscribeToHomePageSettings() {
       })
       .subscribe();
   } catch (error) {
-    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamadı:", error.message);
+    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamad�:", error.message);
   }
 }
 
@@ -3554,7 +3666,7 @@ function refreshChatAdminControls() {
       button.type = "button";
       button.dataset.deleteMessage = messageId;
       button.setAttribute("aria-label", "Mesaji sil");
-      button.textContent = "ğŸ—‘";
+      button.textContent = "🗑";
       line.appendChild(button);
     }
   });
@@ -3596,7 +3708,7 @@ function initializeStaticMessageControls() {
     const button = document.createElement("button");
     button.className = "static-message-delete message-delete";
     button.type = "button";
-    button.textContent = "ğŸ—‘";
+    button.textContent = "🗑";
     button.setAttribute("aria-label", "Sabit mesaji temizle");
     button.addEventListener("click", () => {
       if (!isAdminUser()) {
@@ -3615,7 +3727,7 @@ function createMessageLine(message) {
   line.classList.toggle("mentioned-me", messageMentionsCurrentUser(message));
   line.innerHTML = `
     <p>${renderMessageContent(message.content)}</p>
-    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">ğŸ—‘</button>` : ""}
+    ${isAdminUser() && message.id ? `<button class="message-delete" type="button" data-delete-message="${escapeHtml(message.id)}" aria-label="Mesaji sil">🗑</button>` : ""}
   `;
   attachDeleteHandlers(line);
   return line;
@@ -4876,7 +4988,7 @@ function renderAdminUsers() {
 }
 
 async function resetUsersExceptOwner() {
-  const confirmed = window.confirm("Doğuş hesabı dışındaki tüm kullanıcı kayıtlarını sıfırlamak istiyor musun?");
+  const confirmed = window.confirm("Do�u� hesab� d���ndaki t�m kullan�c� kay�tlar�n� s�f�rlamak istiyor musun?");
   if (!confirmed) {
     return;
   }
@@ -6344,6 +6456,8 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+document.addEventListener("pointerdown", startEditableBoxDrag);
+
 if (cameraButton && cameraPreview) {
   cameraButton.addEventListener("click", async () => {
     if (authState.mode === "visitor") {
@@ -6456,6 +6570,7 @@ window.addEventListener("pagehide", () => {
   }
   sendPresenceKeepalive(currentUserId, false);
 });
+
 
 
 
