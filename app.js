@@ -18,15 +18,15 @@ const PERMISSION_OPTIONS = [
 ];
 
 const VOICE_ROOM_LABELS = {
-  "waiting-room": "Bekleme Odas�",
-  "meeting-room": "G�r��me Odas�",
-  "admin-room": "Y�netim Odas�",
-  "trainer-room": "E�itmen Odas�",
-  "board-room": "Toplant� Salonu",
-  "class-1": "S�n�f 1",
-  "class-2": "S�n�f 2",
-  "class-3": "S�n�f 3",
-  "class-4": "S�n�f 4",
+  "waiting-room": "Bekleme Odası",
+  "meeting-room": "Görüşme Odası",
+  "admin-room": "Yönetim Odası",
+  "trainer-room": "Eğitmen Odası",
+  "board-room": "Toplantı Salonu",
+  "class-1": "Sınıf 1",
+  "class-2": "Sınıf 2",
+  "class-3": "Sınıf 3",
+  "class-4": "Sınıf 4",
   "table-1": "Masa 1",
   "table-2": "Masa 2",
   "vip-loca": "Loca"
@@ -172,6 +172,7 @@ let authState = {
   name: "Ziyaretci",
   role: "Ziyaretci",
   roleId: null,
+  roleIds: [],
   userId: null,
   isMuted: false,
   isBanned: false,
@@ -491,7 +492,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/help � /achievements",
+    subtitle: "/help • /achievements",
     bot: true
   },
   {
@@ -500,7 +501,7 @@ const members = [
     roleId: "assistant",
     avatarClass: "blue",
     group: "Asistan",
-    subtitle: "/soru � /cevap",
+    subtitle: "/soru • /cevap",
     bot: true
   },
   {
@@ -508,7 +509,7 @@ const members = [
     name: "Dilara",
     roleId: "guest",
     avatarClass: "green",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Misafir"
   },
   {
@@ -516,7 +517,7 @@ const members = [
     name: "Ezgi",
     roleId: "student",
     avatarClass: "coral",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Piyano Ogrencisi"
   },
   {
@@ -524,7 +525,7 @@ const members = [
     name: "Mert",
     roleId: "student",
     avatarClass: "amber",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Davul Ogrencisi"
   }
 ];
@@ -666,6 +667,51 @@ function getSortedRoles() {
     const secondOrder = Number(secondRole.order ?? 99);
     return firstOrder - secondOrder || firstRole.name.localeCompare(secondRole.name, "tr");
   });
+}
+
+function normalizeRoleIds(roleIds, fallbackRoleId = "student") {
+  const incoming = Array.isArray(roleIds)
+    ? roleIds
+    : roleIds
+      ? [roleIds]
+      : [];
+  const validRoleIds = incoming.filter((roleId, index) => roleId && roles.some((role) => role.id === roleId) && incoming.indexOf(roleId) === index);
+  return validRoleIds.length ? validRoleIds : [fallbackRoleId];
+}
+
+function getPrimaryRoleIdFromRoleIds(roleIds, fallbackRoleId = "student") {
+  const normalized = normalizeRoleIds(roleIds, fallbackRoleId);
+  return normalized
+    .slice()
+    .sort((firstRoleId, secondRoleId) => {
+      const firstRole = getRole(firstRoleId);
+      const secondRole = getRole(secondRoleId);
+      const firstOrder = Number(firstRole?.order ?? 99);
+      const secondOrder = Number(secondRole?.order ?? 99);
+      return firstOrder - secondOrder || String(firstRole?.name || firstRoleId).localeCompare(String(secondRole?.name || secondRoleId), "tr");
+    })[0];
+}
+
+function getRoleIdsForMember(member) {
+  return normalizeRoleIds(member?.roleIds || member?.role_ids || member?.roleId || member?.role_id, member?.roleId || member?.role_id || "student");
+}
+
+function getPrimaryRoleIdForMember(member) {
+  return getPrimaryRoleIdFromRoleIds(getRoleIdsForMember(member), member?.roleId || member?.role_id || "student");
+}
+
+function getRoleNamesFromRoleIds(roleIds) {
+  return normalizeRoleIds(roleIds)
+    .map((roleId) => getRole(roleId)?.name || roleId)
+    .filter(Boolean);
+}
+
+function getRoleLabelFromRoleIds(roleIds, separator = " • ") {
+  return getRoleNamesFromRoleIds(roleIds).join(separator);
+}
+
+function getRoleColorFromRoleIds(roleIds) {
+  return getRole(getPrimaryRoleIdFromRoleIds(roleIds))?.color || "#f1a126";
 }
 
 function slugify(text) {
@@ -2193,8 +2239,8 @@ function initializeVoiceRooms() {
 
     const roomLabel = VOICE_ROOM_LABELS[panel.id] || panel.querySelector("h3")?.textContent || "Oda";
     const isClassRoom = /^class-\d+$/.test(panel.id);
-    const voiceLobbyKicker = isClassRoom ? "Ders Basliyor" : "Sesli Toplanti";
-    const voiceJoinLabel = isClassRoom ? "Derse Gir" : "Sesli Toplantiya Gir";
+    const voiceLobbyKicker = isClassRoom ? "Ders Başlıyor" : "Sesli Toplantı";
+    const voiceJoinLabel = isClassRoom ? "Derse Gir" : "Sesli Toplantıya Gir";
     const callShell = document.createElement("section");
     callShell.className = "voice-call-shell";
     callShell.dataset.voiceCall = panel.id;
@@ -2416,7 +2462,7 @@ function ensureSidebarMember(user) {
     roleId: user.roleId,
     avatarImage: user.avatarImage || null,
     avatarClass: user.roleId === "guest" ? "amber" : "green",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: getRole(user.roleId)?.name || (user.roleId === "guest" ? "Misafir" : "Uye"),
     isOnline: true
   };
@@ -2458,12 +2504,15 @@ function withTimeout(promise, label = "Supabase istegi") {
 }
 
 function currentPermissions() {
-  if (!authState.roleId) {
-    return [];
-  }
+  const roleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student");
+  const permissions = new Set();
 
-  const role = getRole(authState.roleId);
-  return role ? role.permissions : [];
+  roleIds.forEach((roleId) => {
+    const role = getRole(roleId);
+    (role?.permissions || []).forEach((permission) => permissions.add(permission));
+  });
+
+  return Array.from(permissions);
 }
 
 function hasPermission(permission) {
@@ -2568,14 +2617,19 @@ function mergeMembersPreferred(currentMember, nextMember) {
     }
   }
 
+  const mergedRoleIds = normalizeRoleIds(primary.roleIds || primary.role_id || primary.roleId || secondary.roleIds || secondary.role_id || secondary.roleId, primary.roleId || secondary.roleId || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(mergedRoleIds, primary.roleId || secondary.roleId || "student");
+
   return {
     ...secondary,
     ...primary,
     id: primary.id || secondary.id,
     name: primary.name || secondary.name,
     display_name: primary.display_name || secondary.display_name,
-    roleId: primary.roleId || secondary.roleId,
-    role_id: primary.role_id || secondary.role_id,
+    roleIds: mergedRoleIds,
+    role_ids: mergedRoleIds,
+    roleId: primaryRoleId,
+    role_id: primaryRoleId,
     avatarImage: primary.avatarImage || secondary.avatarImage || null,
     isOnline: Boolean(primary.isOnline || secondary.isOnline || primary.bot || secondary.bot),
     isGuest: Boolean(primary.isGuest || secondary.isGuest || primary.is_guest || secondary.is_guest),
@@ -2608,9 +2662,10 @@ function getAllMembers() {
       id: authState.userId,
       name: authState.name,
       roleId: authState.roleId,
+      roleIds: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student"),
       avatarImage: authState.avatarImage || null,
       isOnline: true,
-      isGuest: authState.roleId === "guest"
+      isGuest: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student").includes("guest")
     };
     const identityKey = getMemberIdentityKey(selfMember);
     if (identityKey) {
@@ -2623,15 +2678,22 @@ function getAllMembers() {
 
 function getVisibleMembers() {
   return getAllMembers().map((member) => {
-    const role = getRole(member.roleId);
+    const roleIds = getRoleIdsForMember(member);
+    const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, member.roleId || "student");
+    const primaryRole = getRole(primaryRoleId);
     const isOnline = Boolean(member.isOnline || member.bot);
+    const roleLabel = getRoleLabelFromRoleIds(roleIds);
 
     return {
       ...member,
-      group: isOnline ? role?.name || "Uye" : "Cevrimdisi",
-      roleName: role ? role.name : "Rol Yok",
-      subtitle: member.bot ? member.subtitle : isOnline ? role?.name || "Uye" : "Cevrimdisi",
-      roleOrder: role?.order ?? 99
+      roleIds,
+      roleId: primaryRoleId,
+      role_id: primaryRoleId,
+      group: isOnline ? primaryRole?.name || "Uye" : "Çevrimdışı",
+      roleName: primaryRole ? primaryRole.name : "Rol Yok",
+      subtitle: member.bot ? member.subtitle : isOnline ? roleLabel || primaryRole?.name || "Uye" : (roleLabel ? `Çevrimdışı • ${roleLabel}` : "Çevrimdışı"),
+      roleOrder: primaryRole?.order ?? 99,
+      roleLabel
     };
   });
 }
@@ -2838,9 +2900,23 @@ function renderMembersSidebar() {
     return accumulator;
   }, {});
 
+  Object.values(grouped).forEach((membersInGroup) => {
+    membersInGroup.sort((firstMember, secondMember) => {
+      const firstOnline = Boolean(firstMember.isOnline || firstMember.bot);
+      const secondOnline = Boolean(secondMember.isOnline || secondMember.bot);
+      if (firstOnline !== secondOnline) {
+        return firstOnline ? -1 : 1;
+      }
+
+      const firstRoleOrder = Number(firstMember.roleOrder ?? 99);
+      const secondRoleOrder = Number(secondMember.roleOrder ?? 99);
+      return firstRoleOrder - secondRoleOrder || String(firstMember.name || "").localeCompare(String(secondMember.name || ""), "tr");
+    });
+  });
+
   const order = [
     ...getSortedRoles().map((role) => role.name),
-    "Cevrimdisi"
+    "Çevrimdışı"
   ];
 
   membersGroups.innerHTML = order
@@ -2858,10 +2934,10 @@ function renderMembersSidebar() {
           const isOffline = !(member.isOnline || member.bot);
           const subtitleClass = isOffline
             ? "role offline-role"
-            : member.roleId === "admin" || member.roleId === "guest"
+            : getRoleIdsForMember(member).includes("admin") || getRoleIdsForMember(member).includes("guest")
               ? "role green"
               : "";
-          const roleColor = isOffline ? "#8e949d" : (getRole(member.roleId)?.color || "#f1a126");
+          const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(getRoleIdsForMember(member));
           const offlineClass = member.isOnline || member.bot ? "" : " offline";
           const avatarStyle = member.avatarImage
             ? `background: center / cover no-repeat url("${member.avatarImage}")`
@@ -2882,7 +2958,7 @@ function renderMembersSidebar() {
 
       return `
         <div class="members-group">
-          <p class="member-heading">${group} � ${grouped[group].length}</p>
+          <p class="member-heading">${group} • ${grouped[group].length}</p>
           ${memberRows}
         </div>
       `;
@@ -3784,7 +3860,7 @@ function subscribeToHomePageSettings() {
       })
       .subscribe();
   } catch (error) {
-    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamad�:", error.message);
+    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamadi:", error.message);
   }
 }
 
@@ -3942,8 +4018,9 @@ async function upsertAppUser(user) {
       supabaseClient.from("app_users").upsert({
         id: user.id,
         display_name: user.displayName,
-        role_id: user.roleId,
-        is_guest: user.roleId === "guest",
+        role_id: getPrimaryRoleIdFromRoleIds(user.roleIds || user.roleId, user.roleId || "student"),
+        role_ids: normalizeRoleIds(user.roleIds || user.roleId, user.roleId || "student"),
+        is_guest: normalizeRoleIds(user.roleIds || user.roleId, user.roleId || "student").includes("guest"),
         avatar_image: user.avatarImage || null,
         is_muted: user.isMuted || false,
         is_banned: user.isBanned || false,
@@ -3993,7 +4070,7 @@ async function getStoredUserProfile(userId) {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("role_id, is_muted, is_banned, avatar_image")
+        .select("role_id, role_ids, is_muted, is_banned, avatar_image")
         .eq("id", userId)
         .maybeSingle(),
       "Kullanici profilini okuma"
@@ -4005,6 +4082,7 @@ async function getStoredUserProfile(userId) {
 
     return {
       roleId: data?.role_id || null,
+      roleIds: normalizeRoleIds(data?.role_ids || data?.role_id, data?.role_id || "student"),
       isMuted: data?.is_muted || false,
       isBanned: data?.is_banned || false,
       avatarImage: data?.avatar_image || null
@@ -4016,7 +4094,7 @@ async function getStoredUserProfile(userId) {
       const { data, error: fallbackError } = await withTimeout(
         supabaseClient
           .from("app_users")
-          .select("role_id")
+          .select("role_id, role_ids")
           .eq("id", userId)
           .maybeSingle(),
         "Kullanici rolunu okuma"
@@ -4028,6 +4106,7 @@ async function getStoredUserProfile(userId) {
 
       return {
         roleId: data?.role_id || null,
+        roleIds: normalizeRoleIds(data?.role_ids || data?.role_id, data?.role_id || "student"),
         ...getUserModeration(userId)
       };
     } catch (fallbackError) {
@@ -4047,7 +4126,7 @@ async function loadDirectoryUsers() {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("id, display_name, role_id, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image")
+        .select("id, display_name, role_id, role_ids, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image")
         .order("created_at", { ascending: true })
         .limit(120),
       "Uye dizinini yukleme"
@@ -4062,10 +4141,11 @@ async function loadDirectoryUsers() {
       .map((user) => ({
         id: user.id,
         name: user.display_name || "Isimsiz Uye",
-        roleId: user.role_id || "student",
+        roleId: getPrimaryRoleIdFromRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
+        roleIds: normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
         avatarImage: user.avatar_image || null,
         avatarClass: "blue",
-        subtitle: user.is_online ? (user.is_guest ? "Misafir" : getRole(user.role_id)?.name || "Uye") : "Cevrimdisi",
+        subtitle: user.is_online ? (getRoleLabelFromRoleIds(user.role_ids || user.role_id) || (user.is_guest ? "Misafir" : "Uye")) : "Çevrimdışı",
         isOnline: Boolean(user.is_online),
         lastSeen: user.last_seen || null,
         isMuted: Boolean(user.is_muted),
@@ -4079,7 +4159,7 @@ async function loadDirectoryUsers() {
       const { data, error: fallbackError } = await withTimeout(
         supabaseClient
           .from("app_users")
-          .select("id, display_name, role_id, is_guest")
+          .select("id, display_name, role_id, role_ids, is_guest")
           .order("created_at", { ascending: true })
           .limit(120),
         "Temel uye dizinini yukleme"
@@ -4092,10 +4172,11 @@ async function loadDirectoryUsers() {
       directoryUsers = (data || []).map((user) => ({
         id: user.id,
         name: user.display_name || "Isimsiz Uye",
-        roleId: user.role_id || "student",
+        roleId: getPrimaryRoleIdFromRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
+        roleIds: normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
         avatarImage: null,
         avatarClass: "blue",
-        subtitle: "Cevrimdisi",
+        subtitle: "Çevrimdışı",
         isOnline: false,
         lastSeen: null,
         isGuest: Boolean(user.is_guest)
@@ -4122,10 +4203,10 @@ async function updatePresence(isOnline) {
           last_seen: new Date().toISOString()
         })
         .eq("id", authState.userId),
-      "Cevrim ici durumu"
+      "Çevrimiçi durumu"
     );
   } catch (error) {
-    console.warn("Cevrim ici durumu kaydedilemedi:", error.message);
+    console.warn("Çevrimiçi durumu kaydedilemedi:", error.message);
   }
 }
 
@@ -4160,8 +4241,9 @@ function getRealtimePresencePayload() {
     id: authState.userId,
     name: authState.name,
     roleId: authState.roleId,
+    roleIds: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student"),
     avatarImage: authState.avatarImage,
-    isGuest: authState.roleId === "guest",
+    isGuest: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student").includes("guest"),
     onlineAt: new Date().toISOString()
   };
 }
@@ -4175,16 +4257,21 @@ function syncRealtimePresenceMembers() {
   livePresenceMembers = Object.values(presenceState)
     .flat()
     .filter((presence) => presence?.id)
-    .map((presence) => ({
-      id: presence.id,
-      name: presence.name || "Isimsiz Uye",
-      roleId: presence.roleId || "guest",
-      avatarImage: presence.avatarImage || null,
-      avatarClass: presence.roleId === "guest" ? "amber" : "green",
-      subtitle: getRole(presence.roleId)?.name || (presence.roleId === "guest" ? "Misafir" : "Uye"),
-      isOnline: true,
-      isGuest: Boolean(presence.isGuest)
-    }));
+    .map((presence) => {
+      const roleIds = normalizeRoleIds(presence.roleIds || presence.roleId, presence.roleId || "guest");
+      const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, presence.roleId || "guest");
+      return {
+        id: presence.id,
+        name: presence.name || "Isimsiz Uye",
+        roleId: primaryRoleId,
+        roleIds,
+        avatarImage: presence.avatarImage || null,
+        avatarClass: roleIds.includes("guest") ? "amber" : "green",
+        subtitle: getRoleLabelFromRoleIds(roleIds) || (roleIds.includes("guest") ? "Misafir" : "Uye"),
+        isOnline: true,
+        isGuest: Boolean(presence.isGuest)
+      };
+    });
 
   if (directoryUsers.length) {
     const onlineIds = new Set(livePresenceMembers.map((member) => member.id));
@@ -4195,9 +4282,10 @@ function syncRealtimePresenceMembers() {
           ...member,
           name: liveMember.name || member.name,
           roleId: liveMember.roleId || member.roleId,
+          roleIds: getRoleIdsForMember(liveMember),
           avatarImage: liveMember.avatarImage || member.avatarImage || null,
           isOnline: true,
-          subtitle: getRole(liveMember.roleId || member.roleId)?.name || (member.isGuest ? "Misafir" : "Uye")
+          subtitle: getRoleLabelFromRoleIds(getRoleIdsForMember(liveMember)) || (member.isGuest ? "Misafir" : "Uye")
         };
       }
 
@@ -4582,15 +4670,18 @@ function closeAuthModal() {
 }
 
 function updateIdentity(name, roleId, options = {}) {
-  const role = getRole(roleId);
+  const roleIds = normalizeRoleIds(options.roleIds || roleId, roleId || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, roleId || "student");
+  const role = getRole(primaryRoleId);
   const moderation = getUserModeration(options.userId);
   const savedProfile = readLocalProfile();
   const displayName = options.nameOverride || savedProfile.name || name;
   const avatarImage = options.avatarImage ?? savedProfile.avatarImage ?? null;
   const session = {
-    mode: options.mode || (roleId === "guest" ? "guest" : "member"),
+    mode: options.mode || (roleIds.includes("guest") ? "guest" : "member"),
     name: displayName,
-    roleId,
+    roleId: primaryRoleId,
+    roleIds,
     userId: options.userId || null,
     isMuted: options.isMuted ?? moderation.isMuted,
     isBanned: options.isBanned ?? moderation.isBanned,
@@ -4601,7 +4692,8 @@ function updateIdentity(name, roleId, options = {}) {
     mode: session.mode,
     name: displayName,
     role: role ? role.name : "Uye",
-    roleId,
+    roleId: primaryRoleId,
+    roleIds,
     userId: session.userId,
     isMuted: session.isMuted,
     isBanned: session.isBanned,
@@ -4612,11 +4704,12 @@ function updateIdentity(name, roleId, options = {}) {
     id: authState.userId,
     name: authState.name,
     roleId: authState.roleId,
+    roleIds: authState.roleIds,
     avatarImage: authState.avatarImage
   });
 
   profileName.textContent = displayName;
-  profileRole.textContent = role ? role.name : "Uye";
+  profileRole.textContent = getRoleLabelFromRoleIds(roleIds) || (role ? role.name : "Uye");
   profileRole.style.color = role?.color || "";
   paintAvatar(profileAvatar, displayName, avatarImage, role?.color || "#f1a126");
 
@@ -4625,7 +4718,7 @@ function updateIdentity(name, roleId, options = {}) {
   identityCard.classList.remove("hidden");
 
   if (authOpenButton) {
-    authOpenButton.textContent = roleId === "guest" ? "Misafir Aktif" : "Hesabim";
+    authOpenButton.textContent = roleIds.includes("guest") ? "Misafir Aktif" : "Hesabim";
   }
 
   if (options.persist !== false) {
@@ -4664,18 +4757,21 @@ function updateIdentity(name, roleId, options = {}) {
 }
 
 function finishAuth(name, roleId, options = {}) {
+  const roleIds = normalizeRoleIds(options.roleIds || roleId, roleId || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, roleId || "student");
   if (options.userId) {
     saveSession({
-      mode: options.mode || (roleId === "guest" ? "guest" : "member"),
+      mode: options.mode || (roleIds.includes("guest") ? "guest" : "member"),
       name,
-      roleId,
+      roleId: primaryRoleId,
+      roleIds,
       userId: options.userId,
       isMuted: options.isMuted || false,
       isBanned: options.isBanned || false
     });
   }
 
-  updateIdentity(name, roleId, options);
+  updateIdentity(name, primaryRoleId, { ...options, roleIds });
   closeAuthModal();
 
   if (pendingView) {
@@ -4702,6 +4798,7 @@ function resetIdentity() {
     name: "Ziyaretci",
     role: "Ziyaretci",
     roleId: null,
+    roleIds: [],
     userId: null,
     isMuted: false,
     isBanned: false,
@@ -4742,6 +4839,7 @@ async function restoreSavedSession() {
   updateIdentity(savedSession.name, savedSession.roleId, {
     mode: savedSession.mode,
     userId: savedSession.userId,
+    roleIds: savedSession.roleIds || [savedSession.roleId],
     isMuted: savedSession.isMuted,
     isBanned: savedSession.isBanned,
     avatarImage: savedSession.avatarImage,
@@ -4754,7 +4852,8 @@ async function restoreSavedSession() {
 
   try {
     const latestProfile = await getStoredUserProfile(savedSession.userId);
-    const nextRoleId = latestProfile.roleId || savedSession.roleId;
+    const nextRoleIds = normalizeRoleIds(latestProfile.roleIds || latestProfile.roleId || savedSession.roleIds || savedSession.roleId, latestProfile.roleId || savedSession.roleId || "student");
+    const nextRoleId = getPrimaryRoleIdFromRoleIds(nextRoleIds, latestProfile.roleId || savedSession.roleId || "student");
     const roleChanged = nextRoleId !== authState.roleId;
     const moderationChanged =
       Boolean(latestProfile.isMuted) !== Boolean(authState.isMuted) ||
@@ -4768,6 +4867,7 @@ async function restoreSavedSession() {
     updateIdentity(savedSession.name, nextRoleId, {
       mode: savedSession.mode,
       userId: savedSession.userId,
+      roleIds: nextRoleIds,
       isMuted: latestProfile.isMuted,
       isBanned: latestProfile.isBanned,
       avatarImage: latestProfile.avatarImage || savedSession.avatarImage || null,
@@ -5022,7 +5122,7 @@ async function loadAdminUsers() {
       const { data, error } = await withTimeout(
         supabaseClient
           .from("app_users")
-          .select("id, display_name, role_id, is_guest, created_at, avatar_image, is_muted, is_banned, is_online, last_seen")
+          .select("id, display_name, role_id, role_ids, is_guest, created_at, avatar_image, is_muted, is_banned, is_online, last_seen")
           .order("created_at", { ascending: false })
           .limit(100),
         "Uyeleri yukleme"
@@ -5057,6 +5157,18 @@ function renderRoleOptions(selectedRoleId) {
     .join("");
 }
 
+function renderRoleCheckboxes(selectedRoleIds, userId) {
+  const selectedSet = new Set(getRoleIdsForMember({ roleIds: selectedRoleIds }));
+  return getSortedRoles()
+    .map((role) => `
+      <label class="member-role-choice">
+        <input type="checkbox" data-admin-user-role-toggle="${escapeHtml(userId)}" value="${escapeHtml(role.id)}" ${selectedSet.has(role.id) ? "checked" : ""} />
+        <span>${escapeHtml(role.name)}</span>
+      </label>
+    `)
+    .join("");
+}
+
 function renderAdminUsers() {
   if (!adminUsersList) {
     return;
@@ -5073,6 +5185,10 @@ function renderAdminUsers() {
       const secondBanned = Boolean(secondUser.isBanned ?? secondUser.is_banned);
       const firstOnline = Boolean(firstUser.isOnline ?? firstUser.is_online);
       const secondOnline = Boolean(secondUser.isOnline ?? secondUser.is_online);
+      const firstPrimaryRole = getPrimaryRoleIdFromRoleIds(firstUser.role_ids || firstUser.role_id, firstUser.role_id || "student");
+      const secondPrimaryRole = getPrimaryRoleIdFromRoleIds(secondUser.role_ids || secondUser.role_id, secondUser.role_id || "student");
+      const firstRoleOrder = Number(getRole(firstPrimaryRole)?.order ?? 99);
+      const secondRoleOrder = Number(getRole(secondPrimaryRole)?.order ?? 99);
       const firstSeen = getMemberRecency(firstUser);
       const secondSeen = getMemberRecency(secondUser);
 
@@ -5084,32 +5200,35 @@ function renderAdminUsers() {
         return firstOnline ? -1 : 1;
       }
 
-      return secondSeen - firstSeen || String(firstUser.display_name || "").localeCompare(String(secondUser.display_name || ""), "tr");
+      return firstRoleOrder - secondRoleOrder || secondSeen - firstSeen || String(firstUser.display_name || "").localeCompare(String(secondUser.display_name || ""), "tr");
     })
     .map((user) => {
       const moderation = {
         isMuted: user.isMuted ?? user.is_muted ?? false,
         isBanned: user.isBanned ?? user.is_banned ?? false
       };
-      const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : "Aktif";
-      const roleColor = getRole(user.role_id || "student")?.color || "#f1a126";
+      const roleIds = normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student");
+      const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : ((user.isOnline ?? user.is_online) ? "Çevrimiçi" : "Çevrimdışı");
+      const roleColor = getRoleColorFromRoleIds(roleIds);
       const avatarStyle = user.avatarImage
         ? `background: center / cover no-repeat url("${user.avatarImage}")`
         : `background: ${escapeHtml(roleColor)}`;
+
       return `
         <article class="member-admin-card ${moderation.isBanned ? "is-banned" : ""}">
           <div class="member-admin-main">
             <div class="member-admin-avatar" style='${avatarStyle}'>${user.avatarImage ? "" : escapeHtml((user.display_name || "U").slice(0, 1).toUpperCase())}</div>
             <div>
               <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
-              <small>${escapeHtml(user.id)}${user.is_guest ? " - Misafir" : ""}</small>
+              <small>${escapeHtml(user.id)}${roleIds.includes("guest") ? " - Misafir" : ""}</small>
               <span class="member-status">${statusText}</span>
+              <p class="member-role-summary">${escapeHtml(getRoleLabelFromRoleIds(roleIds))}</p>
             </div>
           </div>
           <div class="member-admin-controls">
-            <select data-admin-user-role="${escapeHtml(user.id)}">
-              ${renderRoleOptions(user.role_id || "student")}
-            </select>
+            <div class="member-role-matrix">
+              ${renderRoleCheckboxes(roleIds, user.id)}
+            </div>
             <button class="member-action" type="button" data-user-mute="${escapeHtml(user.id)}">
               ${moderation.isMuted ? "Susturmayi Kaldir" : "Sustur"}
             </button>
@@ -5125,9 +5244,12 @@ function renderAdminUsers() {
     })
     .join("");
 
-  adminUsersList.querySelectorAll("[data-admin-user-role]").forEach((select) => {
-    select.addEventListener("change", async () => {
-      await assignUserRole(select.dataset.adminUserRole, select.value);
+  adminUsersList.querySelectorAll("[data-admin-user-role-toggle]").forEach((checkbox) => {
+    checkbox.addEventListener("change", async () => {
+      const userId = checkbox.dataset.adminUserRoleToggle;
+      const container = checkbox.closest(".member-role-matrix");
+      const selectedRoleIds = Array.from(container.querySelectorAll("[data-admin-user-role-toggle]:checked")).map((input) => input.value);
+      await assignUserRoles(userId, selectedRoleIds);
     });
   });
 
@@ -5155,7 +5277,7 @@ function renderAdminUsers() {
 }
 
 async function resetUsersExceptOwner() {
-  const confirmed = window.confirm("Do�u� hesab� d���ndaki t�m kullan�c� kay�tlar�n� s�f�rlamak istiyor musun?");
+  const confirmed = window.confirm("Doğuş hesabı dışındaki tüm kullanıcı kayıtlarını sıfırlamak istiyor musun?");
   if (!confirmed) {
     return;
   }
@@ -5420,22 +5542,37 @@ function renderAdminPanel() {
   renderAccessRoles();
 }
 
-async function assignUserRole(userId, roleId) {
+async function assignUserRoles(userId, roleIds) {
+  const nextRoleIds = normalizeRoleIds(roleIds, "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(nextRoleIds, "student");
+
   adminKnownUsers = adminKnownUsers.map((user) => (
-    user.id === userId ? { ...user, role_id: roleId } : user
+    user.id === userId ? { ...user, role_id: primaryRoleId, role_ids: nextRoleIds, is_guest: nextRoleIds.includes("guest") } : user
   ));
 
   [...members, ...ephemeralMembers].forEach((member) => {
     if (member.id === userId) {
-      member.roleId = roleId;
-      member.subtitle = getRole(roleId)?.name || member.subtitle;
+      member.roleId = primaryRoleId;
+      member.roleIds = nextRoleIds;
+      member.subtitle = getRoleLabelFromRoleIds(nextRoleIds) || member.subtitle;
     }
   });
 
+  directoryUsers = directoryUsers.map((user) => (
+    user.id === userId ? { ...user, roleId: primaryRoleId, roleIds: nextRoleIds, role_id: primaryRoleId, role_ids: nextRoleIds, isGuest: nextRoleIds.includes("guest"), is_guest: nextRoleIds.includes("guest") } : user
+  ));
+  livePresenceMembers = livePresenceMembers.map((user) => (
+    user.id === userId ? { ...user, roleId: primaryRoleId, roleIds: nextRoleIds, role_id: primaryRoleId, role_ids: nextRoleIds, isGuest: nextRoleIds.includes("guest"), is_guest: nextRoleIds.includes("guest") } : user
+  ));
+
   if (authState.userId === userId) {
-    updateIdentity(authState.name, roleId, {
+    updateIdentity(authState.name, primaryRoleId, {
       mode: authState.mode,
-      userId: authState.userId
+      userId: authState.userId,
+      roleIds: nextRoleIds,
+      avatarImage: authState.avatarImage,
+      isMuted: authState.isMuted,
+      isBanned: authState.isBanned
     });
   }
 
@@ -5444,7 +5581,7 @@ async function assignUserRole(userId, roleId) {
       const { error } = await withTimeout(
         supabaseClient
           .from("app_users")
-          .update({ role_id: roleId })
+          .update({ role_id: primaryRoleId, role_ids: nextRoleIds, is_guest: nextRoleIds.includes("guest") })
           .eq("id", userId),
         "Rol atama"
       );
@@ -6104,7 +6241,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
         name: "Line Uyesi",
         roleId: "student",
         avatarClass: "green",
-        group: "Cevrim Ici",
+        group: "Çevrimiçi",
         subtitle: "Ogrenci"
       });
       finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
@@ -6120,7 +6257,8 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
 
     const displayName = data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi";
     const storedProfile = await getStoredUserProfile(data.user.id);
-    const roleId = storedProfile.roleId || "student";
+    const roleIds = normalizeRoleIds(storedProfile.roleIds || storedProfile.roleId || "student", storedProfile.roleId || "student");
+    const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || "student");
 
     if (storedProfile.isBanned) {
       window.alert("Bu hesap sunucudan atildigi icin giris yapamaz.");
@@ -6131,6 +6269,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
       id: data.user.id,
       displayName,
       roleId,
+      roleIds,
       avatarImage: storedProfile.avatarImage || null,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
@@ -6139,6 +6278,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
     finishAuth(displayName, roleId, {
       mode: "member",
       userId: data.user.id,
+      roleIds,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
       avatarImage: storedProfile.avatarImage || null
@@ -6152,7 +6292,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
     name: "Line Uyesi",
     roleId: "student",
     avatarClass: "green",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Ogrenci"
   });
   finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
@@ -6188,7 +6328,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
         name: signUpDisplayName,
         roleId: "student",
         avatarClass: "green",
-        group: "Cevrim Ici",
+        group: "Çevrimiçi",
         subtitle: "Ogrenci"
       });
       finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
@@ -6208,11 +6348,13 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     }
 
     const storedProfile = await getStoredUserProfile(data.user.id);
-    const roleId = storedProfile.roleId || "student";
+    const roleIds = normalizeRoleIds(storedProfile.roleIds || storedProfile.roleId || "student", storedProfile.roleId || "student");
+    const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || "student");
     await upsertAppUser({
       id: data.user.id,
       displayName: signUpDisplayName,
       roleId,
+      roleIds,
       avatarImage: storedProfile.avatarImage || null,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
@@ -6221,6 +6363,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     finishAuth(signUpDisplayName, roleId, {
       mode: "member",
       userId: data.user.id,
+      roleIds,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
       avatarImage: storedProfile.avatarImage || null
@@ -6234,7 +6377,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     name: signUpDisplayName,
     roleId: "student",
     avatarClass: "green",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Ogrenci"
   });
   finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
@@ -6256,7 +6399,7 @@ guestForm.addEventListener("submit", async (event) => {
     name: guestName,
     roleId: "guest",
     avatarClass: "amber",
-    group: "Cevrim Ici",
+    group: "Çevrimiçi",
     subtitle: "Misafir"
   };
 

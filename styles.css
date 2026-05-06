@@ -5303,3 +5303,95 @@ button {
   }
 
 }
+
+
+@media (max-width: 920px), (max-width: 1024px) and (orientation: portrait) {
+  .topbar .topbar-title-group {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 10px;
+    width: 100%;
+  }
+
+  .topbar .topbar-channel {
+    align-items: center !important;
+  }
+
+  .topbar .topbar-channel > div {
+    width: 100% !important;
+  }
+
+  .topbar .dashboard-editor-toolbar {
+    width: auto !important;
+    margin-left: 0 !important;
+    justify-content: flex-end !important;
+    align-self: center;
+  }
+
+  .topbar .dashboard-editor-button {
+    min-width: 88px !important;
+    min-height: 34px !important;
+    padding-inline: 12px !important;
+  }
+
+  .home-dashboard.is-editing,
+  .about-editor-page.is-editing {
+    overflow-x: hidden !important;
+  }
+
+  .home-dashboard.is-editing [data-home-box],
+  .about-editor-page.is-editing [data-about-box] {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    transform: none !important;
+    left: auto !important;
+    right: auto !important;
+  }
+
+  .home-dashboard.is-editing .home-hero-copy,
+  .home-dashboard.is-editing .home-info-card,
+  .about-editor-page.is-editing .channel-intro-copy,
+  .about-editor-page.is-editing .info-card {
+    overflow-x: hidden !important;
+  }
+
+  .home-dashboard.is-editing .editable-box-drag-handle,
+  .about-editor-page.is-editing .editable-box-drag-handle {
+    display: none !important;
+  }
+}
+
+
+.member-role-summary {
+  margin: 6px 0 0;
+  color: #cfd5de;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.member-role-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.member-role-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #d8dde7;
+  font-size: 0.82rem;
+}
+
+.member-role-choice input {
+  margin: 0;
+}

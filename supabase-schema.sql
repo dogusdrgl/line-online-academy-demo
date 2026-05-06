@@ -2,6 +2,7 @@ create table if not exists public.app_users (
   id text primary key,
   display_name text not null,
   role_id text not null default 'student',
+  role_ids text[] not null default array['student'],
   is_guest boolean not null default false,
   is_muted boolean not null default false,
   is_banned boolean not null default false,
@@ -206,3 +207,13 @@ begin
     alter publication supabase_realtime add table public.home_page_settings;
   end if;
 end $$;
+
+
+alter table public.app_users
+add column if not exists role_ids text[] not null default array['student'];
+
+update public.app_users
+set role_ids = case
+  when role_ids is null or cardinality(role_ids) = 0 then array[coalesce(role_id, 'student')]
+  else role_ids
+end;
