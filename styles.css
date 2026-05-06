@@ -4262,10 +4262,20 @@ button {
 
   .topbar-channel {
     min-width: 0;
+    align-items: flex-start;
   }
 
   .topbar-channel > div {
     min-width: 0;
+    width: 100%;
+  }
+
+  .topbar-title-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
   .topbar-channel h2 {
@@ -4273,6 +4283,18 @@ button {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .dashboard-editor-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-editor-button {
+    flex: 0 1 auto;
+    min-width: 110px;
   }
 
   .topbar-meta {
@@ -4941,10 +4963,11 @@ button {
 @media (max-width: 920px), (max-width: 1024px) and (orientation: portrait) {
   .dashboard-editor-toolbar {
     width: 100%;
+    margin-top: 2px;
   }
 
   .dashboard-editor-button {
-    flex: 1 1 0;
+    flex: 0 1 auto;
   }
 
   .home-dashboard-grid {
