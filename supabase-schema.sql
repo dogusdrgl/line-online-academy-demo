@@ -162,3 +162,47 @@ end $$;
 -- Dogus/Doğuş disindaki tum kullanicilari sifirlamak icin asagidaki sorguyu SQL Editor'da calistir.
 -- delete from public.app_users
 -- where lower(display_name) not in ('dogus', 'doğuş');
+
+
+create table if not exists public.home_page_settings (
+  id text primary key,
+  config_json jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.home_page_settings enable row level security;
+
+drop policy if exists "Public can read homepage settings" on public.home_page_settings;
+create policy "Public can read homepage settings"
+on public.home_page_settings
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Public can create homepage settings" on public.home_page_settings;
+create policy "Public can create homepage settings"
+on public.home_page_settings
+for insert
+to anon, authenticated
+with check (true);
+
+drop policy if exists "Public can update homepage settings" on public.home_page_settings;
+create policy "Public can update homepage settings"
+on public.home_page_settings
+for update
+to anon, authenticated
+using (true)
+with check (true);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'home_page_settings'
+  ) then
+    alter publication supabase_realtime add table public.home_page_settings;
+  end if;
+end $$;

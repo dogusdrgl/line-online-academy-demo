@@ -42,6 +42,14 @@ const viewJumpButtons = document.querySelectorAll("[data-view-jump]");
 const channelGroups = document.querySelector(".channel-groups");
 const viewPanels = document.querySelectorAll(".view-panel");
 const viewTitle = document.getElementById("view-title");
+const dashboardEditorToolbar = document.getElementById("dashboard-editor-toolbar");
+const dashboardEditToggle = document.getElementById("dashboard-edit-toggle");
+const dashboardSaveButton = document.getElementById("dashboard-save-button");
+const homeDashboard = document.getElementById("home-dashboard");
+const homeDashboardGrid = document.getElementById("home-dashboard-grid");
+const homeEditableFields = document.querySelectorAll("[data-home-field]");
+const homeCards = document.querySelectorAll("[data-home-card]");
+const homeResizeHandles = document.querySelectorAll("[data-home-resize]");
 const messageSearchInput = document.getElementById("message-search");
 const cameraButton = document.getElementById("camera-button");
 const cameraPreview = document.getElementById("camera-preview");
@@ -151,6 +159,7 @@ const LOCAL_DM_KEY = "line-online-academy-direct-messages";
 const LOCAL_DM_UNREAD_KEY = "line-online-academy-dm-unread";
 const LOCAL_DM_READ_KEY = "line-online-academy-dm-read";
 const LOCAL_VOICE_CHAT_UI_KEY = "line-online-academy-voice-chat-ui";
+const LOCAL_HOME_PAGE_SETTINGS_KEY = "line-online-academy-home-page-settings";
 
 let authState = {
   mode: "visitor",
@@ -202,6 +211,37 @@ let focusedVoiceParticipantId = null;
 let voiceFullscreenRoomId = null;
 let voiceFullscreenUiVisible = true;
 let voiceFullscreenUiTimer = null;
+let homePageEditMode = false;
+let homePageSettingsChannel = null;
+let homePageResizeState = null;
+let homePageSettings = null;
+
+const DEFAULT_HOME_PAGE_SETTINGS = {
+  text: {
+    heroEyebrow: "LINE Online Academy",
+    heroTitle: "M�zi�i topluluk hissiyle bulu�turan kamp�s",
+    heroDescription: "Line Online Academy; ��rencinin s�n�f�na, materyaline ve canl� ileti�ime tek ak��ta ula�abilece�i premium bir dijital m�zik okulu olarak tasarland�. Ders, sohbet, canl� oda ve k�t�phane deneyimini tek kamp�s mant���nda bir araya getiriyoruz.",
+    primaryButtonText: "Bilgi Almak ��in T�klay�n",
+    secondaryButtonText: "Kamp�se G�z At",
+    heroPulseLabel: "Topluluk",
+    heroPulseText: "Canl� s�n�flar, mesajla�ma ve not k�t�phanesi ayn� deneyimde.",
+    featuredKicker: "Deneyim",
+    featuredTitle: "Tek panelde okul ak���",
+    featuredBody: "Solda odalar ve s�n�flar, ortada aktif ders ve i�erikler, sa�da ise �yeler ve kimlik kart� yer al�r. Kullan�c� ilk anda kamp�s�n mant���n� kavrar ve kaybolmadan dersine ge�er.",
+    stat1Value: "Canl�",
+    stat1Title: "Sesli ve g�r�nt�l� s�n�flar",
+    stat1Body: "Canl� dersler, et�t odalar� ve y�netim g�r��meleri ayn� �at� alt�nda.",
+    stat2Value: "Ak��",
+    stat2Title: "Mesaj, oda ve kaynak bir arada",
+    stat2Body: "Metin kanallar�, anl�k ileti�im ve materyal payla��m� kopmadan ilerler."
+  },
+  cards: {
+    hero: { minHeight: 224 },
+    featured: { minHeight: 146, colSpan: 2 },
+    stat1: { minHeight: 146, colSpan: 1 },
+    stat2: { minHeight: 146, colSpan: 1 }
+  }
+};
 
 const rtcConfig = {
   iceServers: [
@@ -2743,6 +2783,338 @@ function attachDeleteHandlers(scope) {
   });
 }
 
+
+function cloneHomePageSettings(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function sanitizeHomePageSettings(input) {
+  const nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+  const incoming = input && typeof input === "object" ? input : {};
+  const incomingText = incoming.text && typeof incoming.text === "object" ? incoming.text : {};
+  const incomingCards = incoming.cards && typeof incoming.cards === "object" ? incoming.cards : {};
+
+  Object.keys(nextSettings.text).forEach((field) => {
+    const fallback = nextSettings.text[field];
+    const nextValue = typeof incomingText[field] === "string" ? incomingText[field].replace(/\s+/g, " ").trim() : "";
+    nextSettings.text[field] = nextValue || fallback;
+  });
+
+  Object.keys(nextSettings.cards).forEach((cardId) => {
+    const fallback = nextSettings.cards[cardId];
+    const candidate = incomingCards[cardId] || {};
+    const minHeight = Math.max(cardId === "hero" ? 200 : 120, Math.min(520, Number(candidate.minHeight) || fallback.minHeight));
+    nextSettings.cards[cardId].minHeight = Math.round(minHeight);
+
+    if (cardId !== "hero") {
+      const colSpan = Math.max(1, Math.min(4, Number(candidate.colSpan) || fallback.colSpan));
+      nextSettings.cards[cardId].colSpan = Math.round(colSpan);
+    }
+  });
+
+  return nextSettings;
+}
+
+function applyHomePageSettings(settings) {
+  homePageSettings = sanitizeHomePageSettings(settings);
+
+  homeEditableFields.forEach((field) => {
+    const key = field.dataset.homeField;
+    if (!key || !(key in homePageSettings.text)) {
+      return;
+    }
+
+    field.textContent = homePageSettings.text[key];
+  });
+
+  homeCards.forEach((card) => {
+    const cardId = card.dataset.homeCard;
+    const cardSettings = homePageSettings.cards[cardId];
+    if (!cardSettings) {
+      return;
+    }
+
+    card.style.minHeight = cardSettings.minHeight + "px";
+
+    if (cardId !== "hero") {
+      card.dataset.homeColSpan = String(cardSettings.colSpan);
+      card.style.gridColumn = "span " + cardSettings.colSpan;
+    }
+  });
+}
+
+function collectHomePageSettingsFromDom() {
+  const nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+
+  homeEditableFields.forEach((field) => {
+    const key = field.dataset.homeField;
+    if (!key) {
+      return;
+    }
+
+    const nextValue = (field.innerText || field.textContent || "").replace(/\s+/g, " ").trim();
+    if (nextValue) {
+      nextSettings.text[key] = nextValue;
+    }
+  });
+
+  homeCards.forEach((card) => {
+    const cardId = card.dataset.homeCard;
+    const currentCard = nextSettings.cards[cardId];
+    if (!currentCard) {
+      return;
+    }
+
+    const rect = card.getBoundingClientRect();
+    currentCard.minHeight = Math.round(rect.height);
+    if (cardId !== "hero") {
+      currentCard.colSpan = Math.max(1, Math.min(4, Number(card.dataset.homeColSpan) || currentCard.colSpan));
+    }
+  });
+
+  return sanitizeHomePageSettings(nextSettings);
+}
+
+function setHomeFieldEditable(field, editable) {
+  if (!field) {
+    return;
+  }
+
+  if (editable) {
+    field.setAttribute("contenteditable", "plaintext-only");
+    field.setAttribute("spellcheck", "false");
+    field.classList.add("home-field-editable");
+  } else {
+    field.removeAttribute("contenteditable");
+    field.removeAttribute("spellcheck");
+    field.classList.remove("home-field-editable");
+  }
+}
+
+function renderDashboardEditorToolbar() {
+  if (!dashboardEditorToolbar || !dashboardEditToggle || !dashboardSaveButton) {
+    return;
+  }
+
+  const shouldShow = getActiveViewId() === "dashboard" && isAdminUser();
+  dashboardEditorToolbar.classList.toggle("hidden", !shouldShow);
+
+  if (!shouldShow) {
+    dashboardSaveButton.classList.add("hidden");
+    dashboardEditToggle.textContent = "D�zenle";
+    if (homePageEditMode) {
+      setHomePageEditMode(false, { restoreSaved: true, silent: true });
+    }
+    return;
+  }
+
+  dashboardEditToggle.textContent = homePageEditMode ? "�ptal" : "D�zenle";
+  dashboardSaveButton.classList.toggle("hidden", !homePageEditMode);
+}
+
+function setHomePageEditMode(nextMode, options = {}) {
+  const allowEdit = isAdminUser();
+  const shouldEdit = Boolean(nextMode && allowEdit);
+  homePageEditMode = shouldEdit;
+
+  if (!shouldEdit && options.restoreSaved !== false && homePageSettings) {
+    applyHomePageSettings(homePageSettings);
+  }
+
+  if (homeDashboard) {
+    homeDashboard.classList.toggle("is-editing", shouldEdit);
+  }
+
+  homeEditableFields.forEach((field) => {
+    setHomeFieldEditable(field, shouldEdit);
+  });
+
+  homeResizeHandles.forEach((handle) => {
+    handle.classList.toggle("hidden", !shouldEdit);
+  });
+
+  if (!options.silent) {
+    renderDashboardEditorToolbar();
+  }
+}
+
+async function loadHomePageSettings() {
+  let nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+
+  if (supabaseClient) {
+    try {
+      const response = await withTimeout(
+        supabaseClient
+          .from("home_page_settings")
+          .select("config_json")
+          .eq("id", "dashboard")
+          .maybeSingle(),
+        "Anasayfa ayarlarini yukleme"
+      );
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      if (response.data && response.data.config_json) {
+        nextSettings = sanitizeHomePageSettings(response.data.config_json);
+      }
+    } catch (error) {
+      console.warn("Anasayfa ayarlari Supabase'den okunamadi:", error.message);
+      nextSettings = sanitizeHomePageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS));
+    }
+  } else {
+    nextSettings = sanitizeHomePageSettings(readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS));
+  }
+
+  applyHomePageSettings(nextSettings);
+}
+
+async function saveHomePageSettings() {
+  if (!isAdminUser()) {
+    return;
+  }
+
+  const nextSettings = collectHomePageSettingsFromDom();
+  dashboardSaveButton.disabled = true;
+  dashboardSaveButton.textContent = "Kaydediliyor...";
+
+  try {
+    if (supabaseClient) {
+      const response = await withTimeout(
+        supabaseClient
+          .from("home_page_settings")
+          .upsert({
+            id: "dashboard",
+            config_json: nextSettings,
+            updated_at: new Date().toISOString()
+          }),
+        "Anasayfa ayarlarini kaydetme"
+      );
+
+      if (response.error) {
+        throw response.error;
+      }
+    } else {
+      writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextSettings);
+    }
+
+    homePageSettings = nextSettings;
+    applyHomePageSettings(nextSettings);
+    setHomePageEditMode(false, { restoreSaved: false });
+  } catch (error) {
+    console.warn("Anasayfa ayarlari kaydedilemedi:", error.message);
+    writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextSettings);
+    homePageSettings = nextSettings;
+    applyHomePageSettings(nextSettings);
+    setHomePageEditMode(false, { restoreSaved: false });
+    window.alert("Ortak kayit alinamadi. Ayarlar bu tarayicida kaydedildi.");
+  } finally {
+    dashboardSaveButton.disabled = false;
+    dashboardSaveButton.textContent = "Kaydet";
+    renderDashboardEditorToolbar();
+  }
+}
+
+function startHomePageResize(event) {
+  if (!homePageEditMode) {
+    return;
+  }
+
+  const handle = event.target.closest("[data-home-resize]");
+  const card = handle ? handle.closest("[data-home-card]") : null;
+  const cardId = card ? card.dataset.homeCard : null;
+  if (!card || !cardId) {
+    return;
+  }
+
+  event.preventDefault();
+  const rect = card.getBoundingClientRect();
+  homePageResizeState = {
+    pointerId: event.pointerId,
+    card,
+    cardId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startHeight: rect.height,
+    startSpan: Number(card.dataset.homeColSpan) || 1
+  };
+
+  handle.setPointerCapture(event.pointerId);
+  document.addEventListener("pointermove", onHomePageResizeMove);
+  document.addEventListener("pointerup", stopHomePageResize);
+  document.addEventListener("pointercancel", stopHomePageResize);
+}
+
+function onHomePageResizeMove(event) {
+  if (!homePageResizeState) {
+    return;
+  }
+
+  const deltaY = event.clientY - homePageResizeState.startY;
+  const nextHeight = Math.max(homePageResizeState.cardId === "hero" ? 200 : 120, Math.min(520, homePageResizeState.startHeight + deltaY));
+  homePageResizeState.card.style.minHeight = Math.round(nextHeight) + "px";
+
+  if (homePageResizeState.cardId !== "hero" && homeDashboardGrid) {
+    const styles = window.getComputedStyle(homeDashboardGrid);
+    const gap = parseFloat(styles.columnGap || styles.gap || "0") || 0;
+    const columnWidth = (homeDashboardGrid.clientWidth - gap * 3) / 4;
+    const currentWidth = Math.max(columnWidth, homePageResizeState.startSpan * columnWidth + (homePageResizeState.startSpan - 1) * gap + (event.clientX - homePageResizeState.startX));
+    const span = Math.max(1, Math.min(4, Math.round((currentWidth + gap) / (columnWidth + gap))));
+    homePageResizeState.card.dataset.homeColSpan = String(span);
+    homePageResizeState.card.style.gridColumn = "span " + span;
+  }
+}
+
+function stopHomePageResize(event) {
+  if (!homePageResizeState) {
+    return;
+  }
+
+  if (event && event.pointerId !== undefined && event.pointerId !== homePageResizeState.pointerId) {
+    return;
+  }
+
+  homePageResizeState = null;
+  document.removeEventListener("pointermove", onHomePageResizeMove);
+  document.removeEventListener("pointerup", stopHomePageResize);
+  document.removeEventListener("pointercancel", stopHomePageResize);
+}
+
+function initializeHomePageEditor() {
+  applyHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+  renderDashboardEditorToolbar();
+  homeResizeHandles.forEach((handle) => {
+    handle.addEventListener("pointerdown", startHomePageResize);
+  });
+}
+
+function subscribeToHomePageSettings() {
+  if (!supabaseClient || homePageSettingsChannel) {
+    return;
+  }
+
+  try {
+    homePageSettingsChannel = supabaseClient
+      .channel("line-online-home-page-settings")
+      .on("postgres_changes", { event: "*", schema: "public", table: "home_page_settings" }, (payload) => {
+        const nextRow = payload.new || payload.old;
+        if (!nextRow || nextRow.id !== "dashboard") {
+          return;
+        }
+
+        if (payload.new && payload.new.config_json) {
+          applyHomePageSettings(payload.new.config_json);
+        } else {
+          loadHomePageSettings();
+        }
+      })
+      .subscribe();
+  } catch (error) {
+    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamad�:", error.message);
+  }
+}
+
 function refreshChatAdminControls() {
   document.querySelectorAll(".message-line").forEach((line) => {
     const messageId = line.dataset.messageId;
@@ -3409,6 +3781,7 @@ function setActiveView(nextView, label) {
     viewTitle.textContent = label;
   }
 
+  renderDashboardEditorToolbar();
   updateSearchVisibility(nextView);
   markChannelRead(nextView);
   if (VOICE_ROOM_LABELS[nextView] && !isVoiceChatCollapsed(nextView)) {
@@ -3587,6 +3960,7 @@ function updateIdentity(name, roleId, options = {}) {
   }
 
   refreshChatAdminControls();
+  renderDashboardEditorToolbar();
   initializeStaticMessageControls();
   renderAdminUsers();
   renderMembersSidebar();
@@ -3674,6 +4048,7 @@ function resetIdentity() {
   }
 
   refreshChatAdminControls();
+  renderDashboardEditorToolbar();
   const activePanel = document.querySelector(".view-panel.active");
   if (activePanel && !PUBLIC_VIEWS.has(activePanel.id)) {
     setActiveView("dashboard", "Anasayfa");
@@ -4781,6 +5156,9 @@ async function unlockAdminPanel() {
 channelButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const nextView = button.dataset.view;
+    if (homePageEditMode && nextView !== "dashboard") {
+      return;
+    }
     const label = button.textContent.trim();
 
     if (isMobileLayout()) {
@@ -4804,6 +5182,10 @@ channelButtons.forEach((button) => {
 
 viewJumpButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    if (homePageEditMode) {
+      return;
+    }
+
     const nextView = button.dataset.viewJump;
     if (!nextView) {
       return;
@@ -4825,6 +5207,25 @@ viewJumpButtons.forEach((button) => {
     setActiveView(nextView, nextLabel);
   });
 });
+
+if (dashboardEditToggle) {
+  dashboardEditToggle.addEventListener("click", () => {
+    if (!isAdminUser()) {
+      return;
+    }
+
+    if (homePageEditMode) {
+      setHomePageEditMode(false, { restoreSaved: true });
+      return;
+    }
+
+    setHomePageEditMode(true, { restoreSaved: false });
+  });
+}
+
+if (dashboardSaveButton) {
+  dashboardSaveButton.addEventListener("click", saveHomePageSettings);
+}
 
 if (adminMenuButton) {
   adminMenuButton.addEventListener("click", openAdminModal);
@@ -5533,10 +5934,13 @@ if (cameraButton && cameraPreview) {
 }
 
 initializeAdminState();
+initializeHomePageEditor();
 controlState = readControlState();
 renderQuickControls();
 updateSearchVisibility("dashboard");
 loadNotificationState();
+loadHomePageSettings();
+subscribeToHomePageSettings();
 loadDmUnreadState();
 renderNotifications();
 renderDmBadge();

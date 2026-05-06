@@ -4842,3 +4842,125 @@ button {
 }
 
 
+
+
+.topbar-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dashboard-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-editor-button {
+  min-height: 36px;
+  padding-inline: 14px;
+}
+
+.home-dashboard-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+}
+
+.home-info-card[data-home-card="featured"] {
+  grid-column: span 2;
+}
+
+.home-info-card[data-home-card="stat1"],
+.home-info-card[data-home-card="stat2"] {
+  grid-column: span 1;
+}
+
+.home-hero-card,
+.home-info-card {
+  position: relative;
+}
+
+.home-card-resize-handle {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02)),
+    rgba(11, 12, 15, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  cursor: nwse-resize;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.home-card-resize-handle::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-right: 2px solid rgba(255, 212, 154, 0.72);
+  border-bottom: 2px solid rgba(255, 212, 154, 0.72);
+  border-bottom-right-radius: 4px;
+}
+
+.home-dashboard.is-editing .home-card-resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.home-dashboard.is-editing [data-home-field] {
+  display: inline-block;
+  min-width: 16px;
+  outline: 1px dashed rgba(255, 200, 120, 0.42);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.home-dashboard.is-editing [data-home-field]:focus {
+  outline-color: rgba(255, 226, 177, 0.9);
+  background: rgba(16, 16, 20, 0.34);
+}
+
+.home-dashboard.is-editing .home-hero-copy p[data-home-field="heroDescription"],
+.home-dashboard.is-editing .home-info-card p[data-home-field$="Body"] {
+  display: block;
+}
+
+.home-dashboard.is-editing .home-landing-cta {
+  box-shadow: 0 0 0 1px rgba(241, 161, 38, 0.26), 0 14px 30px rgba(0, 0, 0, 0.22);
+}
+
+.home-hero-logo {
+  width: min(100%, 332px);
+}
+
+@media (max-width: 920px), (max-width: 1024px) and (orientation: portrait) {
+  .dashboard-editor-toolbar {
+    width: 100%;
+  }
+
+  .dashboard-editor-button {
+    flex: 1 1 0;
+  }
+
+  .home-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-info-card[data-home-card] {
+    grid-column: span 1 !important;
+  }
+
+  .home-card-resize-handle {
+    width: 24px;
+    height: 24px;
+  }
+
+  .home-hero-logo {
+    width: min(82vw, 340px);
+  }
+}
