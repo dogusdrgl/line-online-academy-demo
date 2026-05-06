@@ -2788,6 +2788,34 @@ function cloneHomePageSettings(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function repairPossiblyBrokenText(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value
+    .replace(/Ã¼/g, "u")
+    .replace(/Ãœ/g, "U")
+    .replace(/Ã¶/g, "o")
+    .replace(/Ã–/g, "O")
+    .replace(/Ä±/g, "i")
+    .replace(/Ä°/g, "I")
+    .replace(/ÅŸ/g, "s")
+    .replace(/Åž/g, "S")
+    .replace(/Ã§/g, "c")
+    .replace(/Ã‡/g, "C")
+    .replace(/ÄŸ/g, "g")
+    .replace(/Äž/g, "G")
+    .replace(/â€¢/g, "•")
+    .replace(/â€“/g, "-")
+    .replace(/â€”/g, "-")
+    .replace(/â€œ|â€/g, '"')
+    .replace(/â€˜|â€™/g, "'")
+    .replace(/ï¿½|�/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function sanitizeHomePageSettings(input) {
   const nextSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
   const incoming = input && typeof input === "object" ? input : {};
@@ -2796,7 +2824,7 @@ function sanitizeHomePageSettings(input) {
 
   Object.keys(nextSettings.text).forEach((field) => {
     const fallback = nextSettings.text[field];
-    const nextValue = typeof incomingText[field] === "string" ? incomingText[field].replace(/\s+/g, " ").trim() : "";
+    const nextValue = typeof incomingText[field] === "string" ? repairPossiblyBrokenText(incomingText[field]) : "";
     nextSettings.text[field] = nextValue || fallback;
   });
 
@@ -2852,7 +2880,7 @@ function collectHomePageSettingsFromDom() {
       return;
     }
 
-    const nextValue = (field.innerText || field.textContent || "").replace(/\s+/g, " ").trim();
+    const nextValue = repairPossiblyBrokenText(field.innerText || field.textContent || "");
     if (nextValue) {
       nextSettings.text[key] = nextValue;
     }
@@ -2901,14 +2929,14 @@ function renderDashboardEditorToolbar() {
 
   if (!shouldShow) {
     dashboardSaveButton.classList.add("hidden");
-    dashboardEditToggle.textContent = "D�zenle";
+    dashboardEditToggle.textContent = "Duzenle";
     if (homePageEditMode) {
       setHomePageEditMode(false, { restoreSaved: true, silent: true });
     }
     return;
   }
 
-  dashboardEditToggle.textContent = homePageEditMode ? "�ptal" : "D�zenle";
+  dashboardEditToggle.textContent = homePageEditMode ? "Iptal" : "Duzenle";
   dashboardSaveButton.classList.toggle("hidden", !homePageEditMode);
 }
 
@@ -3111,7 +3139,7 @@ function subscribeToHomePageSettings() {
       })
       .subscribe();
   } catch (error) {
-    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamad�:", error.message);
+    console.warn("Anasayfa ayarlari icin realtime baglanti kurulamadı:", error.message);
   }
 }
 
@@ -6013,5 +6041,6 @@ window.addEventListener("pagehide", () => {
   }
   sendPresenceKeepalive(currentUserId, false);
 });
+
 
 
