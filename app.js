@@ -2192,17 +2192,20 @@ function initializeVoiceRooms() {
     }
 
     const roomLabel = VOICE_ROOM_LABELS[panel.id] || panel.querySelector("h3")?.textContent || "Oda";
+    const isClassRoom = /^class-\d+$/.test(panel.id);
+    const voiceLobbyKicker = isClassRoom ? "Ders Basliyor" : "Sesli Toplanti";
+    const voiceJoinLabel = isClassRoom ? "Derse Gir" : "Sesli Toplantiya Gir";
     const callShell = document.createElement("section");
     callShell.className = "voice-call-shell";
     callShell.dataset.voiceCall = panel.id;
     callShell.innerHTML = `
       <div class="voice-call-lobby">
         <div class="voice-lobby-orb">&#127911;</div>
-        <p class="section-kicker">Sesli Toplant�</p>
+        <p class="section-kicker">${voiceLobbyKicker}</p>
         <h3>${escapeHtml(roomLabel)}</h3>
-        <p>Bu odaya kat�larak mikrofonunu kullanabilir, kameran� a�abilir ve di�er kat�l�mc�larla g�r��ebilirsin.</p>
-        <button class="accent-button" type="button" data-voice-join>Sesli Toplant�ya Gir</button>
-        <span data-voice-status>Odaya kat�lmaya haz�r.</span>
+        <p>Bu odaya katilarak mikrofonunu kullanabilir, kamerani acabilir ve diger katilimcilarla gorusebilirsin.</p>
+        <button class="accent-button" type="button" data-voice-join>${voiceJoinLabel}</button>
+        <span data-voice-status>Odaya katilmaya hazir.</span>
       </div>
       <div class="voice-call-stage">
         <button class="voice-fullscreen-exit" type="button" data-voice-exit-fullscreen aria-label="Tam ekrandan cik">&#10005;</button>
@@ -2212,21 +2215,21 @@ function initializeVoiceRooms() {
             <h4>${escapeHtml(roomLabel)}</h4>
           </div>
           <div class="voice-call-top-actions">
-            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada hen�z kimse yok.</p></div>
-            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini a� veya kapat">&#128172;</button>
+            <div class="voice-participants-mini" data-voice-participants><p class="admin-muted">Odada henuz kimse yok.</p></div>
+            <button class="voice-top-chat-button" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">&#128172;</button>
           </div>
         </div>
         <div class="voice-stage-layout">
           <div class="voice-call-grid" data-voice-grid></div>
           <aside class="voice-chat-panel">
-            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini a� veya kapat">
+            <button class="voice-chat-handle" type="button" data-voice-chat-toggle aria-label="Oda sohbetini ac veya kapat">
               <span class="voice-chat-handle-icon" data-voice-chat-toggle-label>></span>
               <strong class="voice-chat-handle-unread hidden" data-voice-chat-handle-unread>0</strong>
             </button>
             <div class="voice-chat-stream" data-voice-chat-stream></div>
             <form class="voice-chat-form composer-form" data-composer-view="${panel.id}">
-              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odas�na mesaj yaz..." maxlength="240" />
-              <button class="composer-submit" type="submit">G�nder</button>
+              <input class="composer-input" type="text" placeholder="${escapeHtml(roomLabel)} odasina mesaj yaz..." maxlength="240" />
+              <button class="composer-submit" type="submit">Gonder</button>
             </form>
           </aside>
         </div>
@@ -2236,11 +2239,10 @@ function initializeVoiceRooms() {
           <button class="voice-control" type="button" data-voice-share><span>&#128421;</span><small>Ekran</small></button>
           <button class="voice-control" type="button" data-voice-activity><span>&#10022;</span><small>Aktivite</small></button>
           <button class="voice-control" type="button" data-voice-more><span>&#8942;</span><small>Daha</small></button>
-          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#9742;</span><small>Ayr�l</small></button>
+          <button class="voice-control danger hidden" type="button" data-voice-leave><span>&#9742;</span><small>Ayril</small></button>
         </div>
       </div>
     `;
-
     panel.appendChild(callShell);
     const moreButton = callShell.querySelector("[data-voice-more]");
     const chatDockButton = document.createElement("button");
