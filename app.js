@@ -2483,40 +2483,32 @@ function ensureSidebarMember(user) {
     return;
   }
 
+  const roleIds = normalizeRoleIds(user.roleIds || user.role_id || user.roleId, user.roleId || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, user.roleId || "student");
+  const existingIndex = directoryUsers.findIndex((member) => member.id === user.id);
   const nextMember = {
     id: user.id,
-    name: user.name,
-    roleId: user.roleId,
-    avatarImage: user.avatarImage || null,
-    avatarClass: user.roleId === "guest" ? "amber" : "green",
-    group: "Çevrimiçi",
-    subtitle: getRole(user.roleId)?.name || (user.roleId === "guest" ? "Misafir" : "Uye"),
-    isOnline: true
+    name: user.name || user.display_name || "Isimsiz Uye",
+    roleId: primaryRoleId,
+    roleIds,
+    avatarImage: user.avatarImage || user.avatar_image || null,
+    avatarClass: roleIds.includes("guest") ? "amber" : "green",
+    subtitle: getRoleLabelFromRoleIds(roleIds) || (roleIds.includes("guest") ? "Misafir" : "Uye"),
+    isOnline: true,
+    isGuest: roleIds.includes("guest"),
+    isMuted: Boolean(user.isMuted || user.is_muted),
+    isBanned: Boolean(user.isBanned || user.is_banned),
+    lastSeen: user.lastSeen || user.last_seen || new Date().toISOString()
   };
 
-  const directoryIndex = directoryUsers.findIndex((member) => member.id === user.id);
-  if (directoryIndex >= 0) {
-    directoryUsers[directoryIndex] = {
-      ...directoryUsers[directoryIndex],
+  if (existingIndex >= 0) {
+    directoryUsers[existingIndex] = {
+      ...directoryUsers[existingIndex],
       ...nextMember
     };
-    return;
+  } else {
+    directoryUsers.push(nextMember);
   }
-
-  if (!supabaseClient) {
-    const existingIndex = ephemeralMembers.findIndex((member) => member.id === user.id);
-    if (existingIndex >= 0) {
-      ephemeralMembers[existingIndex] = {
-        ...ephemeralMembers[existingIndex],
-        ...nextMember
-      };
-      return;
-    }
-    ephemeralMembers.push(nextMember);
-    return;
-  }
-
-  directoryUsers.push(nextMember);
 }
 
 function withTimeout(promise, label = "Supabase istegi") {
@@ -2581,124 +2573,83 @@ function isVisibleRealMember(member) {
     return true;
   }
 
-  if (member.isBanned || member.is_banned || getUserModeration(member.id).isBanned) {
-    return false;
-  }
-
-  const demoIds = new Set(["dilara", "ezgi", "mert"]);
-  if (demoIds.has(member.id)) {
-    return false;
-  }
-
-  return true;
+  return !(member.isBanned || member.is_banned || getUserModeration(member.id).isBanned);
 }
 
-function getMemberIdentityKey(member) {
-  if (!member?.id) {
-    return null;
-  }
-
-  if (member.bot) {
-    return `bot:${member.id}`;
-  }
-
-  if (member.isGuest || member.is_guest || member.roleId === "guest" || member.role_id === "guest") {
-    return `guest:${member.id}`;
-  }
-
-  return `user:${member.id}`;
-}
-
-function getMemberRecency(member) {
-  if (!member?.lastSeen && !member?.last_seen) {
-    return 0;
-  }
-
-  const value = new Date(member.lastSeen || member.last_seen).getTime();
-  return Number.isFinite(value) ? value : 0;
-}
-
-function mergeMembersPreferred(currentMember, nextMember) {
-  if (!currentMember) {
-    return { ...nextMember };
-  }
-
-  const currentOnline = Boolean(currentMember.isOnline || currentMember.bot);
-  const nextOnline = Boolean(nextMember.isOnline || nextMember.bot);
-  const currentRecency = getMemberRecency(currentMember);
-  const nextRecency = getMemberRecency(nextMember);
-
-  let primary = currentMember;
-  let secondary = nextMember;
-
-  if (nextOnline && !currentOnline) {
-    primary = nextMember;
-    secondary = currentMember;
-  } else if (nextOnline === currentOnline) {
-    if (nextRecency > currentRecency) {
-      primary = nextMember;
-      secondary = currentMember;
-    } else if (!currentMember.avatarImage && nextMember.avatarImage) {
-      primary = nextMember;
-      secondary = currentMember;
-    }
-  }
-
-  const mergedRoleIds = normalizeRoleIds(primary.roleIds || primary.role_id || primary.roleId || secondary.roleIds || secondary.role_id || secondary.roleId, primary.roleId || secondary.roleId || "student");
-  const primaryRoleId = getPrimaryRoleIdFromRoleIds(mergedRoleIds, primary.roleId || secondary.roleId || "student");
+function buildDirectoryMemberFromRecord(record, presenceMap = new Map()) {
+  const roleIds = normalizeRoleIds(record.roleIds || record.role_ids || record.roleId || record.role_id, record.roleId || record.role_id || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, record.roleId || record.role_id || "student");
+  const presenceMember = presenceMap.get(record.id);
+  const isOnline = Boolean(presenceMember?.isOnline ?? record.isOnline ?? record.is_online);
+  const lastSeen = presenceMember?.lastSeen || presenceMember?.last_seen || record.lastSeen || record.last_seen || null;
 
   return {
-    ...secondary,
-    ...primary,
-    id: primary.id || secondary.id,
-    name: primary.name || secondary.name,
-    display_name: primary.display_name || secondary.display_name,
-    roleIds: mergedRoleIds,
-    role_ids: mergedRoleIds,
+    id: record.id,
+    name: record.name || record.display_name || "Isimsiz Uye",
     roleId: primaryRoleId,
+    roleIds,
     role_id: primaryRoleId,
-    avatarImage: primary.avatarImage || secondary.avatarImage || null,
-    isOnline: Boolean(primary.isOnline || secondary.isOnline || primary.bot || secondary.bot),
-    isGuest: Boolean(primary.isGuest || secondary.isGuest || primary.is_guest || secondary.is_guest),
-    lastSeen: primary.lastSeen || secondary.lastSeen || primary.last_seen || secondary.last_seen || null
+    role_ids: roleIds,
+    avatarImage: presenceMember?.avatarImage || record.avatarImage || record.avatar_image || null,
+    avatarClass: roleIds.includes("guest") ? "amber" : "green",
+    subtitle: isOnline ? (getRoleLabelFromRoleIds(roleIds) || (roleIds.includes("guest") ? "Misafir" : "Uye")) : "Cevrimdisi",
+    isOnline,
+    isGuest: Boolean(record.isGuest || record.is_guest || roleIds.includes("guest")),
+    isMuted: Boolean(record.isMuted || record.is_muted),
+    isBanned: Boolean(record.isBanned || record.is_banned),
+    lastSeen
   };
 }
 
-function getAllMembers() {
-  const merged = new Map();
-  const memberSources = [
-    ...members.filter((member) => member.bot),
-    ...directoryUsers,
-    ...livePresenceMembers,
-    ...(!supabaseClient ? ephemeralMembers : [])
-  ];
+function getPresenceMap() {
+  return new Map(
+    livePresenceMembers
+      .filter((member) => member?.id)
+      .map((member) => [member.id, member])
+  );
+}
 
-  memberSources.forEach((member) => {
-    if (!isVisibleRealMember(member)) {
-      return;
-    }
-    const identityKey = getMemberIdentityKey(member);
-    if (!identityKey) {
-      return;
-    }
-    merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), member));
-  });
+function getAllMembers() {
+  const visibleBots = members.filter((member) => member.bot && isVisibleRealMember(member));
+  const presenceMap = getPresenceMap();
+  const merged = new Map();
+
+  directoryUsers
+    .filter(isVisibleRealMember)
+    .forEach((member) => {
+      const normalizedMember = buildDirectoryMemberFromRecord(member, presenceMap);
+      merged.set(normalizedMember.id, normalizedMember);
+    });
 
   if (authState.userId && authState.mode !== "visitor") {
-    const selfMember = {
+    const selfRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student");
+    const selfMember = buildDirectoryMemberFromRecord({
       id: authState.userId,
       name: authState.name,
       roleId: authState.roleId,
-      roleIds: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student"),
+      roleIds: selfRoleIds,
       avatarImage: authState.avatarImage || null,
       isOnline: true,
-      isGuest: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student").includes("guest")
-    };
-    const identityKey = getMemberIdentityKey(selfMember);
-    if (identityKey) {
-      merged.set(identityKey, mergeMembersPreferred(merged.get(identityKey), selfMember));
-    }
+      isGuest: selfRoleIds.includes("guest"),
+      isMuted: authState.isMuted,
+      isBanned: authState.isBanned,
+      lastSeen: new Date().toISOString()
+    }, presenceMap);
+    merged.set(selfMember.id, {
+      ...(merged.get(selfMember.id) || {}),
+      ...selfMember
+    });
   }
+
+  visibleBots.forEach((bot) => {
+    const botRoleIds = normalizeRoleIds(bot.roleIds || bot.roleId, bot.roleId || "assistant");
+    merged.set(bot.id, {
+      ...bot,
+      roleId: getPrimaryRoleIdFromRoleIds(botRoleIds, bot.roleId || "assistant"),
+      roleIds: botRoleIds,
+      isOnline: true
+    });
+  });
 
   return Array.from(merged.values());
 }
@@ -2709,18 +2660,16 @@ function getVisibleMembers() {
     const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, member.roleId || "student");
     const primaryRole = getRole(primaryRoleId);
     const isOnline = Boolean(member.isOnline || member.bot);
-    const roleLabel = getRoleLabelFromRoleIds(roleIds);
 
     return {
       ...member,
       roleIds,
       roleId: primaryRoleId,
       role_id: primaryRoleId,
-      group: isOnline ? primaryRole?.name || "Uye" : "Çevrimdışı",
-      roleName: primaryRole ? primaryRole.name : "Rol Yok",
-      subtitle: member.bot ? member.subtitle : isOnline ? roleLabel || primaryRole?.name || "Uye" : (roleLabel ? `Çevrimdışı • ${roleLabel}` : "Çevrimdışı"),
-      roleOrder: primaryRole?.order ?? 99,
-      roleLabel
+      group: isOnline ? primaryRole?.name || "Uye" : "Cevrimdisi",
+      roleName: primaryRole?.name || "Uye",
+      subtitle: member.bot ? member.subtitle : isOnline ? (getRoleLabelFromRoleIds(roleIds) || primaryRole?.name || "Uye") : "Cevrimdisi",
+      roleOrder: Number(primaryRole?.order ?? 99)
     };
   });
 }
@@ -2922,8 +2871,9 @@ function renderMembersSidebar() {
   renderedMembersById = new Map(visibleMembers.map((member) => [member.id, member]));
 
   const grouped = visibleMembers.reduce((accumulator, member) => {
-    accumulator[member.group] ||= [];
-    accumulator[member.group].push(member);
+    const groupName = member.group || "Cevrimdisi";
+    accumulator[groupName] ||= [];
+    accumulator[groupName].push(member);
     return accumulator;
   }, {});
 
@@ -2937,47 +2887,43 @@ function renderMembersSidebar() {
 
       const firstRoleOrder = Number(firstMember.roleOrder ?? 99);
       const secondRoleOrder = Number(secondMember.roleOrder ?? 99);
-      return firstRoleOrder - secondRoleOrder || String(firstMember.name || "").localeCompare(String(secondMember.name || ""), "tr");
+      const firstSeen = getMemberRecency(firstMember);
+      const secondSeen = getMemberRecency(secondMember);
+      return firstRoleOrder - secondRoleOrder || secondSeen - firstSeen || String(firstMember.name || "").localeCompare(String(secondMember.name || ""), "tr");
     });
   });
 
-  const order = [
-    ...getSortedRoles().map((role) => role.name),
-    "Çevrimdışı"
-  ];
+  const groupOrder = [...getSortedRoles().map((role) => role.name), "Cevrimdisi"];
 
-  membersGroups.innerHTML = order
+  membersGroups.innerHTML = groupOrder
     .filter((group) => grouped[group]?.length)
     .map((group) => {
-      const memberRows = grouped[group]
+      const rows = grouped[group]
         .map((member) => {
-          const initials = member.name
+          const initials = String(member.name || "U")
             .split(" ")
             .map((part) => part[0])
             .join("")
             .slice(0, 2)
             .toUpperCase();
-
-          const isOffline = !(member.isOnline || member.bot);
           const roleIds = getRoleIdsForMember(member);
-          const subtitleClass = isOffline ? "role offline-role" : "role role-badges";
+          const isOffline = !(member.isOnline || member.bot);
           const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(roleIds);
-          const offlineClass = member.isOnline || member.bot ? "" : " offline";
           const avatarStyle = member.avatarImage
             ? `background: center / cover no-repeat url("${member.avatarImage}")`
             : `background: ${escapeHtml(roleColor)}`;
           const subtitleMarkup = member.bot
             ? escapeHtml(member.subtitle || "")
             : isOffline
-              ? escapeHtml(member.subtitle || "Çevrimdışı")
+              ? '<span class="offline-role">Cevrimdisi</span>'
               : renderSidebarRoleBadges(roleIds);
 
           return `
-            <button class="member-row${offlineClass}" type="button" data-member-id="${escapeHtml(member.id)}">
+            <button class="member-row${isOffline ? " offline" : ""}" type="button" data-member-id="${escapeHtml(member.id)}">
               <div class="avatar ${escapeHtml(member.avatarClass || "")}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
               <div class="member-meta">
                 <strong>${escapeHtml(member.name)}</strong>
-                <p class="${subtitleClass}" style="${isOffline ? `color: ${escapeHtml(roleColor)}` : ""}">${subtitleMarkup}</p>
+                <p class="role${isOffline ? " offline-role" : " role-badges"}">${subtitleMarkup}</p>
               </div>
               ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
             </button>
@@ -2988,7 +2934,7 @@ function renderMembersSidebar() {
       return `
         <div class="members-group">
           <p class="member-heading">${group} • ${grouped[group].length}</p>
-          ${memberRows}
+          ${rows}
         </div>
       `;
     })
@@ -4205,9 +4151,9 @@ async function loadDirectoryUsers() {
     const { data, error } = await withTimeout(
       supabaseClient
         .from("app_users")
-        .select("id, display_name, role_id, role_ids, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image")
+        .select("id, display_name, role_id, role_ids, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image, created_at")
         .order("created_at", { ascending: true })
-        .limit(120),
+        .limit(500),
       "Uye dizinini yukleme"
     );
 
@@ -4217,52 +4163,9 @@ async function loadDirectoryUsers() {
 
     directoryUsers = (data || [])
       .filter((user) => !user.is_banned)
-      .map((user) => ({
-        id: user.id,
-        name: user.display_name || "Isimsiz Uye",
-        roleId: getPrimaryRoleIdFromRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
-        roleIds: normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
-        avatarImage: user.avatar_image || null,
-        avatarClass: "blue",
-        subtitle: user.is_online ? (getRoleLabelFromRoleIds(user.role_ids || user.role_id) || (user.is_guest ? "Misafir" : "Uye")) : "Çevrimdışı",
-        isOnline: Boolean(user.is_online),
-        lastSeen: user.last_seen || null,
-        isMuted: Boolean(user.is_muted),
-        isBanned: Boolean(user.is_banned),
-        isGuest: Boolean(user.is_guest)
-      }));
+      .map((user) => buildDirectoryMemberFromRecord(user));
   } catch (error) {
     console.warn("Uye dizini yuklenemedi:", error.message);
-
-    try {
-      const { data, error: fallbackError } = await withTimeout(
-        supabaseClient
-          .from("app_users")
-          .select("id, display_name, role_id, role_ids, is_guest")
-          .order("created_at", { ascending: true })
-          .limit(120),
-        "Temel uye dizinini yukleme"
-      );
-
-      if (fallbackError) {
-        throw fallbackError;
-      }
-
-      directoryUsers = (data || []).map((user) => ({
-        id: user.id,
-        name: user.display_name || "Isimsiz Uye",
-        roleId: getPrimaryRoleIdFromRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
-        roleIds: normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student"),
-        avatarImage: null,
-        avatarClass: "blue",
-        subtitle: "Çevrimdışı",
-        isOnline: false,
-        lastSeen: null,
-        isGuest: Boolean(user.is_guest)
-      }));
-    } catch (fallbackError) {
-      console.warn("Temel uye dizini yuklenemedi:", fallbackError.message);
-    }
   }
 
   renderMembersSidebar();
@@ -4370,6 +4273,7 @@ function syncRealtimePresenceMembers() {
     .map((presence) => {
       const roleIds = normalizeRoleIds(presence.roleIds || presence.roleId, presence.roleId || "guest");
       const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, presence.roleId || "guest");
+
       return {
         id: presence.id,
         name: presence.name || "Isimsiz Uye",
@@ -4379,36 +4283,13 @@ function syncRealtimePresenceMembers() {
         avatarClass: roleIds.includes("guest") ? "amber" : "green",
         subtitle: getRoleLabelFromRoleIds(roleIds) || (roleIds.includes("guest") ? "Misafir" : "Uye"),
         isOnline: true,
-        isGuest: Boolean(presence.isGuest)
+        isGuest: Boolean(presence.isGuest),
+        lastSeen: presence.onlineAt || new Date().toISOString()
       };
     });
 
-  if (directoryUsers.length) {
-    const onlineIds = new Set(livePresenceMembers.map((member) => member.id));
-    directoryUsers = directoryUsers.map((member) => {
-      const liveMember = livePresenceMembers.find((item) => item.id === member.id);
-      if (liveMember) {
-        return {
-          ...member,
-          name: liveMember.name || member.name,
-          roleId: liveMember.roleId || member.roleId,
-          roleIds: getRoleIdsForMember(liveMember),
-          avatarImage: liveMember.avatarImage || member.avatarImage || null,
-          isOnline: true,
-          subtitle: getRoleLabelFromRoleIds(getRoleIdsForMember(liveMember)) || (member.isGuest ? "Misafir" : "Uye")
-        };
-      }
-
-      if (onlineIds.has(member.id)) {
-        return member;
-      }
-
-      return member;
-    });
-  }
-
   renderMembersSidebar();
-  scheduleDirectoryRefresh();
+  scheduleDirectoryRefresh(250);
 }
 
 async function trackRealtimePresence() {
@@ -5220,17 +5101,19 @@ function initializeTextChannelComposers() {
 }
 
 async function loadAdminUsers() {
-  const localUsers = getAllMembers().map((member) => ({
-    id: member.id,
-    display_name: member.name,
-    role_id: getPrimaryRoleIdFromRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
-    role_ids: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
-    is_guest: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student").includes("guest"),
-    is_online: Boolean(member.isOnline),
-    last_seen: member.lastSeen || null,
-    avatarImage: member.avatarImage || null,
-    ...getUserModeration(member.id)
-  }));
+  const localUsers = getAllMembers()
+    .filter((member) => !member.bot)
+    .map((member) => ({
+      id: member.id,
+      display_name: member.name,
+      role_id: getPrimaryRoleIdFromRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
+      role_ids: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
+      is_guest: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student").includes("guest"),
+      is_online: Boolean(member.isOnline),
+      last_seen: member.lastSeen || null,
+      avatarImage: member.avatarImage || null,
+      ...getUserModeration(member.id)
+    }));
 
   if (!supabaseClient) {
     adminKnownUsers = localUsers;
@@ -5239,30 +5122,26 @@ async function loadAdminUsers() {
   }
 
   try {
-      const { data, error } = await withTimeout(
-        supabaseClient
-          .from("app_users")
-          .select("id, display_name, role_id, role_ids, is_guest, created_at, avatar_image, is_muted, is_banned, is_online, last_seen")
-          .order("created_at", { ascending: false })
-          .limit(100),
-        "Uyeleri yukleme"
-      );
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("id, display_name, role_id, role_ids, is_guest, created_at, avatar_image, is_muted, is_banned, is_online, last_seen")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      "Uyeleri yukleme"
+    );
 
     if (error) {
       throw error;
     }
 
-    const merged = new Map(localUsers.map((user) => [user.id, user]));
-    (data || []).forEach((user) => {
-      const moderation = getUserModeration(user.id);
-      merged.set(user.id, {
-        ...user,
-        avatarImage: user.avatar_image || merged.get(user.id)?.avatarImage || null,
-        isMuted: user.is_muted ?? moderation.isMuted,
-        isBanned: user.is_banned ?? moderation.isBanned
-      });
-    });
-    adminKnownUsers = Array.from(merged.values());
+    adminKnownUsers = (data || []).map((user) => ({
+      ...user,
+      avatarImage: user.avatar_image || null,
+      isMuted: Boolean(user.is_muted),
+      isBanned: Boolean(user.is_banned),
+      isOnline: Boolean(user.is_online)
+    }));
     renderAdminUsers();
   } catch (error) {
     console.warn("Uyeler yuklenemedi:", error.message);
