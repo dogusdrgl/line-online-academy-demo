@@ -6411,7 +6411,10 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
       return;
     }
 
-    if (!data.session) {
+    const createdUserId = data.user?.id || `member-${slugify(signUpDisplayName)}-${Date.now()}`;
+    let sessionOpened = Boolean(data.session);
+
+    if (!sessionOpened) {
       try {
         const signInResponse = await withTimeout(
           supabaseClient.auth.signInWithPassword({
@@ -6421,22 +6424,17 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
           "Yeni uye oturumu"
         );
 
-        if (signInResponse.error) {
-          throw signInResponse.error;
-        }
-
-        response = signInResponse;
+        sessionOpened = !signInResponse.error;
       } catch (signInError) {
-        window.alert("Uyelik olustu ama otomatik giris acilamadi. Muhtemelen Supabase tarafinda e-posta dogrulamasi acik. Dashboard > Authentication ayarlarinda email confirmation kapatilirsa uye olunca direkt giris yapar.");
-        return;
+        sessionOpened = false;
       }
     }
 
-    const storedProfile = await getStoredUserProfile(data.user.id);
+    const storedProfile = await getStoredUserProfile(createdUserId);
     const roleIds = normalizeRoleIds(storedProfile.roleIds || storedProfile.roleId || "student", storedProfile.roleId || "student");
     const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || "student");
     await upsertAppUser({
-      id: data.user.id,
+      id: createdUserId,
       displayName: signUpDisplayName,
       roleId,
       roleIds,
@@ -6447,12 +6445,15 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     });
     finishAuth(signUpDisplayName, roleId, {
       mode: "member",
-      userId: data.user.id,
+      userId: createdUserId,
       roleIds,
       isMuted: storedProfile.isMuted,
       isBanned: storedProfile.isBanned,
       avatarImage: storedProfile.avatarImage || null
     });
+    if (!sessionOpened) {
+      console.warn("Supabase oturumu acilmadi; kullanici yerel uye oturumu ile devam ediyor.");
+    }
     return;
   }
 
@@ -6483,19 +6484,28 @@ guestForm.addEventListener("submit", async (event) => {
     id: guestId,
     name: guestName,
     roleId: "guest",
+    roleIds: ["guest"],
     avatarClass: "amber",
-    group: "Çevrimiçi",
-    subtitle: "Misafir"
+    group: "Misafir",
+    subtitle: "Misafir",
+    isOnline: true,
+    isGuest: true,
+    lastSeen: new Date().toISOString()
   };
 
   ephemeralMembers.push(guestUser);
+  ensureSidebarMember(guestUser);
+  renderMembersSidebar();
+  finishAuth(guestName, "guest", { mode: "guest", userId: guestId, roleIds: ["guest"] });
 
   if (supabaseClient) {
-    await ensureGuestDirectoryRecord(guestId, guestName, true);
-    loadDirectoryUsers();
+    ensureGuestDirectoryRecord(guestId, guestName, true)
+      .then(() => loadDirectoryUsers())
+      .catch((error) => {
+        console.warn("Misafir dizin senkronu basarisiz:", error.message);
+        renderMembersSidebar();
+      });
   }
-
-  finishAuth(guestName, "guest", { mode: "guest", userId: guestId, roleIds: ["guest"] });
 });
 
 if (authCloseButton) {
