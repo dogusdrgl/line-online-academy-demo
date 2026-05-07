@@ -724,6 +724,23 @@ function getRoleColorFromRoleIds(roleIds) {
   return getRole(getPrimaryRoleIdFromRoleIds(roleIds))?.color || "#f1a126";
 }
 
+function renderSidebarRoleBadges(roleIds) {
+  return normalizeRoleIds(roleIds, "student")
+    .slice()
+    .sort((firstRoleId, secondRoleId) => {
+      const firstRole = getRole(firstRoleId);
+      const secondRole = getRole(secondRoleId);
+      const firstOrder = Number(firstRole?.order ?? 99);
+      const secondOrder = Number(secondRole?.order ?? 99);
+      return firstOrder - secondOrder || String(firstRole?.name || firstRoleId).localeCompare(String(secondRole?.name || secondRoleId), "tr");
+    })
+    .map((roleId) => {
+      const role = getRole(roleId);
+      return `<span class="member-role-badge" style="--member-role-color: ${escapeHtml(role?.color || "#f1a126")}">${escapeHtml(role?.name || roleId)}</span>`;
+    })
+    .join("");
+}
+
 function slugify(text) {
   return text
     .toLowerCase()
@@ -2942,19 +2959,25 @@ function renderMembersSidebar() {
             .toUpperCase();
 
           const isOffline = !(member.isOnline || member.bot);
-          const subtitleClass = isOffline ? "role offline-role" : "role";
-          const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(getRoleIdsForMember(member));
+          const roleIds = getRoleIdsForMember(member);
+          const subtitleClass = isOffline ? "role offline-role" : "role role-badges";
+          const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(roleIds);
           const offlineClass = member.isOnline || member.bot ? "" : " offline";
           const avatarStyle = member.avatarImage
             ? `background: center / cover no-repeat url("${member.avatarImage}")`
             : `background: ${escapeHtml(roleColor)}`;
+          const subtitleMarkup = member.bot
+            ? escapeHtml(member.subtitle || "")
+            : isOffline
+              ? escapeHtml(member.subtitle || "Çevrimdışı")
+              : renderSidebarRoleBadges(roleIds);
 
           return `
             <button class="member-row${offlineClass}" type="button" data-member-id="${escapeHtml(member.id)}">
               <div class="avatar ${escapeHtml(member.avatarClass || "")}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
               <div class="member-meta">
                 <strong>${escapeHtml(member.name)}</strong>
-                <p class="${subtitleClass}" style="color: ${escapeHtml(roleColor)}">${escapeHtml(member.subtitle || "")}</p>
+                <p class="${subtitleClass}" style="${isOffline ? `color: ${escapeHtml(roleColor)}` : ""}">${subtitleMarkup}</p>
               </div>
               ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
             </button>
@@ -4292,6 +4315,37 @@ function sendPresenceKeepalive(userId, isOnline) {
   }
 }
 
+function sendGuestDirectoryKeepalive(userId, displayName, isOnline = false) {
+  if (!userId || !displayName || !supabaseConfig.url || !supabaseConfig.anonKey || typeof fetch !== "function") {
+    return;
+  }
+
+  try {
+    const endpoint = `${supabaseConfig.url}/rest/v1/app_users?on_conflict=id`;
+    fetch(endpoint, {
+      method: "POST",
+      headers: {
+        apikey: supabaseConfig.anonKey,
+        Authorization: `Bearer ${supabaseConfig.anonKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal"
+      },
+      body: JSON.stringify([{
+        id: userId,
+        display_name: displayName,
+        role_id: "guest",
+        role_ids: ["guest"],
+        is_guest: true,
+        is_online: isOnline,
+        last_seen: new Date().toISOString()
+      }]),
+      keepalive: true
+    }).catch(() => {});
+  } catch (error) {
+    console.warn("Misafir keepalive gonderilemedi:", error.message);
+  }
+}
+
 function getRealtimePresencePayload() {
   return {
     id: authState.userId,
@@ -4845,10 +4899,17 @@ function finishAuth(name, roleId, options = {}) {
 
 function resetIdentity() {
   const currentUserId = authState.userId;
+  const currentUserName = authState.name;
+  const currentRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student");
   leaveVoiceRoom({ navigateToDashboard: false });
   untrackRealtimePresence();
   updatePresence(false);
   sendPresenceKeepalive(currentUserId, false);
+  if (currentUserId && currentRoleIds.includes("guest")) {
+    ensureGuestDirectoryRecord(currentUserId, currentUserName, false)
+      .then(() => loadDirectoryUsers())
+      .catch(() => {});
+  }
   authState = {
     mode: "visitor",
     name: "Ziyaretci",
@@ -5719,6 +5780,7 @@ async function assignUserRoles(userId, roleIds) {
 
   renderMembersSidebar();
   renderAdminUsers();
+  scheduleDirectoryRefresh(60);
 }
 
 async function moderateUser(userId, updates) {
@@ -7003,18 +7065,28 @@ document.addEventListener("fullscreenchange", () => {
 
 window.addEventListener("beforeunload", () => {
   const currentUserId = authState.userId;
+  const currentUserName = authState.name;
+  const currentRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student");
   leaveVoiceRoom({ navigateToDashboard: false });
   untrackRealtimePresence();
   updatePresence(false);
   sendPresenceKeepalive(currentUserId, false);
+  if (currentUserId && currentRoleIds.includes("guest")) {
+    sendGuestDirectoryKeepalive(currentUserId, currentUserName, false);
+  }
 });
 
 window.addEventListener("pagehide", () => {
   const currentUserId = authState.userId;
+  const currentUserName = authState.name;
+  const currentRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student");
   if (!currentUserId) {
     return;
   }
   sendPresenceKeepalive(currentUserId, false);
+  if (currentRoleIds.includes("guest")) {
+    sendGuestDirectoryKeepalive(currentUserId, currentUserName, false);
+  }
 });
 
 

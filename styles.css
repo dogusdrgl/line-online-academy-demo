@@ -5609,3 +5609,25 @@ button {
     min-width: 0;
   }
 }
+
+
+.member-meta .role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.member-role-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--member-role-color) 16%, rgba(255,255,255,0.02));
+  border: 1px solid color-mix(in srgb, var(--member-role-color) 38%, rgba(255,255,255,0.08));
+  color: var(--member-role-color);
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
