@@ -4067,6 +4067,56 @@ async function upsertAppUser(user) {
   }
 }
 
+async function ensureGuestDirectoryRecord(guestId, guestName, isOnline = true) {
+  if (!guestId || !guestName) {
+    return false;
+  }
+
+  const saved = await upsertAppUser({
+    id: guestId,
+    displayName: guestName,
+    roleId: "guest",
+    roleIds: ["guest"],
+    avatarImage: null,
+    isOnline
+  });
+
+  if (saved) {
+    return true;
+  }
+
+  if (!supabaseConfig.url || !supabaseConfig.anonKey || typeof fetch !== "function") {
+    return false;
+  }
+
+  try {
+    const endpoint = `${supabaseConfig.url}/rest/v1/app_users?on_conflict=id`;
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        apikey: supabaseConfig.anonKey,
+        Authorization: `Bearer ${supabaseConfig.anonKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal"
+      },
+      body: JSON.stringify([{
+        id: guestId,
+        display_name: guestName,
+        role_id: "guest",
+        role_ids: ["guest"],
+        is_guest: true,
+        is_online: isOnline,
+        last_seen: new Date().toISOString()
+      }])
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.warn("Misafir dizin kaydi REST fallback ile de basarisiz:", error.message);
+    return false;
+  }
+}
+
 async function getStoredUserProfile(userId) {
   if (!supabaseClient || !userId) {
     return {};
@@ -6483,14 +6533,7 @@ guestForm.addEventListener("submit", async (event) => {
   ephemeralMembers.push(guestUser);
 
   if (supabaseClient) {
-    await upsertAppUser({
-      id: guestId,
-      displayName: guestName,
-      roleId: "guest",
-      roleIds: ["guest"],
-      avatarImage: null,
-      isOnline: true
-    });
+    await ensureGuestDirectoryRecord(guestId, guestName, true);
     loadDirectoryUsers();
   }
 
