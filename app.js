@@ -169,6 +169,7 @@ const LOCAL_DM_UNREAD_KEY = "line-online-academy-dm-unread";
 const LOCAL_DM_READ_KEY = "line-online-academy-dm-read";
 const LOCAL_VOICE_CHAT_UI_KEY = "line-online-academy-voice-chat-ui";
 const LOCAL_HOME_PAGE_SETTINGS_KEY = "line-online-academy-home-page-settings";
+const LOCAL_DIRECTORY_CACHE_KEY = "line-online-academy-directory-cache";
 
 let authState = {
   mode: "visitor",
@@ -855,6 +856,95 @@ function clearSavedSession() {
   } catch (error) {
     console.warn("Oturum temizlenemedi:", error.message);
   }
+}
+
+function readDirectoryCache() {
+  return readJson(LOCAL_DIRECTORY_CACHE_KEY, []);
+}
+
+function writeDirectoryCache(entries) {
+  writeJson(LOCAL_DIRECTORY_CACHE_KEY, entries);
+}
+
+function normalizeDirectoryCacheEntry(entry) {
+  if (!entry?.id) {
+    return null;
+  }
+
+  const roleIds = normalizeRoleIds(entry.roleIds || entry.role_ids || entry.roleId || entry.role_id, entry.roleId || entry.role_id || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, entry.roleId || entry.role_id || "student");
+
+  return {
+    id: entry.id,
+    display_name: entry.display_name || entry.name || "Isimsiz Uye",
+    role_id: primaryRoleId,
+    role_ids: roleIds,
+    is_guest: Boolean(entry.is_guest ?? entry.isGuest ?? roleIds.includes("guest")),
+    is_muted: Boolean(entry.is_muted ?? entry.isMuted),
+    is_banned: Boolean(entry.is_banned ?? entry.isBanned),
+    is_online: Boolean(entry.is_online ?? entry.isOnline),
+    last_seen: entry.last_seen || entry.lastSeen || new Date().toISOString(),
+    avatar_image: entry.avatar_image || entry.avatarImage || null,
+    created_at: entry.created_at || entry.createdAt || new Date().toISOString()
+  };
+}
+
+function upsertDirectoryCacheEntry(entry) {
+  const normalized = normalizeDirectoryCacheEntry(entry);
+  if (!normalized) {
+    return;
+  }
+
+  const cache = readDirectoryCache();
+  const nextCache = cache.filter((item) => item?.id !== normalized.id);
+  nextCache.push(normalized);
+  writeDirectoryCache(nextCache);
+}
+
+function mergeDirectoryRecords(primaryEntries = [], fallbackEntries = []) {
+  const merged = new Map();
+
+  fallbackEntries.forEach((entry) => {
+    const normalized = normalizeDirectoryCacheEntry(entry);
+    if (normalized) {
+      merged.set(normalized.id, normalized);
+    }
+  });
+
+  primaryEntries.forEach((entry) => {
+    const normalized = normalizeDirectoryCacheEntry(entry);
+    if (normalized) {
+      merged.set(normalized.id, {
+        ...(merged.get(normalized.id) || {}),
+        ...normalized
+      });
+    }
+  });
+
+  return Array.from(merged.values());
+}
+
+function markDirectoryCachePresence(userId, isOnline, fallback = {}) {
+  if (!userId) {
+    return;
+  }
+
+  const cache = readDirectoryCache();
+  const existing = cache.find((entry) => entry?.id === userId);
+  upsertDirectoryCacheEntry({
+    ...(existing || {}),
+    id: userId,
+    display_name: fallback.displayName || fallback.name || existing?.display_name || "Isimsiz Uye",
+    role_id: fallback.roleId || existing?.role_id || "student",
+    role_ids: fallback.roleIds || existing?.role_ids || [fallback.roleId || existing?.role_id || "student"],
+    is_guest: fallback.isGuest ?? existing?.is_guest ?? false,
+    is_muted: fallback.isMuted ?? existing?.is_muted ?? false,
+    is_banned: fallback.isBanned ?? existing?.is_banned ?? false,
+    is_online: isOnline,
+    last_seen: new Date().toISOString(),
+    avatar_image: fallback.avatarImage ?? existing?.avatar_image ?? null,
+    created_at: existing?.created_at || new Date().toISOString()
+  });
 }
 
 function readLocalProfile() {
@@ -2510,6 +2600,19 @@ function ensureSidebarMember(user) {
   } else {
     directoryUsers.push(nextMember);
   }
+
+  upsertDirectoryCacheEntry({
+    id: nextMember.id,
+    display_name: nextMember.name,
+    role_id: nextMember.roleId,
+    role_ids: nextMember.roleIds,
+    is_guest: nextMember.isGuest,
+    is_muted: nextMember.isMuted,
+    is_banned: nextMember.isBanned,
+    is_online: nextMember.isOnline,
+    last_seen: nextMember.lastSeen,
+    avatar_image: nextMember.avatarImage || null
+  });
 }
 
 function withTimeout(promise, label = "Supabase istegi") {
@@ -4162,11 +4265,16 @@ async function loadDirectoryUsers() {
       throw error;
     }
 
-    directoryUsers = (data || [])
+    const mergedRecords = mergeDirectoryRecords(data || [], readDirectoryCache());
+    directoryUsers = mergedRecords
       .filter((user) => !user.is_banned)
       .map((user) => buildDirectoryMemberFromRecord(user));
+    writeDirectoryCache(mergedRecords);
   } catch (error) {
     console.warn("Uye dizini yuklenemedi:", error.message);
+    directoryUsers = mergeDirectoryRecords([], readDirectoryCache())
+      .filter((user) => !user.is_banned)
+      .map((user) => buildDirectoryMemberFromRecord(user));
   }
 
   renderMembersSidebar();
@@ -4177,6 +4285,16 @@ async function updatePresence(isOnline) {
     return;
   }
 
+  markDirectoryCachePresence(authState.userId, isOnline, {
+    displayName: authState.name,
+    roleId: authState.roleId,
+    roleIds: authState.roleIds,
+    avatarImage: authState.avatarImage,
+    isGuest: normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || "student").includes("guest"),
+    isMuted: authState.isMuted,
+    isBanned: authState.isBanned
+  });
+
   try {
     await withTimeout(
       supabaseClient
@@ -4186,10 +4304,10 @@ async function updatePresence(isOnline) {
           last_seen: new Date().toISOString()
         })
         .eq("id", authState.userId),
-      "Çevrimiçi durumu"
+      "Ã‡evrimiÃ§i durumu"
     );
   } catch (error) {
-    console.warn("Çevrimiçi durumu kaydedilemedi:", error.message);
+    console.warn("Ã‡evrimiÃ§i durumu kaydedilemedi:", error.message);
   }
 }
 
@@ -4787,6 +4905,12 @@ function resetIdentity() {
   untrackRealtimePresence();
   updatePresence(false);
   sendPresenceKeepalive(currentUserId, false);
+  markDirectoryCachePresence(currentUserId, false, {
+    displayName: currentUserName,
+    roleId: currentRoleIds[0] || "student",
+    roleIds: currentRoleIds,
+    isGuest: currentRoleIds.includes("guest")
+  });
   if (currentUserId && currentRoleIds.includes("guest")) {
     ensureGuestDirectoryRecord(currentUserId, currentUserName, false)
       .then(() => loadDirectoryUsers())
@@ -6918,6 +7042,9 @@ renderNotifications();
 renderDmBadge();
 initializeSidebarOrder();
 titleCaseSidebarLabels();
+directoryUsers = mergeDirectoryRecords([], readDirectoryCache())
+  .filter((user) => !user.is_banned)
+  .map((user) => buildDirectoryMemberFromRecord(user));
 renderMembersSidebar();
 initializeVoiceRooms();
 initializeTextChannelComposers();
