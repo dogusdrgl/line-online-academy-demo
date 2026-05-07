@@ -704,6 +704,14 @@ function getPrimaryRoleIdForMember(member) {
 
 function getRoleNamesFromRoleIds(roleIds) {
   return normalizeRoleIds(roleIds)
+    .slice()
+    .sort((firstRoleId, secondRoleId) => {
+      const firstRole = getRole(firstRoleId);
+      const secondRole = getRole(secondRoleId);
+      const firstOrder = Number(firstRole?.order ?? 99);
+      const secondOrder = Number(secondRole?.order ?? 99);
+      return firstOrder - secondOrder || String(firstRole?.name || firstRoleId).localeCompare(String(secondRole?.name || secondRoleId), "tr");
+    })
     .map((roleId) => getRole(roleId)?.name || roleId)
     .filter(Boolean);
 }
@@ -2934,11 +2942,7 @@ function renderMembersSidebar() {
             .toUpperCase();
 
           const isOffline = !(member.isOnline || member.bot);
-          const subtitleClass = isOffline
-            ? "role offline-role"
-            : getRoleIdsForMember(member).includes("admin") || getRoleIdsForMember(member).includes("guest")
-              ? "role green"
-              : "";
+          const subtitleClass = isOffline ? "role offline-role" : "role";
           const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(getRoleIdsForMember(member));
           const offlineClass = member.isOnline || member.bot ? "" : " offline";
           const avatarStyle = member.avatarImage
