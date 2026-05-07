@@ -992,14 +992,12 @@
     <div class="auth-backdrop hidden" id="auth-backdrop">
       <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <button class="auth-close" id="auth-close" type="button" aria-label="Pencereyi kapat">Ã—</button>
-        <div class="auth-header">
-          <p class="eyebrow">Etkilesim icin giris gerekiyor</p>
-          <h3 id="auth-title">Line Online Academy'ye katil</h3>
-          <p id="auth-subtitle">
-            Bu alanda mesaj gondermek, sesli odalara katilmak ve siniflarla etkilesime
-            gecmek icin giris yapabilir ya da misafir olarak devam edebilirsin.
-          </p>
+        <div class="auth-header compact">
+          <p class="eyebrow">Giris Gerekli</p>
+          <h3 id="auth-title">Katil</h3>
         </div>
+
+        <button class="auth-guest-shortcut" type="button" id="open-guest-priority">Misafir olarak gir</button>
 
         <div class="auth-tabs" id="auth-tabs">
           <button class="auth-tab active" type="button" data-auth-tab="signin">Giris Yap</button>
@@ -1017,7 +1015,6 @@
               <input type="password" id="signin-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
             </label>
             <button class="auth-primary" type="submit">Giris Yap</button>
-            <button class="auth-secondary" type="button" id="open-guest-inline">Misafir olarak devam et</button>
           </form>
 
           <form class="auth-panel" data-auth-panel="signup">
@@ -1034,17 +1031,13 @@
               <input type="password" id="signup-password" placeholder="Guclu bir sifre" />
             </label>
             <button class="auth-primary" type="submit">Uye Ol ve Devam Et</button>
-            <button class="auth-secondary" type="button" id="open-guest-inline-signup">Misafir olarak devam et</button>
           </form>
         </div>
 
         <form class="guest-screen hidden" id="guest-form">
-          <div class="guest-screen-head">
+          <div class="guest-screen-head compact">
             <p class="eyebrow">Misafir Girisi</p>
-            <h4>Size nasil hitap edelim?</h4>
-            <p class="guest-note">
-              Hemen katilabilmen icin sadece gecici bir isim istiyoruz. Daha sonra istersen hesap acabilirsin.
-            </p>
+            <h4>Gecici isim sec</h4>
           </div>
           <label class="auth-field">
             <span>Gecici Kullanici Adi</span>

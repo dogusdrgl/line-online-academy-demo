@@ -70,6 +70,7 @@ const guestForm = document.getElementById("guest-form");
 const guestNameInput = document.getElementById("guest-name");
 const openGuestInlineButton = document.getElementById("open-guest-inline");
 const openGuestInlineSignupButton = document.getElementById("open-guest-inline-signup");
+const openGuestPriorityButton = document.getElementById("open-guest-priority");
 const backToAuthOptionsButton = document.getElementById("back-to-auth-options");
 const signInEmail = document.getElementById("signin-email");
 const signInPassword = document.getElementById("signin-password");
@@ -6411,8 +6412,24 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     }
 
     if (!data.session) {
-      window.alert("Uyelik olustu. Supabase ayarina gore e-posta onayi gerekebilir; lutfen e-postani kontrol et.");
-      return;
+      try {
+        const signInResponse = await withTimeout(
+          supabaseClient.auth.signInWithPassword({
+            email: signUpEmail,
+            password: signUpPassword
+          }),
+          "Yeni uye oturumu"
+        );
+
+        if (signInResponse.error) {
+          throw signInResponse.error;
+        }
+
+        response = signInResponse;
+      } catch (signInError) {
+        window.alert("Uyelik olustu ama otomatik giris acilamadi. Muhtemelen Supabase tarafinda e-posta dogrulamasi acik. Dashboard > Authentication ayarlarinda email confirmation kapatilirsa uye olunca direkt giris yapar.");
+        return;
+      }
     }
 
     const storedProfile = await getStoredUserProfile(data.user.id);
@@ -6498,6 +6515,10 @@ if (guestCardSignin) {
   guestCardSignin.addEventListener("click", () => {
     openAuthModal("signin");
   });
+}
+
+if (openGuestPriorityButton) {
+  openGuestPriorityButton.addEventListener("click", openGuestInline);
 }
 
 if (guestCardSignup) {
