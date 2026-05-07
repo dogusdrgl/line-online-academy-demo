@@ -1072,13 +1072,14 @@
 
         <div class="admin-panel hidden" id="admin-panel">
           <div class="admin-panel-head">
-            <div>
+            <div class="admin-head-copy">
               <p class="eyebrow">Admin</p>
               <h3>Kontrol merkezi</h3>
+              <p class="admin-muted">Uyeleri, rolleri ve erisimleri daha duzenli bir akisla yonet.</p>
             </div>
             <div class="admin-head-actions">
               <button class="auth-secondary compact" type="button" id="admin-refresh-users">Uyeleri Yenile</button>
-              <button class="auth-secondary compact danger" type="button" id="admin-reset-users">DoÄŸuÅŸ DÄ±ÅŸÄ±nÄ± SÄ±fÄ±rla</button>
+              <button class="auth-secondary compact danger" type="button" id="admin-reset-users">Dogus Disini Sifirla</button>
             </div>
           </div>
 
@@ -1088,39 +1089,55 @@
           </div>
 
           <div class="admin-page active" id="admin-members-page" data-admin-panel-page="members">
-            <section class="admin-card wide">
-              <div class="admin-section-head">
+            <section class="admin-card wide admin-hero-card">
+              <div class="admin-section-head admin-members-head">
                 <div>
                   <h4>Uye Listesi</h4>
-                  <p class="admin-muted">Uyeleri gor, rol ata, sustur veya sunucudan uzaklastir.</p>
+                  <p class="admin-muted">Canli durumu gor, birden fazla rol ver ve moderasyon islemlerini daha hizli yonet.</p>
                 </div>
+                <label class="admin-search" aria-label="Uyelerde ara">
+                  <span>Ara</span>
+                  <input type="search" id="admin-member-search" placeholder="Isim, e-posta veya rol ara" />
+                </label>
               </div>
+              <div class="admin-panel-kpis" id="admin-member-stats"></div>
+            </section>
+
+            <section class="admin-card wide">
               <div class="admin-list members-admin-list" id="admin-users-list"></div>
             </section>
           </div>
 
           <div class="admin-page" id="admin-roles-page" data-admin-panel-page="roles">
-            <div class="admin-grid">
-            <section class="admin-card role-builder-card">
-              <h4>Rol Olustur</h4>
-              <p class="admin-muted">Role isim, renk ve girebilecegi alanlari sec.</p>
-              <div class="role-create">
-                <input type="text" id="new-role-name" placeholder="Orn: Ogretmen" maxlength="24" />
-                <input type="color" id="new-role-color" value="#f1a126" aria-label="Rol rengi" />
-                <label class="mini-check">
-                  <input type="checkbox" id="new-role-admin" />
-                  Admin
-                </label>
-              </div>
-              <div class="access-picker" id="new-role-access"></div>
-              <button class="auth-primary" type="button" id="create-role-button">Rolu Olustur</button>
-            </section>
+            <div class="admin-grid admin-roles-grid">
+              <section class="admin-card role-builder-card">
+                <div class="admin-section-head">
+                  <div>
+                    <h4>Yeni Rol</h4>
+                    <p class="admin-muted">Rolun adini, rengini ve erisim alanlarini belirle.</p>
+                  </div>
+                </div>
+                <div class="role-create">
+                  <input type="text" id="new-role-name" placeholder="Orn: Mentor" maxlength="24" />
+                  <input type="color" id="new-role-color" value="#f1a126" aria-label="Rol rengi" />
+                  <label class="mini-check">
+                    <input type="checkbox" id="new-role-admin" />
+                    Admin
+                  </label>
+                </div>
+                <div class="access-picker" id="new-role-access"></div>
+                <button class="auth-primary" type="button" id="create-role-button">Rolu Olustur</button>
+              </section>
 
-            <section class="admin-card wide">
-              <h4>Roller</h4>
-              <p class="admin-muted">Mevcut rolleri, renklerini ve kanal erisimlerini buradan duzenle.</p>
-              <div class="admin-list role-list" id="admin-roles-list"></div>
-            </section>
+              <section class="admin-card wide">
+                <div class="admin-section-head">
+                  <div>
+                    <h4>Rol Duzeni</h4>
+                    <p class="admin-muted">Renkleri, hiyerarsiyi ve kanal erisimlerini tek bakista duzenle.</p>
+                  </div>
+                </div>
+                <div class="admin-list role-list" id="admin-roles-list"></div>
+              </section>
             </div>
           </div>
         </div>

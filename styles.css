@@ -5395,3 +5395,217 @@ button {
 .member-role-choice input {
   margin: 0;
 }
+
+
+/* Admin panel polish */
+.admin-head-copy {
+  max-width: 520px;
+}
+
+.admin-head-copy .admin-muted {
+  margin: 8px 0 0;
+}
+
+.admin-hero-card {
+  padding: 18px 18px 16px;
+  border-color: rgba(241, 161, 38, 0.18);
+  background:
+    radial-gradient(circle at right top, rgba(241, 161, 38, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.028)),
+    rgba(20, 21, 25, 0.6);
+}
+
+.admin-members-head {
+  align-items: end;
+}
+
+.admin-search {
+  min-width: min(320px, 100%);
+  display: grid;
+  gap: 8px;
+  color: #d9dde5;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-search input {
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(11, 12, 16, 0.6);
+  color: var(--text);
+  padding: 0 14px;
+  outline: none;
+}
+
+.admin-search input:focus {
+  border-color: rgba(241, 161, 38, 0.45);
+  box-shadow: 0 0 0 3px rgba(241, 161, 38, 0.12);
+}
+
+.admin-panel-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.admin-kpi {
+  padding: 14px 15px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.admin-kpi span {
+  display: block;
+  color: #aeb4bf;
+  font-size: 0.78rem;
+  margin-bottom: 8px;
+}
+
+.admin-kpi strong {
+  display: block;
+  font-size: 1.3rem;
+  letter-spacing: -0.03em;
+}
+
+.admin-kpi.is-online strong {
+  color: #86f6a4;
+}
+
+.admin-kpi.is-offline strong {
+  color: #c4cad4;
+}
+
+.admin-kpi.is-danger strong {
+  color: #ffb0a8;
+}
+
+.members-admin-list {
+  gap: 14px;
+}
+
+.member-admin-card {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  padding: 18px;
+  border-radius: 20px;
+}
+
+.member-admin-main {
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: start;
+}
+
+.member-admin-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+}
+
+.member-admin-meta {
+  min-width: 0;
+}
+
+.member-admin-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.member-admin-topline strong {
+  font-size: 1rem;
+}
+
+.member-role-summary {
+  margin: 10px 0 0;
+  color: #d7dbe2;
+  font-size: 0.84rem;
+}
+
+.member-role-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.member-role-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--role-color) 18%, rgba(255,255,255,0.06));
+  border: 1px solid color-mix(in srgb, var(--role-color) 40%, rgba(255,255,255,0.1));
+  color: #f5efe5;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.member-admin-controls {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.member-role-matrix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-role-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #d7dce6;
+  font-size: 0.8rem;
+}
+
+.member-role-choice input {
+  accent-color: var(--accent);
+}
+
+.member-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-action {
+  min-width: 132px;
+}
+
+.admin-roles-grid {
+  gap: 16px;
+}
+
+.role-builder-card,
+.role-editor-card {
+  border-radius: 20px;
+}
+
+.role-list {
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .admin-panel-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-members-head {
+    align-items: stretch;
+  }
+
+  .admin-search {
+    min-width: 0;
+  }
+}

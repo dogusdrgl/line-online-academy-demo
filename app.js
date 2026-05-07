@@ -133,6 +133,8 @@ const adminViewSelect = document.getElementById("admin-view-select");
 const adminAccessRoles = document.getElementById("admin-access-roles");
 const adminRefreshUsersButton = document.getElementById("admin-refresh-users");
 const adminResetUsersButton = document.getElementById("admin-reset-users");
+const adminMemberSearchInput = document.getElementById("admin-member-search");
+const adminMemberStats = document.getElementById("admin-member-stats");
 const newRoleNameInput = document.getElementById("new-role-name");
 const newRoleColorInput = document.getElementById("new-role-color");
 const newRoleAccess = document.getElementById("new-role-access");
@@ -5106,8 +5108,11 @@ async function loadAdminUsers() {
   const localUsers = getAllMembers().map((member) => ({
     id: member.id,
     display_name: member.name,
-    role_id: member.roleId,
-    is_guest: member.roleId === "guest",
+    role_id: getPrimaryRoleIdFromRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
+    role_ids: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student"),
+    is_guest: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || "student").includes("guest"),
+    is_online: Boolean(member.isOnline),
+    last_seen: member.lastSeen || null,
     avatarImage: member.avatarImage || null,
     ...getUserModeration(member.id)
   }));
@@ -5169,46 +5174,105 @@ function renderRoleCheckboxes(selectedRoleIds, userId) {
     .join("");
 }
 
+function renderAdminRolePills(roleIds) {
+  return normalizeRoleIds(roleIds, "student")
+    .map((roleId) => {
+      const role = getRole(roleId);
+      return `<span class="member-role-pill" style="--role-color: ${escapeHtml(role?.color || "#f1a126")}">${escapeHtml(role?.name || roleId)}</span>`;
+    })
+    .join("");
+}
+
+function renderAdminMemberStats(users) {
+  if (!adminMemberStats) {
+    return;
+  }
+
+  const total = users.length;
+  const online = users.filter((user) => Boolean(user.isOnline ?? user.is_online)).length;
+  const offline = Math.max(0, total - online);
+  const banned = users.filter((user) => Boolean(user.isBanned ?? user.is_banned)).length;
+
+  adminMemberStats.innerHTML = `
+    <article class="admin-kpi">
+      <span>Toplam Uye</span>
+      <strong>${total}</strong>
+    </article>
+    <article class="admin-kpi is-online">
+      <span>Cevrimici</span>
+      <strong>${online}</strong>
+    </article>
+    <article class="admin-kpi is-offline">
+      <span>Cevrimdisi</span>
+      <strong>${offline}</strong>
+    </article>
+    <article class="admin-kpi is-danger">
+      <span>Yasakli</span>
+      <strong>${banned}</strong>
+    </article>
+  `;
+}
+
 function renderAdminUsers() {
   if (!adminUsersList) {
     return;
   }
 
-  if (!adminKnownUsers.length) {
+  const sortedUsers = [...adminKnownUsers].sort((firstUser, secondUser) => {
+    const firstBanned = Boolean(firstUser.isBanned ?? firstUser.is_banned);
+    const secondBanned = Boolean(secondUser.isBanned ?? secondUser.is_banned);
+    const firstOnline = Boolean(firstUser.isOnline ?? firstUser.is_online);
+    const secondOnline = Boolean(secondUser.isOnline ?? secondUser.is_online);
+    const firstPrimaryRole = getPrimaryRoleIdFromRoleIds(firstUser.role_ids || firstUser.role_id, firstUser.role_id || "student");
+    const secondPrimaryRole = getPrimaryRoleIdFromRoleIds(secondUser.role_ids || secondUser.role_id, secondUser.role_id || "student");
+    const firstRoleOrder = Number(getRole(firstPrimaryRole)?.order ?? 99);
+    const secondRoleOrder = Number(getRole(secondPrimaryRole)?.order ?? 99);
+    const firstSeen = getMemberRecency(firstUser);
+    const secondSeen = getMemberRecency(secondUser);
+
+    if (firstBanned !== secondBanned) {
+      return firstBanned ? 1 : -1;
+    }
+
+    if (firstOnline !== secondOnline) {
+      return firstOnline ? -1 : 1;
+    }
+
+    return firstRoleOrder - secondRoleOrder || secondSeen - firstSeen || String(firstUser.display_name || "").localeCompare(String(secondUser.display_name || ""), "tr");
+  });
+
+  renderAdminMemberStats(sortedUsers);
+
+  if (!sortedUsers.length) {
     adminUsersList.innerHTML = '<p class="admin-muted">Henuz kayitli uye bulunamadi.</p>';
     return;
   }
 
-  adminUsersList.innerHTML = [...adminKnownUsers]
-    .sort((firstUser, secondUser) => {
-      const firstBanned = Boolean(firstUser.isBanned ?? firstUser.is_banned);
-      const secondBanned = Boolean(secondUser.isBanned ?? secondUser.is_banned);
-      const firstOnline = Boolean(firstUser.isOnline ?? firstUser.is_online);
-      const secondOnline = Boolean(secondUser.isOnline ?? secondUser.is_online);
-      const firstPrimaryRole = getPrimaryRoleIdFromRoleIds(firstUser.role_ids || firstUser.role_id, firstUser.role_id || "student");
-      const secondPrimaryRole = getPrimaryRoleIdFromRoleIds(secondUser.role_ids || secondUser.role_id, secondUser.role_id || "student");
-      const firstRoleOrder = Number(getRole(firstPrimaryRole)?.order ?? 99);
-      const secondRoleOrder = Number(getRole(secondPrimaryRole)?.order ?? 99);
-      const firstSeen = getMemberRecency(firstUser);
-      const secondSeen = getMemberRecency(secondUser);
+  const searchTerm = (adminMemberSearchInput?.value || "").trim().toLocaleLowerCase("tr");
+  const filteredUsers = searchTerm
+    ? sortedUsers.filter((user) => {
+        const roleLabel = getRoleLabelFromRoleIds(user.role_ids || user.role_id);
+        const searchable = [user.display_name || "", user.id || "", roleLabel || ""].join(" ").toLocaleLowerCase("tr");
+        return searchable.includes(searchTerm);
+      })
+    : sortedUsers;
 
-      if (firstBanned !== secondBanned) {
-        return firstBanned ? 1 : -1;
-      }
+  if (!filteredUsers.length) {
+    adminUsersList.innerHTML = '<p class="admin-muted">Aramana uyan uye bulunamadi.</p>';
+    return;
+  }
 
-      if (firstOnline !== secondOnline) {
-        return firstOnline ? -1 : 1;
-      }
-
-      return firstRoleOrder - secondRoleOrder || secondSeen - firstSeen || String(firstUser.display_name || "").localeCompare(String(secondUser.display_name || ""), "tr");
-    })
+  adminUsersList.innerHTML = filteredUsers
     .map((user) => {
       const moderation = {
         isMuted: user.isMuted ?? user.is_muted ?? false,
         isBanned: user.isBanned ?? user.is_banned ?? false
       };
       const roleIds = normalizeRoleIds(user.role_ids || user.role_id, user.role_id || "student");
-      const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : ((user.isOnline ?? user.is_online) ? "Çevrimiçi" : "Çevrimdışı");
+      const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, user.role_id || "student");
+      const primaryRole = getRole(primaryRoleId);
+      const isOnline = Boolean(user.isOnline ?? user.is_online);
+      const statusText = moderation.isBanned ? "Sunucudan atildi" : moderation.isMuted ? "Susturuldu" : (isOnline ? "Cevrimici" : "Cevrimdisi");
       const roleColor = getRoleColorFromRoleIds(roleIds);
       const avatarStyle = user.avatarImage
         ? `background: center / cover no-repeat url("${user.avatarImage}")`
@@ -5218,26 +5282,31 @@ function renderAdminUsers() {
         <article class="member-admin-card ${moderation.isBanned ? "is-banned" : ""}">
           <div class="member-admin-main">
             <div class="member-admin-avatar" style='${avatarStyle}'>${user.avatarImage ? "" : escapeHtml((user.display_name || "U").slice(0, 1).toUpperCase())}</div>
-            <div>
-              <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
+            <div class="member-admin-meta">
+              <div class="member-admin-topline">
+                <strong>${escapeHtml(user.display_name || "Isimsiz Uye")}</strong>
+                <span class="member-status">${statusText}</span>
+              </div>
               <small>${escapeHtml(user.id)}${roleIds.includes("guest") ? " - Misafir" : ""}</small>
-              <span class="member-status">${statusText}</span>
-              <p class="member-role-summary">${escapeHtml(getRoleLabelFromRoleIds(roleIds))}</p>
+              <p class="member-role-summary">Ust rol: ${escapeHtml(primaryRole?.name || "Uye")}</p>
+              <div class="member-role-pills">${renderAdminRolePills(roleIds)}</div>
             </div>
           </div>
           <div class="member-admin-controls">
             <div class="member-role-matrix">
               ${renderRoleCheckboxes(roleIds, user.id)}
             </div>
-            <button class="member-action" type="button" data-user-mute="${escapeHtml(user.id)}">
-              ${moderation.isMuted ? "Susturmayi Kaldir" : "Sustur"}
-            </button>
-            <button class="member-action danger" type="button" data-user-ban="${escapeHtml(user.id)}">
-              ${moderation.isBanned ? "Geri Al" : "Sunucudan At"}
-            </button>
-            <button class="member-action ghost-danger" type="button" data-user-remove="${escapeHtml(user.id)}">
-              Kalici Kaldir
-            </button>
+            <div class="member-admin-actions">
+              <button class="member-action" type="button" data-user-mute="${escapeHtml(user.id)}">
+                ${moderation.isMuted ? "Susturmayi Kaldir" : "Sustur"}
+              </button>
+              <button class="member-action danger" type="button" data-user-ban="${escapeHtml(user.id)}">
+                ${moderation.isBanned ? "Geri Al" : "Sunucudan At"}
+              </button>
+              <button class="member-action ghost-danger" type="button" data-user-remove="${escapeHtml(user.id)}">
+                Kalici Kaldir
+              </button>
+            </div>
           </div>
         </article>
       `;
@@ -6123,6 +6192,10 @@ if (adminPasswordInput) {
 
 if (adminRefreshUsersButton) {
   adminRefreshUsersButton.addEventListener("click", loadAdminUsers);
+}
+
+if (adminMemberSearchInput) {
+  adminMemberSearchInput.addEventListener("input", renderAdminUsers);
 }
 
 if (adminResetUsersButton) {
