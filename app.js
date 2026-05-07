@@ -2586,7 +2586,7 @@ function getMemberIdentityKey(member) {
   }
 
   if (member.isGuest || member.is_guest || member.roleId === "guest" || member.role_id === "guest") {
-    return `guest:${normalizeMention(member.name || member.display_name || member.id)}`;
+    return `guest:${member.id}`;
   }
 
   return `user:${member.id}`;
@@ -6487,12 +6487,14 @@ guestForm.addEventListener("submit", async (event) => {
       id: guestId,
       displayName: guestName,
       roleId: "guest",
+      roleIds: ["guest"],
       avatarImage: null,
       isOnline: true
     });
+    loadDirectoryUsers();
   }
 
-  finishAuth(guestName, "guest", { mode: "guest", userId: guestId });
+  finishAuth(guestName, "guest", { mode: "guest", userId: guestId, roleIds: ["guest"] });
 });
 
 if (authCloseButton) {
