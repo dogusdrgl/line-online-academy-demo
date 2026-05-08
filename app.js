@@ -4037,6 +4037,85 @@ async function upsertAppUser(user) {
   }
 }
 
+function upsertDirectoryUser(user) {
+  if (!user?.id) {
+    return;
+  }
+
+  const roleIds = normalizeRoleIds(user.roleIds || user.role_id || user.roleId, user.roleId || user.role_id || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, user.roleId || user.role_id || "student");
+  const nextRecord = {
+    id: user.id,
+    display_name: user.displayName || user.display_name || user.name || "Isimsiz Uye",
+    role_id: primaryRoleId,
+    role_ids: roleIds,
+    is_guest: Boolean(user.isGuest ?? user.is_guest ?? roleIds.includes("guest")),
+    is_muted: Boolean(user.isMuted ?? user.is_muted),
+    is_banned: Boolean(user.isBanned ?? user.is_banned),
+    is_online: Boolean(user.isOnline ?? user.is_online),
+    last_seen: user.lastSeen || user.last_seen || new Date().toISOString(),
+    avatar_image: user.avatarImage || user.avatar_image || null,
+    created_at: user.createdAt || user.created_at || new Date().toISOString()
+  };
+
+  const existingIndex = directoryUsers.findIndex((member) => member.id === nextRecord.id);
+  if (existingIndex >= 0) {
+    directoryUsers[existingIndex] = {
+      ...directoryUsers[existingIndex],
+      ...nextRecord
+    };
+  } else {
+    directoryUsers.push(nextRecord);
+  }
+}
+
+async function resolveMemberAuthState(userId, fallback = {}) {
+  const storedProfile = await getStoredUserProfile(userId);
+  const roleIds = normalizeRoleIds(
+    fallback.roleIds || storedProfile.roleIds || storedProfile.roleId || fallback.roleId || "student",
+    storedProfile.roleId || fallback.roleId || "student"
+  );
+  const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || fallback.roleId || "student");
+
+  return {
+    userId,
+    displayName: fallback.displayName || fallback.name || "Line Uyesi",
+    roleId,
+    roleIds,
+    avatarImage: fallback.avatarImage ?? storedProfile.avatarImage ?? null,
+    isMuted: Boolean(storedProfile.isMuted),
+    isBanned: Boolean(storedProfile.isBanned)
+  };
+}
+
+async function activateDirectorySession(options = {}) {
+  const roleIds = normalizeRoleIds(options.roleIds || options.roleId, options.roleId || "student");
+  const primaryRoleId = getPrimaryRoleIdFromRoleIds(roleIds, options.roleId || "student");
+  const isGuest = roleIds.includes("guest") || options.mode === "guest";
+
+  upsertDirectoryUser({
+    id: options.userId,
+    displayName: options.displayName,
+    roleId: primaryRoleId,
+    roleIds,
+    isGuest,
+    isMuted: options.isMuted,
+    isBanned: options.isBanned,
+    isOnline: true,
+    avatarImage: options.avatarImage || null,
+    lastSeen: new Date().toISOString()
+  });
+
+  finishAuth(options.displayName, primaryRoleId, {
+    mode: options.mode || (isGuest ? "guest" : "member"),
+    userId: options.userId,
+    roleIds,
+    isMuted: options.isMuted,
+    isBanned: options.isBanned,
+    avatarImage: options.avatarImage || null
+  });
+}
+
 async function ensureGuestDirectoryRecord(guestId, guestName, isOnline = true) {
   if (!guestId || !guestName) {
     return false;
@@ -4153,7 +4232,7 @@ async function loadDirectoryUsers() {
       supabaseClient
         .from("app_users")
         .select("id, display_name, role_id, role_ids, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image, created_at")
-        .order("created_at", { ascending: true })
+        .order("last_seen", { ascending: false, nullsFirst: false })
         .limit(500),
       "Uye dizinini yukleme"
     );
@@ -4162,11 +4241,24 @@ async function loadDirectoryUsers() {
       throw error;
     }
 
-    directoryUsers = (data || [])
-      .filter((user) => !user.is_banned)
-      .map((user) => buildDirectoryMemberFromRecord(user));
+    directoryUsers = (data || []).filter((user) => !user.is_banned);
   } catch (error) {
     console.warn("Uye dizini yuklenemedi:", error.message);
+  }
+
+  if (authState.userId && authState.mode !== "visitor") {
+    upsertDirectoryUser({
+      id: authState.userId,
+      displayName: authState.name,
+      roleId: authState.roleId,
+      roleIds: authState.roleIds,
+      isGuest: authState.mode === "guest",
+      isMuted: authState.isMuted,
+      isBanned: authState.isBanned,
+      isOnline: true,
+      avatarImage: authState.avatarImage || null,
+      lastSeen: new Date().toISOString()
+    });
   }
 
   renderMembersSidebar();
@@ -4667,7 +4759,7 @@ function updateIdentity(name, roleId, options = {}) {
   const role = getRole(primaryRoleId);
   const moderation = getUserModeration(options.userId);
   const savedProfile = readLocalProfile();
-  const displayName = options.nameOverride || savedProfile.name || name;
+  const displayName = options.nameOverride || name || savedProfile.name || "Line Uyesi";
   const avatarImage = options.avatarImage ?? savedProfile.avatarImage ?? null;
   const session = {
     mode: options.mode || (roleIds.includes("guest") ? "guest" : "member"),
@@ -4759,7 +4851,8 @@ function finishAuth(name, roleId, options = {}) {
       roleIds,
       userId: options.userId,
       isMuted: options.isMuted || false,
-      isBanned: options.isBanned || false
+      isBanned: options.isBanned || false,
+      avatarImage: options.avatarImage || null
     });
   }
 
@@ -6291,181 +6384,135 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
   const email = signInEmail.value.trim().toLowerCase();
   const password = signInPassword.value.trim();
 
-  if (supabaseClient) {
-    let response;
-
-    try {
-      response = await withTimeout(
-        supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        }),
-        "Giris"
-      );
-    } catch (error) {
-      window.alert("Supabase'e ulasilamadi. Simdilik demo kullanici olarak devam ediliyor.");
-      const memberId = `member-${Date.now()}`;
-      ephemeralMembers.push({
-        id: memberId,
-        name: "Line Uyesi",
-        roleId: "student",
-        avatarClass: "green",
-        group: "Çevrimiçi",
-        subtitle: "Ogrenci"
-      });
-      finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
-      return;
-    }
-
-    const { data, error } = response;
-
-    if (error) {
-      window.alert(`Giris basarisiz: ${error.message}`);
-      return;
-    }
-
-    const displayName = data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi";
-    const storedProfile = await getStoredUserProfile(data.user.id);
-    const roleIds = normalizeRoleIds(storedProfile.roleIds || storedProfile.roleId || "student", storedProfile.roleId || "student");
-    const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || "student");
-
-    if (storedProfile.isBanned) {
-      window.alert("Bu hesap sunucudan atildigi icin giris yapamaz.");
-      return;
-    }
-
-    await upsertAppUser({
-      id: data.user.id,
-      displayName,
-      roleId,
-      roleIds,
-      avatarImage: storedProfile.avatarImage || null,
-      isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned,
-      isOnline: true
-    });
-    finishAuth(displayName, roleId, {
-      mode: "member",
-      userId: data.user.id,
-      roleIds,
-      isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned,
-      avatarImage: storedProfile.avatarImage || null
-    });
+  if (!supabaseClient) {
+    window.alert("Supabase baglantisi bulunamadi.");
     return;
   }
 
-  const memberId = `member-${Date.now()}`;
-  ephemeralMembers.push({
-    id: memberId,
-    name: "Line Uyesi",
-    roleId: "student",
-    avatarClass: "green",
-    group: "Çevrimiçi",
-    subtitle: "Ogrenci"
+  let response;
+
+  try {
+    response = await withTimeout(
+      supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      }),
+      "Giris"
+    );
+  } catch (error) {
+    window.alert("Giris sirasinda Supabase'e ulasilamadi.");
+    return;
+  }
+
+  const { data, error } = response;
+
+  if (error || !data?.user?.id) {
+    window.alert(`Giris basarisiz: ${error?.message || "Kullanici bulunamadi."}`);
+    return;
+  }
+
+  const nextState = await resolveMemberAuthState(data.user.id, {
+    displayName: data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi",
+    roleId: "student"
   });
-  finishAuth("Line Uyesi", "student", { mode: "member", userId: memberId });
+
+  if (nextState.isBanned) {
+    window.alert("Bu hesap sunucudan atildigi icin giris yapamaz.");
+    return;
+  }
+
+  await upsertAppUser({
+    id: nextState.userId,
+    displayName: nextState.displayName,
+    roleId: nextState.roleId,
+    roleIds: nextState.roleIds,
+    avatarImage: nextState.avatarImage,
+    isMuted: nextState.isMuted,
+    isBanned: nextState.isBanned,
+    isOnline: true
+  });
+
+  await activateDirectorySession({
+    mode: "member",
+    userId: nextState.userId,
+    displayName: nextState.displayName,
+    roleId: nextState.roleId,
+    roleIds: nextState.roleIds,
+    isMuted: nextState.isMuted,
+    isBanned: nextState.isBanned,
+    avatarImage: nextState.avatarImage
+  });
 });
 
 document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", async (event) => {
   event.preventDefault();
   const signUpDisplayName = signUpName.value.trim() || "Yeni Uye";
+  const signUpEmail = document.getElementById("signup-email").value.trim().toLowerCase();
+  const signUpPassword = document.getElementById("signup-password").value.trim();
 
-  if (supabaseClient) {
-    const signUpEmail = document.getElementById("signup-email").value.trim().toLowerCase();
-    const signUpPassword = document.getElementById("signup-password").value.trim();
-    let response;
-
-    try {
-      response = await withTimeout(
-        supabaseClient.auth.signUp({
-          email: signUpEmail,
-          password: signUpPassword,
-          options: {
-            data: {
-              display_name: signUpDisplayName
-            }
-          }
-        }),
-        "Uye olma"
-      );
-    } catch (error) {
-      window.alert("Supabase'e ulasilamadi. Simdilik demo kullanici olarak devam ediliyor.");
-      const memberId = `member-${slugify(signUpDisplayName)}-${Date.now()}`;
-      ephemeralMembers.push({
-        id: memberId,
-        name: signUpDisplayName,
-        roleId: "student",
-        avatarClass: "green",
-        group: "Çevrimiçi",
-        subtitle: "Ogrenci"
-      });
-      finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
-      return;
-    }
-
-    const { data, error } = response;
-
-    if (error) {
-      window.alert(`Uye olma basarisiz: ${error.message}`);
-      return;
-    }
-
-    if (!data.session) {
-      try {
-        const signInResponse = await withTimeout(
-          supabaseClient.auth.signInWithPassword({
-            email: signUpEmail,
-            password: signUpPassword
-          }),
-          "Yeni uye oturumu"
-        );
-
-        if (signInResponse.error) {
-          throw signInResponse.error;
-        }
-
-        response = signInResponse;
-      } catch (signInError) {
-        window.alert("Uyelik olustu ama otomatik giris acilamadi. Muhtemelen Supabase tarafinda e-posta dogrulamasi acik. Dashboard > Authentication ayarlarinda email confirmation kapatilirsa uye olunca direkt giris yapar.");
-        return;
-      }
-    }
-
-    const storedProfile = await getStoredUserProfile(data.user.id);
-    const roleIds = normalizeRoleIds(storedProfile.roleIds || storedProfile.roleId || "student", storedProfile.roleId || "student");
-    const roleId = getPrimaryRoleIdFromRoleIds(roleIds, storedProfile.roleId || "student");
-    await upsertAppUser({
-      id: data.user.id,
-      displayName: signUpDisplayName,
-      roleId,
-      roleIds,
-      avatarImage: storedProfile.avatarImage || null,
-      isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned,
-      isOnline: true
-    });
-    finishAuth(signUpDisplayName, roleId, {
-      mode: "member",
-      userId: data.user.id,
-      roleIds,
-      isMuted: storedProfile.isMuted,
-      isBanned: storedProfile.isBanned,
-      avatarImage: storedProfile.avatarImage || null
-    });
+  if (!supabaseClient) {
+    window.alert("Supabase baglantisi bulunamadi.");
     return;
   }
 
-  const memberId = `member-${slugify(signUpDisplayName)}-${Date.now()}`;
-  ephemeralMembers.push({
-    id: memberId,
-    name: signUpDisplayName,
-    roleId: "student",
-    avatarClass: "green",
-    group: "Çevrimiçi",
-    subtitle: "Ogrenci"
+  let response;
+
+  try {
+    response = await withTimeout(
+      supabaseClient.auth.signUp({
+        email: signUpEmail,
+        password: signUpPassword,
+        options: {
+          data: {
+            display_name: signUpDisplayName
+          }
+        }
+      }),
+      "Uye olma"
+    );
+  } catch (error) {
+    window.alert("Uye olma sirasinda Supabase'e ulasilamadi.");
+    return;
+  }
+
+  const { data, error } = response;
+
+  if (error || !data?.user?.id) {
+    window.alert(`Uye olma basarisiz: ${error?.message || "Kullanici olusturulamadi."}`);
+    return;
+  }
+
+  if (!data.session) {
+    window.alert("Uyelik olustu fakat Supabase email dogrulamasi acik oldugu icin otomatik giris acilmadi. Authentication ayarlarinda Confirm email kapatilirsa uye olur olmaz giris yapar.");
+    return;
+  }
+
+  const nextState = await resolveMemberAuthState(data.user.id, {
+    displayName: signUpDisplayName,
+    roleId: "student"
   });
-  finishAuth(signUpDisplayName, "student", { mode: "member", userId: memberId });
+
+  await upsertAppUser({
+    id: nextState.userId,
+    displayName: nextState.displayName,
+    roleId: nextState.roleId,
+    roleIds: nextState.roleIds,
+    avatarImage: nextState.avatarImage,
+    isMuted: nextState.isMuted,
+    isBanned: nextState.isBanned,
+    isOnline: true
+  });
+
+  await activateDirectorySession({
+    mode: "member",
+    userId: nextState.userId,
+    displayName: nextState.displayName,
+    roleId: nextState.roleId,
+    roleIds: nextState.roleIds,
+    isMuted: nextState.isMuted,
+    isBanned: nextState.isBanned,
+    avatarImage: nextState.avatarImage
+  });
 });
 
 guestForm.addEventListener("submit", async (event) => {
@@ -6479,23 +6526,33 @@ guestForm.addEventListener("submit", async (event) => {
 
   const reusableGuestId = await findReusableGuestIdByName(guestName);
   const guestId = reusableGuestId || `guest-${slugify(guestName)}-${Date.now()}`;
-  const guestUser = {
-    id: guestId,
-    name: guestName,
-    roleId: "guest",
-    avatarClass: "amber",
-    group: "Ã‡evrimiÃ§i",
-    subtitle: "Misafir"
-  };
 
-  ephemeralMembers.push(guestUser);
+  upsertDirectoryUser({
+    id: guestId,
+    displayName: guestName,
+    roleId: "guest",
+    roleIds: ["guest"],
+    isGuest: true,
+    isOnline: true,
+    lastSeen: new Date().toISOString()
+  });
+
+  await activateDirectorySession({
+    mode: "guest",
+    userId: guestId,
+    displayName: guestName,
+    roleId: "guest",
+    roleIds: ["guest"],
+    isMuted: false,
+    isBanned: false,
+    avatarImage: null
+  });
 
   if (supabaseClient) {
-    await ensureGuestDirectoryRecord(guestId, guestName, true);
-    loadDirectoryUsers();
+    ensureGuestDirectoryRecord(guestId, guestName, true)
+      .then(() => loadDirectoryUsers())
+      .catch((error) => console.warn("Misafir dizin kaydi basarisiz:", error.message));
   }
-
-  finishAuth(guestName, "guest", { mode: "guest", userId: guestId, roleIds: ["guest"] });
 });
 
 if (authCloseButton) {
@@ -6914,6 +6971,45 @@ initializeTextChannelComposers();
 initializeStaticMessageControls();
 restoreSavedSession();
 loadDirectoryUsers();
+if (supabaseClient?.auth?.onAuthStateChange) {
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (event === "SIGNED_OUT" && authState.mode === "member") {
+      resetIdentity();
+      return;
+    }
+
+    if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user && authState.mode !== "guest") {
+      const nextState = await resolveMemberAuthState(session.user.id, {
+        displayName: session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || authState.name || "Line Uyesi",
+        roleId: "student"
+      });
+
+      if (!nextState.isBanned) {
+        upsertDirectoryUser({
+          id: nextState.userId,
+          displayName: nextState.displayName,
+          roleId: nextState.roleId,
+          roleIds: nextState.roleIds,
+          isOnline: true,
+          avatarImage: nextState.avatarImage,
+          isMuted: nextState.isMuted,
+          isBanned: nextState.isBanned,
+          lastSeen: new Date().toISOString()
+        });
+
+        updateIdentity(nextState.displayName, nextState.roleId, {
+          mode: "member",
+          userId: nextState.userId,
+          roleIds: nextState.roleIds,
+          isMuted: nextState.isMuted,
+          isBanned: nextState.isBanned,
+          avatarImage: nextState.avatarImage,
+          persist: true
+        });
+      }
+    }
+  });
+}
 loadLocalMessages();
 loadPersistedMessages();
 subscribeToMessages();
