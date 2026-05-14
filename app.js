@@ -157,6 +157,7 @@ const SUPABASE_TIMEOUT_MS = 3500;
 const ADMIN_PASSWORD = "Line5367";
 const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
 const LOCAL_SESSION_KEY = "line-online-academy-session";
+const SESSION_STORAGE_KEY = "line-online-academy-session-tab";
 const LOCAL_ROLES_KEY = "line-online-academy-roles";
 const LOCAL_ACCESS_KEY = "line-online-academy-access";
 const LOCAL_MODERATION_KEY = "line-online-academy-moderation";
@@ -833,19 +834,36 @@ function rememberMessage(panelId, message) {
 
 function readSavedSession() {
   try {
-    const rawSession = window.localStorage.getItem(LOCAL_SESSION_KEY);
-    return rawSession ? JSON.parse(rawSession) : null;
+    const rawLocalSession = window.localStorage.getItem(LOCAL_SESSION_KEY);
+    if (rawLocalSession) {
+      return JSON.parse(rawLocalSession);
+    }
   } catch (error) {
-    console.warn("Kayitli oturum okunamadi:", error.message);
+    console.warn("Kayitli oturum localStorage'dan okunamadi:", error.message);
+  }
+
+  try {
+    const rawTabSession = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+    return rawTabSession ? JSON.parse(rawTabSession) : null;
+  } catch (error) {
+    console.warn("Kayitli oturum sessionStorage'dan okunamadi:", error.message);
     return null;
   }
 }
 
 function saveSession(session) {
+  const serialized = JSON.stringify(session);
+
   try {
-    window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
+    window.localStorage.setItem(LOCAL_SESSION_KEY, serialized);
   } catch (error) {
-    console.warn("Oturum kaydedilemedi:", error.message);
+    console.warn("Oturum localStorage'a kaydedilemedi:", error.message);
+  }
+
+  try {
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, serialized);
+  } catch (error) {
+    console.warn("Oturum sessionStorage'a kaydedilemedi:", error.message);
   }
 }
 
@@ -853,7 +871,13 @@ function clearSavedSession() {
   try {
     window.localStorage.removeItem(LOCAL_SESSION_KEY);
   } catch (error) {
-    console.warn("Oturum temizlenemedi:", error.message);
+    console.warn("Oturum localStorage'dan temizlenemedi:", error.message);
+  }
+
+  try {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Oturum sessionStorage'dan temizlenemedi:", error.message);
   }
 }
 
@@ -2269,6 +2293,9 @@ function initializeVoiceRooms() {
     const isClassRoom = /^class-\d+$/.test(panel.id);
     const voiceLobbyKicker = isClassRoom ? "Ders Başlıyor" : "Sesli Toplantı";
     const voiceJoinLabel = isClassRoom ? "Derse Gir" : "Sesli Toplantıya Gir";
+    const legacyHeader = panel.querySelector(".panel-header");
+    legacyHeader?.remove();
+
     const callShell = document.createElement("section");
     callShell.className = "voice-call-shell";
     callShell.dataset.voiceCall = panel.id;
@@ -2317,7 +2344,7 @@ function initializeVoiceRooms() {
         </div>
       </div>
     `;
-    panel.appendChild(callShell);
+    panel.replaceChildren(callShell);
     const moreButton = callShell.querySelector("[data-voice-more]");
     const chatDockButton = document.createElement("button");
     const fullscreenDockButton = document.createElement("button");
@@ -4929,7 +4956,7 @@ function resetIdentity() {
 async function restoreSavedSession() {
   const savedSession = readSavedSession();
   if (!savedSession?.name || !savedSession.roleId || !savedSession.userId) {
-    return;
+    return false;
   }
 
   updateIdentity(savedSession.name, savedSession.roleId, {
@@ -4942,8 +4969,22 @@ async function restoreSavedSession() {
     persist: false
   });
 
+  upsertDirectoryUser({
+    id: savedSession.userId,
+    displayName: savedSession.name,
+    roleId: savedSession.roleId,
+    roleIds: savedSession.roleIds || [savedSession.roleId],
+    isGuest: savedSession.mode === "guest",
+    isMuted: savedSession.isMuted,
+    isBanned: savedSession.isBanned,
+    isOnline: true,
+    avatarImage: savedSession.avatarImage || null,
+    lastSeen: new Date().toISOString()
+  });
+  renderMembersSidebar();
+
   if (!supabaseClient) {
-    return;
+    return true;
   }
 
   try {
@@ -4956,21 +4997,76 @@ async function restoreSavedSession() {
       Boolean(latestProfile.isBanned) !== Boolean(authState.isBanned);
     const avatarChanged = (latestProfile.avatarImage || null) !== (authState.avatarImage || null);
 
-    if (!roleChanged && !moderationChanged && !avatarChanged) {
-      return;
+    if (roleChanged || moderationChanged || avatarChanged) {
+      updateIdentity(savedSession.name, nextRoleId, {
+        mode: savedSession.mode,
+        userId: savedSession.userId,
+        roleIds: nextRoleIds,
+        isMuted: latestProfile.isMuted,
+        isBanned: latestProfile.isBanned,
+        avatarImage: latestProfile.avatarImage || savedSession.avatarImage || null,
+        persist: true
+      });
     }
 
-    updateIdentity(savedSession.name, nextRoleId, {
-      mode: savedSession.mode,
-      userId: savedSession.userId,
-      roleIds: nextRoleIds,
-      isMuted: latestProfile.isMuted,
-      isBanned: latestProfile.isBanned,
-      avatarImage: latestProfile.avatarImage || savedSession.avatarImage || null,
-      persist: true
-    });
+    return true;
   } catch (error) {
     console.warn("Kayitli oturum rolu guncellenemedi:", error.message);
+    return true;
+  }
+}
+
+async function bootstrapAuthSession() {
+  const restored = await restoreSavedSession();
+
+  if (!supabaseClient?.auth?.getSession) {
+    return restored;
+  }
+
+  try {
+    const { data, error } = await withTimeout(supabaseClient.auth.getSession(), "Oturum geri yukleme");
+    if (error) {
+      throw error;
+    }
+
+    const sessionUser = data?.session?.user;
+    if (!sessionUser || authState.mode === "guest") {
+      return restored;
+    }
+
+    const nextState = await resolveMemberAuthState(sessionUser.id, {
+      displayName: sessionUser.user_metadata?.display_name || sessionUser.email?.split("@")[0] || authState.name || "Line Uyesi",
+      roleId: authState.roleId || "student",
+      roleIds: authState.roleIds || [authState.roleId || "student"],
+      avatarImage: authState.avatarImage || null
+    });
+
+    await upsertAppUser({
+      id: nextState.userId,
+      displayName: nextState.displayName,
+      roleId: nextState.roleId,
+      roleIds: nextState.roleIds,
+      avatarImage: nextState.avatarImage,
+      isMuted: nextState.isMuted,
+      isBanned: nextState.isBanned,
+      isOnline: true
+    });
+
+    await activateDirectorySession({
+      mode: "member",
+      userId: nextState.userId,
+      displayName: nextState.displayName,
+      roleId: nextState.roleId,
+      roleIds: nextState.roleIds,
+      isMuted: nextState.isMuted,
+      isBanned: nextState.isBanned,
+      avatarImage: nextState.avatarImage
+    });
+
+    return true;
+  } catch (error) {
+    console.warn("Supabase oturumu geri yuklenemedi:", error.message);
+    return restored;
   }
 }
 
@@ -6997,7 +7093,7 @@ renderMembersSidebar();
 initializeVoiceRooms();
 initializeTextChannelComposers();
 initializeStaticMessageControls();
-restoreSavedSession();
+bootstrapAuthSession();
 loadDirectoryUsers();
 if (supabaseClient?.auth?.onAuthStateChange) {
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
