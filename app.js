@@ -6407,7 +6407,11 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
   const { data, error } = response;
 
   if (error || !data?.user?.id) {
-    window.alert(`Giris basarisiz: ${error?.message || "Kullanici bulunamadi."}`);
+    const message = error?.message || "Kullanici bulunamadi.";
+    const extra = /confirm|verified|email/i.test(message)
+      ? " E-posta dogrulamasi aciksa Supabase once mail onayi bekler."
+      : "";
+    window.alert(`Giris basarisiz: ${message}${extra}`);
     return;
   }
 
@@ -6482,11 +6486,6 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     return;
   }
 
-  if (!data.session) {
-    window.alert("Uyelik olustu fakat Supabase email dogrulamasi acik oldugu icin otomatik giris acilmadi. Authentication ayarlarinda Confirm email kapatilirsa uye olur olmaz giris yapar.");
-    return;
-  }
-
   const nextState = await resolveMemberAuthState(data.user.id, {
     displayName: signUpDisplayName,
     roleId: "student"
@@ -6513,6 +6512,10 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     isBanned: nextState.isBanned,
     avatarImage: nextState.avatarImage
   });
+
+  if (!data.session) {
+    window.alert("Uyelik olustu ve sunucuya eklendin. Ancak Supabase tarafinda email dogrulamasi acik oldugu icin parola ile sonraki girislerde dogrulama isteyebilir. Tam Discord benzeri akis icin Supabase Authentication ayarlarinda Confirm email kapatilmali.");
+  }
 });
 
 guestForm.addEventListener("submit", async (event) => {
