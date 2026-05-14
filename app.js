@@ -1761,7 +1761,7 @@ function subscribeToVoiceRoomDirectory() {
 
 function renderVoiceControls() {
   document.querySelectorAll(".voice-channel-view").forEach((panel) => {
-    const isActiveRoom = voiceState.roomId === panel.id;
+    const isActiveRoom = voiceState.roomId === panel.id && Boolean(voiceState.localStream);
     panel.querySelector("[data-voice-call]")?.classList.toggle("in-call", isActiveRoom);
     panel.querySelector("[data-voice-join]")?.classList.toggle("hidden", isActiveRoom);
     panel.querySelector("[data-voice-leave]")?.classList.toggle("hidden", !isActiveRoom);
@@ -2894,7 +2894,11 @@ function renderMembersSidebar() {
     });
   });
 
-  const groupOrder = [...getSortedRoles().map((role) => role.name), "Cevrimdisi"];
+  const preferredGroupOrder = [...getSortedRoles().map((role) => role.name), "Cevrimdisi"];
+  const groupOrder = [
+    ...preferredGroupOrder,
+    ...Object.keys(grouped).filter((group) => !preferredGroupOrder.includes(group))
+  ];
 
   membersGroups.innerHTML = groupOrder
     .filter((group) => grouped[group]?.length)
