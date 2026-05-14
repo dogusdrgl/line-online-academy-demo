@@ -6490,7 +6490,32 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     return;
   }
 
-  const nextState = await resolveMemberAuthState(data.user.id, {
+  let activeUser = data.user;
+  let activeSession = data.session;
+
+  if (!activeSession) {
+    try {
+      const signInResponse = await withTimeout(
+        supabaseClient.auth.signInWithPassword({
+          email: signUpEmail,
+          password: signUpPassword
+        }),
+        "Yeni uye oturumu"
+      );
+
+      if (signInResponse.error || !signInResponse.data?.user?.id) {
+        throw signInResponse.error || new Error("Oturum acilamadi.");
+      }
+
+      activeUser = signInResponse.data.user;
+      activeSession = signInResponse.data.session;
+    } catch (signInError) {
+      window.alert("Uyelik olustu ama otomatik giris acilamadi. Supabase Authentication ayarlarinda Confirm email kapatilirse uye olur olmaz giris yapar.");
+      return;
+    }
+  }
+
+  const nextState = await resolveMemberAuthState(activeUser.id, {
     displayName: signUpDisplayName,
     roleId: "student"
   });
@@ -6516,10 +6541,6 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
     isBanned: nextState.isBanned,
     avatarImage: nextState.avatarImage
   });
-
-  if (!data.session) {
-    window.alert("Uyelik olustu ve sunucuya eklendin. Ancak Supabase tarafinda email dogrulamasi acik oldugu icin parola ile sonraki girislerde dogrulama isteyebilir. Tam Discord benzeri akis icin Supabase Authentication ayarlarinda Confirm email kapatilmali.");
-  }
 });
 
 guestForm.addEventListener("submit", async (event) => {
@@ -6980,11 +7001,6 @@ restoreSavedSession();
 loadDirectoryUsers();
 if (supabaseClient?.auth?.onAuthStateChange) {
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    if (event === "SIGNED_OUT" && authState.mode === "member") {
-      resetIdentity();
-      return;
-    }
-
     if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user && authState.mode !== "guest") {
       const nextState = await resolveMemberAuthState(session.user.id, {
         displayName: session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || authState.name || "Line Uyesi",
