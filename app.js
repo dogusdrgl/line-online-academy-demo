@@ -481,6 +481,8 @@ let directoryUsers = [];
 let livePresenceMembers = [];
 let presenceChannel = null;
 let directoryRealtimeChannel = null;
+let messageRealtimeChannel = null;
+let directMessageRealtimeChannel = null;
 let selectedMember = null;
 let activeDmMember = null;
 let renderedMembersById = new Map();
@@ -756,9 +758,10 @@ function renderSidebarRoleBadges(roleIds) {
       const secondOrder = Number(secondRole?.order ?? 99);
       return firstOrder - secondOrder || String(firstRole?.name || firstRoleId).localeCompare(String(secondRole?.name || secondRoleId), "tr");
     })
-    .map((roleId) => {
+    .map((roleId, index) => {
       const role = getRole(roleId);
-      return `<span class="member-role-badge" style="--member-role-color: ${escapeHtml(role?.color || "#f1a126")}">${escapeHtml(role?.name || roleId)}</span>`;
+      const separator = index > 0 ? '<span class="member-role-separator">/</span>' : "";
+      return `${separator}<span class="member-role-badge" style="--member-role-color: ${escapeHtml(role?.color || "#f1a126")}">${escapeHtml(role?.name || roleId)}</span>`;
     })
     .join("");
 }
@@ -4606,11 +4609,11 @@ async function loadPersistedMessages() {
 }
 
 function subscribeToMessages() {
-  if (!supabaseClient) {
+  if (!supabaseClient || messageRealtimeChannel) {
     return;
   }
 
-  supabaseClient
+  messageRealtimeChannel = supabaseClient
     .channel("line-online-academy-messages")
     .on(
       "postgres_changes",
@@ -4651,11 +4654,11 @@ function registerDmNotification(message) {
 }
 
 function subscribeToDirectMessages() {
-  if (!supabaseClient) {
+  if (!supabaseClient || directMessageRealtimeChannel) {
     return;
   }
 
-  supabaseClient
+  directMessageRealtimeChannel = supabaseClient
     .channel("line-online-academy-direct-messages")
     .on(
       "postgres_changes",
@@ -5344,15 +5347,32 @@ function bindComposerForm(form) {
   form.dataset.composerBound = "true";
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (form.dataset.composerSending === "true") {
+      return;
+    }
+
     const panelId = form.dataset.composerView;
     const input = form.querySelector(".composer-input");
+    const submitButton = form.querySelector(".composer-submit");
     if (!panelId || !input) {
       return;
     }
 
-    const sent = await sendChannelMessage(panelId, input.value);
-    if (sent) {
-      input.value = "";
+    form.dataset.composerSending = "true";
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    try {
+      const sent = await sendChannelMessage(panelId, input.value);
+      if (sent) {
+        input.value = "";
+      }
+    } finally {
+      form.dataset.composerSending = "false";
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
     }
   });
 }

@@ -5627,21 +5627,22 @@ button {
 .member-meta .role-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  align-items: center;
+  gap: 3px 6px;
   margin-top: 2px;
 }
 
 .member-role-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--member-role-color) 16%, rgba(255,255,255,0.02));
-  border: 1px solid color-mix(in srgb, var(--member-role-color) 38%, rgba(255,255,255,0.08));
+  display: inline;
   color: var(--member-role-color);
-  font-size: 0.65rem;
+  font-size: 0.67rem;
   font-weight: 700;
+  line-height: 1.2;
+}
+
+.member-role-separator {
+  color: rgba(218, 223, 232, 0.38);
+  font-size: 0.62rem;
   line-height: 1;
 }
 
