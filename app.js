@@ -4332,6 +4332,36 @@ async function getStoredUserProfile(userId) {
   }
 }
 
+function syncAuthStateFromDirectoryRecord(record) {
+  if (!record?.id || !authState.userId || record.id !== authState.userId || authState.mode === "visitor") {
+    return;
+  }
+
+  const nextRoleIds = normalizeRoleIds(record.role_ids || record.roleId || record.role_id, record.role_id || authState.roleId || DEFAULT_MEMBER_ROLE_ID);
+  const nextRoleId = getPrimaryRoleIdFromRoleIds(nextRoleIds, record.role_id || authState.roleId || DEFAULT_MEMBER_ROLE_ID);
+  const nextMuted = Boolean(record.is_muted ?? record.isMuted);
+  const nextBanned = Boolean(record.is_banned ?? record.isBanned);
+  const nextAvatar = record.avatar_image || record.avatarImage || null;
+  const currentRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || DEFAULT_MEMBER_ROLE_ID);
+  const roleChanged = nextRoleId !== authState.roleId || JSON.stringify(nextRoleIds) !== JSON.stringify(currentRoleIds);
+  const moderationChanged = nextMuted !== Boolean(authState.isMuted) || nextBanned !== Boolean(authState.isBanned);
+  const avatarChanged = nextAvatar !== (authState.avatarImage || null);
+
+  if (!roleChanged && !moderationChanged && !avatarChanged) {
+    return;
+  }
+
+  updateIdentity(record.display_name || authState.name, nextRoleId, {
+    mode: authState.mode,
+    userId: authState.userId,
+    roleIds: nextRoleIds,
+    isMuted: nextMuted,
+    isBanned: nextBanned,
+    avatarImage: nextAvatar,
+    persist: true
+  });
+}
+
 async function loadDirectoryUsers() {
   if (!supabaseClient) {
     renderMembersSidebar();
@@ -4358,6 +4388,11 @@ async function loadDirectoryUsers() {
   }
 
   if (authState.userId && authState.mode !== "visitor") {
+    const currentUserRecord = directoryUsers.find((user) => user.id === authState.userId);
+    if (currentUserRecord) {
+      syncAuthStateFromDirectoryRecord(currentUserRecord);
+    }
+
     upsertDirectoryUser({
       id: authState.userId,
       displayName: authState.name,
@@ -5200,6 +5235,7 @@ async function saveProfileChanges() {
       id: authState.userId,
       displayName: nextName,
       roleId: authState.roleId,
+      roleIds: authState.roleIds,
       avatarImage: nextProfile.avatarImage,
       isMuted: authState.isMuted,
       isBanned: authState.isBanned,
@@ -5291,6 +5327,7 @@ async function sendChannelMessage(panelId, text) {
         id: authState.userId,
         displayName: authState.name,
         roleId: authState.roleId,
+        roleIds: authState.roleIds,
         avatarImage: authState.avatarImage
       });
       const { data, error } = await withTimeout(
@@ -5954,6 +5991,19 @@ async function assignUserRoles(userId, roleIds) {
     } catch (error) {
       console.warn("Supabase rol atamasi kaydedilemedi:", error.message);
     }
+  }
+
+  if (authState.userId === userId) {
+    saveSession({
+      mode: authState.mode,
+      name: authState.name,
+      roleId: primaryRoleId,
+      roleIds: nextRoleIds,
+      userId: authState.userId,
+      isMuted: authState.isMuted,
+      isBanned: authState.isBanned,
+      avatarImage: authState.avatarImage
+    });
   }
 
   renderMembersSidebar();
