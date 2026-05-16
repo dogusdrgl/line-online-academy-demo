@@ -1,8 +1,8 @@
 create table if not exists public.app_users (
   id text primary key,
   display_name text not null,
-  role_id text not null default 'student',
-  role_ids text[] not null default array['student'],
+  role_id text not null default 'member',
+  role_ids text[] not null default array['member'],
   is_guest boolean not null default false,
   is_muted boolean not null default false,
   is_banned boolean not null default false,
@@ -210,10 +210,20 @@ end $$;
 
 
 alter table public.app_users
-add column if not exists role_ids text[] not null default array['student'];
+add column if not exists role_ids text[] not null default array['member'];
+
+alter table public.app_users
+alter column role_id set default 'member';
+
+alter table public.app_users
+alter column role_ids set default array['member'];
+
+update public.app_users
+set role_id = 'member'
+where role_id = 'student';
 
 update public.app_users
 set role_ids = case
-  when role_ids is null or cardinality(role_ids) = 0 then array[coalesce(role_id, 'student')]
-  else role_ids
+  when role_ids is null or cardinality(role_ids) = 0 then array[coalesce(role_id, 'member')]
+  else array_replace(role_ids, 'student', 'member')
 end;

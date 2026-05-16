@@ -3950,7 +3950,8 @@ button {
   font-size: 0.84rem;
 }
 
-.auth-field input {
+.auth-field input,
+.auth-field select {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
@@ -3960,9 +3961,21 @@ button {
   outline: none;
 }
 
-.auth-field input:focus {
+.auth-field input:focus,
+.auth-field select:focus {
   border-color: rgba(241, 161, 38, 0.5);
   box-shadow: 0 0 0 3px rgba(241, 161, 38, 0.12);
+}
+
+.auth-helper {
+  margin: 0;
+  color: #b9bec8;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.auth-helper strong {
+  color: #f2e9dc;
 }
 
 .auth-primary {

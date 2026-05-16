@@ -882,7 +882,7 @@
               <div class="avatar red" id="profile-avatar">D</div>
               <div class="member-meta">
                 <strong id="profile-name">Dogus</strong>
-                <p class="role green" id="profile-role">Yonetim Misafir</p>
+                <p class="role green" id="profile-role">Ziyaretci</p>
               </div>
             </div>
             <div class="profile-card-actions">
@@ -994,7 +994,8 @@
         <button class="auth-close" id="auth-close" type="button" aria-label="Pencereyi kapat">Ã—</button>
         <div class="auth-header compact">
           <p class="eyebrow">Giris Gerekli</p>
-          <h3 id="auth-title">Katil</h3>
+          <h3 id="auth-title">LINE kampusune katil</h3>
+          <p>Uye olarak giris yap, yeni hesap olustur ya da misafir olarak sadece goz at.</p>
         </div>
 
         <button class="auth-guest-shortcut" type="button" id="open-guest-priority">Misafir olarak gir</button>
@@ -1006,18 +1007,21 @@
 
         <div class="auth-panels" id="auth-panels">
           <form class="auth-panel active" data-auth-panel="signin">
+            <p class="auth-helper"><strong>Uye girisi:</strong> Mesajlasma, rol alma ve sesli odalara katilma icin.</p>
             <label class="auth-field">
               <span>E-posta</span>
               <input type="email" id="signin-email" placeholder="ornek@mail.com" />
             </label>
             <label class="auth-field">
               <span>Sifre</span>
-              <input type="password" id="signin-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
+              <input type="password" id="signin-password" placeholder="Sifren" />
             </label>
             <button class="auth-primary" type="submit">Giris Yap</button>
+            <button class="auth-secondary" type="button" id="open-guest-inline">Misafir olarak devam et</button>
           </form>
 
           <form class="auth-panel" data-auth-panel="signup">
+            <p class="auth-helper"><strong>Yeni uye:</strong> Kayit olan kullanicilar varsayilan olarak <code>Uye</code> rolunu alir.</p>
             <label class="auth-field">
               <span>Ad Soyad</span>
               <input type="text" id="signup-name" placeholder="Adin Soyadin" />
@@ -1031,6 +1035,7 @@
               <input type="password" id="signup-password" placeholder="Guclu bir sifre" />
             </label>
             <button class="auth-primary" type="submit">Uye Ol ve Devam Et</button>
+            <button class="auth-secondary" type="button" id="open-guest-inline-signup">Misafir olarak devam et</button>
           </form>
         </div>
 
@@ -1038,6 +1043,7 @@
           <div class="guest-screen-head compact">
             <p class="eyebrow">Misafir Girisi</p>
             <h4>Gecici isim sec</h4>
+            <p class="auth-helper">Misafirler kampusu gezebilir. Mesaj yazmak ve odalara katilmak icin uye girisi gerekir.</p>
           </div>
           <label class="auth-field">
             <span>Gecici Kullanici Adi</span>
@@ -1131,6 +1137,21 @@
                 </div>
                 <div class="admin-list role-list" id="admin-roles-list"></div>
               </section>
+
+              <section class="admin-card wide">
+                <div class="admin-section-head">
+                  <div>
+                    <h4>Kanal Erisimi</h4>
+                    <p class="admin-muted">Her kanal ve oda icin hangi rollerin erisimi oldugunu ayarla.</p>
+                  </div>
+                </div>
+                <label class="auth-field">
+                  <span>Kanal veya oda sec</span>
+                  <select id="admin-view-select"></select>
+                </label>
+                <div class="access-picker" id="admin-access-roles"></div>
+                <button class="auth-primary" type="button" id="save-access-button">Erisim Ayarini Kaydet</button>
+              </section>
             </div>
           </div>
         </div>
@@ -1140,7 +1161,7 @@
     <!-- deploy-refresh: 2026-04-28T19:12:00+03:00 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260422-5"></script>
-    <script src="./app.js?v=20260514-3"></script>
+    <script src="./app.js?v=20260514-4"></script>
   </body>
 </html>
 

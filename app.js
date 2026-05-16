@@ -16,6 +16,11 @@ const PERMISSION_OPTIONS = [
   { id: "send_messages", label: "Mesaj Gonder" },
   { id: "join_voice", label: "Sesli Odaya Katil" }
 ];
+const DEFAULT_MEMBER_ROLE_ID = "member";
+const DEFAULT_GUEST_ROLE_ID = "guest";
+const LEGACY_ROLE_IDS = {
+  student: DEFAULT_MEMBER_ROLE_ID
+};
 
 const VOICE_ROOM_LABELS = {
   "waiting-room": "Bekleme Odası",
@@ -444,8 +449,8 @@ const defaultRoles = [
     system: true
   },
   {
-    id: "student",
-    name: "Ogrenci",
+    id: "member",
+    name: "Uye",
     color: "#5b6dff",
     order: 3,
     permissions: ["view_channels", "send_messages", "join_voice"],
@@ -456,7 +461,7 @@ const defaultRoles = [
     name: "Misafir",
     color: "#59d85f",
     order: 4,
-    permissions: ["view_channels", "send_messages", "join_voice"],
+    permissions: ["view_channels"],
     system: true
   },
   {
@@ -519,18 +524,18 @@ const members = [
   {
     id: "ezgi",
     name: "Ezgi",
-    roleId: "student",
+    roleId: "member",
     avatarClass: "coral",
     group: "Çevrimiçi",
-    subtitle: "Piyano Ogrencisi"
+    subtitle: "Piyano Uyesi"
   },
   {
     id: "mert",
     name: "Mert",
-    roleId: "student",
+    roleId: "member",
     avatarClass: "amber",
     group: "Çevrimiçi",
-    subtitle: "Davul Ogrencisi"
+    subtitle: "Davul Uyesi"
   }
 ];
 
@@ -673,17 +678,29 @@ function getSortedRoles() {
   });
 }
 
-function normalizeRoleIds(roleIds, fallbackRoleId = "student") {
+function normalizeRoleId(roleId, fallbackRoleId = DEFAULT_MEMBER_ROLE_ID) {
+  const normalizedFallback = LEGACY_ROLE_IDS[fallbackRoleId] || fallbackRoleId || DEFAULT_MEMBER_ROLE_ID;
+  const normalizedRoleId = LEGACY_ROLE_IDS[roleId] || roleId;
+  return normalizedRoleId || normalizedFallback;
+}
+
+function normalizeRoleIds(roleIds, fallbackRoleId = DEFAULT_MEMBER_ROLE_ID) {
   const incoming = Array.isArray(roleIds)
     ? roleIds
     : roleIds
       ? [roleIds]
       : [];
-  const validRoleIds = incoming.filter((roleId, index) => roleId && roles.some((role) => role.id === roleId) && incoming.indexOf(roleId) === index);
-  return validRoleIds.length ? validRoleIds : [fallbackRoleId];
+  const normalizedIncoming = incoming
+    .map((roleId) => normalizeRoleId(roleId, fallbackRoleId))
+    .filter(Boolean);
+  const normalizedFallback = normalizeRoleId(fallbackRoleId, DEFAULT_MEMBER_ROLE_ID);
+  const validRoleIds = normalizedIncoming.filter(
+    (roleId, index) => roleId && roles.some((role) => role.id === roleId) && normalizedIncoming.indexOf(roleId) === index
+  );
+  return validRoleIds.length ? validRoleIds : [normalizedFallback];
 }
 
-function getPrimaryRoleIdFromRoleIds(roleIds, fallbackRoleId = "student") {
+function getPrimaryRoleIdFromRoleIds(roleIds, fallbackRoleId = DEFAULT_MEMBER_ROLE_ID) {
   const normalized = normalizeRoleIds(roleIds, fallbackRoleId);
   return normalized
     .slice()
@@ -697,11 +714,14 @@ function getPrimaryRoleIdFromRoleIds(roleIds, fallbackRoleId = "student") {
 }
 
 function getRoleIdsForMember(member) {
-  return normalizeRoleIds(member?.roleIds || member?.role_ids || member?.roleId || member?.role_id, member?.roleId || member?.role_id || "student");
+  return normalizeRoleIds(
+    member?.roleIds || member?.role_ids || member?.roleId || member?.role_id,
+    member?.roleId || member?.role_id || DEFAULT_MEMBER_ROLE_ID
+  );
 }
 
 function getPrimaryRoleIdForMember(member) {
-  return getPrimaryRoleIdFromRoleIds(getRoleIdsForMember(member), member?.roleId || member?.role_id || "student");
+  return getPrimaryRoleIdFromRoleIds(getRoleIdsForMember(member), member?.roleId || member?.role_id || DEFAULT_MEMBER_ROLE_ID);
 }
 
 function getRoleNamesFromRoleIds(roleIds) {
@@ -727,7 +747,7 @@ function getRoleColorFromRoleIds(roleIds) {
 }
 
 function renderSidebarRoleBadges(roleIds) {
-  return normalizeRoleIds(roleIds, "student")
+  return normalizeRoleIds(roleIds, DEFAULT_MEMBER_ROLE_ID)
     .slice()
     .sort((firstRoleId, secondRoleId) => {
       const firstRole = getRole(firstRoleId);
@@ -2579,17 +2599,21 @@ function canAccessView(viewId) {
     return false;
   }
 
-  const role = getRole(authState.roleId);
-  if (!role?.permissions.includes("view_channels")) {
+  const activeRoleIds = normalizeRoleIds(authState.roleIds || authState.roleId, authState.roleId || DEFAULT_MEMBER_ROLE_ID);
+  const activeRoles = activeRoleIds
+    .map((roleId) => getRole(roleId))
+    .filter(Boolean);
+
+  if (!activeRoles.some((role) => role.permissions.includes("view_channels"))) {
     return false;
   }
 
-  if (role.permissions.includes("admin_access")) {
+  if (activeRoles.some((role) => role.permissions.includes("admin_access"))) {
     return true;
   }
 
   const allowedRoles = viewAccess[viewId];
-  return !allowedRoles || allowedRoles.includes(authState.roleId);
+  return !allowedRoles || activeRoleIds.some((roleId) => allowedRoles.includes(roleId));
 }
 
 function isVisibleRealMember(member) {
@@ -2785,6 +2809,11 @@ function renderDmInbox() {
     return;
   }
 
+  if (!hasPermission("send_messages")) {
+    dmInboxList.innerHTML = '<p class="admin-muted">Misafir hesaplar yalnizca goz atabilir. Mesajlasmak icin uye girisi yap.</p>';
+    return;
+  }
+
   const conversations = buildDmConversations(dmInboxMessages);
   dmInboxList.innerHTML = conversations.length
     ? conversations.map((conversation) => {
@@ -2821,7 +2850,7 @@ function renderDmInbox() {
         {
           id: button.dataset.dmPeerId,
           name: button.querySelector("strong")?.textContent || "Uye",
-          roleId: "student"
+          roleId: DEFAULT_MEMBER_ROLE_ID
         };
       markDmRead(button.dataset.dmConversationId);
       closeDmInbox();
@@ -2895,7 +2924,45 @@ async function loadDmInbox() {
 }
 
 function renderMembersSidebar() {
-  const visibleMembers = getVisibleMembers();
+  if (!membersGroups) {
+    return;
+  }
+
+  let visibleMembers = [];
+  try {
+    visibleMembers = getVisibleMembers();
+  } catch (error) {
+    console.error("Uye listesi hazirlanamadi:", error);
+  }
+
+  if (!visibleMembers.length && authState.mode !== "visitor" && authState.name) {
+    const fallbackRoleIds = normalizeRoleIds(
+      authState.roleIds || authState.roleId,
+      authState.roleId || (authState.mode === "guest" ? DEFAULT_GUEST_ROLE_ID : DEFAULT_MEMBER_ROLE_ID)
+    );
+    const fallbackPrimaryRoleId = getPrimaryRoleIdFromRoleIds(
+      fallbackRoleIds,
+      authState.roleId || (authState.mode === "guest" ? DEFAULT_GUEST_ROLE_ID : DEFAULT_MEMBER_ROLE_ID)
+    );
+    const fallbackPrimaryRole = getRole(fallbackPrimaryRoleId);
+    visibleMembers = [{
+      id: authState.userId || ("session-" + slugify(authState.name || "uye")),
+      name: authState.name,
+      roleId: fallbackPrimaryRoleId,
+      roleIds: fallbackRoleIds,
+      roleName: fallbackPrimaryRole?.name || "Uye",
+      group: fallbackPrimaryRole?.name || "Uye",
+      roleOrder: Number(fallbackPrimaryRole?.order ?? 99),
+      subtitle: getRoleLabelFromRoleIds(fallbackRoleIds) || fallbackPrimaryRole?.name || "Uye",
+      isOnline: true,
+      isGuest: authState.mode === "guest",
+      isMuted: Boolean(authState.isMuted),
+      isBanned: Boolean(authState.isBanned),
+      avatarImage: authState.avatarImage || null,
+      avatarClass: fallbackRoleIds.includes("guest") ? "amber" : "green"
+    }];
+  }
+
   renderedMembersById = new Map(visibleMembers.map((member) => [member.id, member]));
 
   const grouped = visibleMembers.reduce((accumulator, member) => {
@@ -2942,33 +3009,33 @@ function renderMembersSidebar() {
           const isOffline = !(member.isOnline || member.bot);
           const roleColor = isOffline ? "#8e949d" : getRoleColorFromRoleIds(roleIds);
           const avatarStyle = member.avatarImage
-            ? `background: center / cover no-repeat url("${member.avatarImage}")`
-            : `background: ${escapeHtml(roleColor)}`;
+            ? "background: center / cover no-repeat url(\"" + member.avatarImage + "\")"
+            : "background: " + escapeHtml(roleColor);
           const subtitleMarkup = member.bot
             ? escapeHtml(member.subtitle || "")
             : isOffline
               ? '<span class="offline-role">Cevrimdisi</span>'
               : renderSidebarRoleBadges(roleIds);
 
-          return `
-            <button class="member-row${isOffline ? " offline" : ""}" type="button" data-member-id="${escapeHtml(member.id)}">
-              <div class="avatar ${escapeHtml(member.avatarClass || "")}" style='${avatarStyle}'>${member.avatarImage ? "" : initials}</div>
-              <div class="member-meta">
-                <strong>${escapeHtml(member.name)}</strong>
-                <p class="role${isOffline ? " offline-role" : " role-badges"}">${subtitleMarkup}</p>
-              </div>
-              ${member.bot ? '<span class="bot-tag">BOT</span>' : ""}
-            </button>
-          `;
+          return [
+            '<button class="member-row' + (isOffline ? ' offline' : '') + '" type="button" data-member-id="' + escapeHtml(member.id) + '">',
+            '  <div class="avatar ' + escapeHtml(member.avatarClass || "") + '" style="' + avatarStyle + '">' + (member.avatarImage ? "" : initials) + '</div>',
+            '  <div class="member-meta">',
+            '    <strong>' + escapeHtml(member.name) + '</strong>',
+            '    <p class="role' + (isOffline ? ' offline-role' : ' role-badges') + '">' + subtitleMarkup + '</p>',
+            '  </div>',
+            member.bot ? '<span class="bot-tag">BOT</span>' : '',
+            '</button>'
+          ].join("");
         })
         .join("");
 
-      return `
-        <div class="members-group">
-          <p class="member-heading">${group} • ${grouped[group].length}</p>
-          ${rows}
-        </div>
-      `;
+      return [
+        '<div class="members-group">',
+        '  <p class="member-heading">' + escapeHtml(group) + ' &bull; ' + grouped[group].length + '</p>',
+        rows,
+        '</div>'
+      ].join("");
     })
     .join("");
 
@@ -4657,6 +4724,14 @@ function setActiveView(nextView, label) {
     viewTitle.textContent = label;
   }
 
+  if (VOICE_ROOM_LABELS[nextView]) {
+    try {
+      initializeVoiceRooms();
+    } catch (error) {
+      console.error("Sesli oda arayuzu acilamadi:", error);
+    }
+  }
+
   renderDashboardEditorToolbar();
   updateSearchVisibility(nextView);
   markChannelRead(nextView);
@@ -5363,7 +5438,7 @@ function renderRoleCheckboxes(selectedRoleIds, userId) {
 }
 
 function renderAdminRolePills(roleIds) {
-  return normalizeRoleIds(roleIds, "student")
+  return normalizeRoleIds(roleIds, DEFAULT_MEMBER_ROLE_ID)
     .map((roleId) => {
       const role = getRole(roleId);
       return `<span class="member-role-pill" style="--role-color: ${escapeHtml(role?.color || "#f1a126")}">${escapeHtml(role?.name || roleId)}</span>`;
@@ -6046,7 +6121,7 @@ function openMemberCard(member, anchorElement = null) {
   };
   memberMuteButton.textContent = moderation.isMuted ? "Susturmayi Kaldir" : "Sustur";
   memberBanButton.textContent = "Sunucudan At";
-  memberMessageButton.disabled = member.id === authState.userId || authState.mode === "visitor";
+  memberMessageButton.disabled = member.id === authState.userId || authState.mode === "visitor" || !hasPermission("send_messages");
 
   memberCardBackdrop.classList.remove("hidden");
   window.requestAnimationFrame(() => positionMemberCard(anchorElement));
@@ -6126,7 +6201,17 @@ function renderDirectMessages(messages) {
 }
 
 async function openDirectMessage(member) {
-  if (!member || !dmBackdrop || authState.mode === "visitor") {
+  if (!member || !dmBackdrop) {
+    return;
+  }
+
+  if (authState.mode === "visitor") {
+    openAuthModal("signin");
+    return;
+  }
+
+  if (!hasPermission("send_messages")) {
+    window.alert("Misafir hesaplar ozel mesaj gonderemez. Uye girisi yapman gerekiyor.");
     return;
   }
 
@@ -6147,8 +6232,17 @@ function closeDirectMessage() {
 }
 
 function openDmInbox() {
-  if (!dmInboxBackdrop || authState.mode === "visitor") {
+  if (!dmInboxBackdrop) {
+    return;
+  }
+
+  if (authState.mode === "visitor") {
     openAuthModal("signin");
+    return;
+  }
+
+  if (!hasPermission("send_messages")) {
+    window.alert("Misafir hesaplar ozel mesaj gonderemez. Uye girisi yapman gerekiyor.");
     return;
   }
 
@@ -6165,6 +6259,11 @@ function closeDmInbox() {
 
 async function sendDirectMessage(content) {
   if (!activeDmMember || !authState.userId || !content.trim()) {
+    return;
+  }
+
+  if (!hasPermission("send_messages")) {
+    window.alert("Bu rol ozel mesaj gonderemez.");
     return;
   }
 
@@ -6517,7 +6616,7 @@ document.querySelector('[data-auth-panel="signin"]').addEventListener("submit", 
 
   const nextState = await resolveMemberAuthState(data.user.id, {
     displayName: data.user.user_metadata?.display_name || email.split("@")[0] || "Line Uyesi",
-    roleId: "student"
+    roleId: DEFAULT_MEMBER_ROLE_ID
   });
 
   if (nextState.isBanned) {
@@ -6613,7 +6712,7 @@ document.querySelector('[data-auth-panel="signup"]').addEventListener("submit", 
 
   const nextState = await resolveMemberAuthState(activeUser.id, {
     displayName: signUpDisplayName,
-    roleId: "student"
+    roleId: DEFAULT_MEMBER_ROLE_ID
   });
 
   await upsertAppUser({
@@ -7089,18 +7188,41 @@ renderNotifications();
 renderDmBadge();
 initializeSidebarOrder();
 titleCaseSidebarLabels();
-renderMembersSidebar();
-initializeVoiceRooms();
+function safelyRunStartupTask(label, task) {
+  try {
+    return task();
+  } catch (error) {
+    console.error(label + " baslatilamadi:", error);
+    return null;
+  }
+}
+
+safelyRunStartupTask("Uye paneli", renderMembersSidebar);
+safelyRunStartupTask("Sesli oda arayuzu", initializeVoiceRooms);
 initializeTextChannelComposers();
 initializeStaticMessageControls();
-bootstrapAuthSession();
-loadDirectoryUsers();
+(async () => {
+  try {
+    await bootstrapAuthSession();
+  } catch (error) {
+    console.error("Oturum geri yuklenemedi:", error);
+  }
+
+  try {
+    await loadDirectoryUsers();
+  } catch (error) {
+    console.error("Uye dizini yuklenemedi:", error);
+  }
+
+  safelyRunStartupTask("Uye paneli yenileme", renderMembersSidebar);
+  safelyRunStartupTask("Sesli oda yenileme", initializeVoiceRooms);
+})();
 if (supabaseClient?.auth?.onAuthStateChange) {
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user && authState.mode !== "guest") {
       const nextState = await resolveMemberAuthState(session.user.id, {
         displayName: session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || authState.name || "Line Uyesi",
-        roleId: "student"
+        roleId: DEFAULT_MEMBER_ROLE_ID
       });
 
       if (!nextState.isBanned) {
