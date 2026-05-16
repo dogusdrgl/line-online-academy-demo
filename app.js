@@ -232,11 +232,13 @@ let homePageSettingsChannel = null;
 let homePageResizeState = null;
 let homePageSettings = null;
 let homePageSettingsStore = null;
+let homePageSettingsRevision = 0;
 let aboutPageEditMode = false;
 let aboutPageSettingsChannel = null;
 let aboutPageResizeState = null;
 let aboutPageSettings = null;
 let aboutPageSettingsStore = null;
+let aboutPageSettingsRevision = 0;
 let activeEditableBoxDrag = null;
 let currentResponsiveLayoutVariant = null;
 let responsiveLayoutRefreshTimer = null;
@@ -3433,6 +3435,61 @@ function renderDashboardEditorToolbar() {
   dashboardSaveButton.title = "Bu duzen " + layoutLabel + " profiline kaydedilir.";
 }
 
+function getRevisionTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function applyResolvedHomePageSettings(storeOrSettings) {
+  const resolvedSettings = resolveResponsiveSettingsVariant(
+    storeOrSettings,
+    DEFAULT_HOME_PAGE_SETTINGS,
+    sanitizeHomePageSettings,
+    currentResponsiveLayoutVariant || getResponsiveLayoutVariant()
+  );
+  homePageSettings = sanitizeHomePageSettings(resolvedSettings);
+  applyHomePageSettings(resolvedSettings);
+}
+
+function applyResolvedAboutPageSettings(storeOrSettings) {
+  const resolvedSettings = resolveResponsiveSettingsVariant(
+    storeOrSettings,
+    DEFAULT_ABOUT_PAGE_SETTINGS,
+    sanitizeAboutPageSettings,
+    currentResponsiveLayoutVariant || getResponsiveLayoutVariant()
+  );
+  aboutPageSettings = sanitizeAboutPageSettings(resolvedSettings);
+  applyAboutPageSettings(resolvedSettings);
+}
+
+function commitHomePageSettingsStore(rawSettings, updatedAt = null) {
+  const nextRevision = getRevisionTimestamp(updatedAt);
+  if (nextRevision && nextRevision < homePageSettingsRevision) {
+    return false;
+  }
+
+  homePageSettingsRevision = Math.max(homePageSettingsRevision, nextRevision);
+  homePageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
+  applyResolvedHomePageSettings(homePageSettingsStore);
+  return true;
+}
+
+function commitAboutPageSettingsStore(rawSettings, updatedAt = null) {
+  const nextRevision = getRevisionTimestamp(updatedAt);
+  if (nextRevision && nextRevision < aboutPageSettingsRevision) {
+    return false;
+  }
+
+  aboutPageSettingsRevision = Math.max(aboutPageSettingsRevision, nextRevision);
+  aboutPageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
+  applyResolvedAboutPageSettings(aboutPageSettingsStore);
+  return true;
+}
+
 function setHomePageEditMode(nextMode, options = {}) {
   const allowEdit = isAdminUser();
   const shouldEdit = Boolean(nextMode && allowEdit);
@@ -3464,13 +3521,14 @@ function setHomePageEditMode(nextMode, options = {}) {
 
 async function loadHomePageSettings() {
   let rawSettings = cloneHomePageSettings(DEFAULT_HOME_PAGE_SETTINGS);
+  let updatedAt = null;
 
   if (supabaseClient) {
     try {
       const response = await withTimeout(
         supabaseClient
           .from("home_page_settings")
-          .select("config_json")
+          .select("config_json, updated_at")
           .eq("id", "dashboard")
           .maybeSingle(),
         "Anasayfa ayarlarini yukleme"
@@ -3482,6 +3540,7 @@ async function loadHomePageSettings() {
 
       if (response.data && response.data.config_json) {
         rawSettings = response.data.config_json;
+        updatedAt = response.data.updated_at || null;
       }
     } catch (error) {
       console.warn("Anasayfa ayarlari Supabase'den okunamadi:", error.message);
@@ -3491,8 +3550,7 @@ async function loadHomePageSettings() {
     rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY, DEFAULT_HOME_PAGE_SETTINGS);
   }
 
-  homePageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
-  applyHomePageSettings(resolveResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+  commitHomePageSettingsStore(rawSettings, updatedAt);
 }
 
 async function saveHomePageSettings() {
@@ -3516,7 +3574,7 @@ async function saveHomePageSettings() {
             config_json: nextStore,
             updated_at: new Date().toISOString()
           })
-          .select("config_json")
+          .select("config_json, updated_at")
           .single(),
         "Anasayfa ayarlarini kaydetme"
       );
@@ -3525,21 +3583,17 @@ async function saveHomePageSettings() {
         throw response.error;
       }
 
-      homePageSettingsStore = buildResponsiveSettingsStore(response.data?.config_json || nextStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
+      commitHomePageSettingsStore(response.data?.config_json || nextStore, response.data?.updated_at || new Date().toISOString());
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
-      homePageSettingsStore = nextStore;
+      commitHomePageSettingsStore(nextStore);
     }
 
-    homePageSettings = sanitizeHomePageSettings(nextSettings);
-    applyHomePageSettings(nextSettings);
     setHomePageEditMode(false, { restoreSaved: false });
   } catch (error) {
     console.warn("Anasayfa ayarlari kaydedilemedi:", error.message);
     writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
-    homePageSettingsStore = nextStore;
-    homePageSettings = sanitizeHomePageSettings(nextSettings);
-    applyHomePageSettings(nextSettings);
+    commitHomePageSettingsStore(nextStore);
     setHomePageEditMode(false, { restoreSaved: false });
     window.alert("Ortak kayit alinamadi. Ayarlar bu tarayicida kaydedildi.");
   } finally {
@@ -3772,11 +3826,12 @@ function setAboutPageEditMode(nextMode, options = {}) {
 
 async function loadAboutPageSettings() {
   let rawSettings = cloneHomePageSettings(DEFAULT_ABOUT_PAGE_SETTINGS);
+  let updatedAt = null;
 
   if (supabaseClient) {
     try {
       const response = await withTimeout(
-        supabaseClient.from("home_page_settings").select("config_json").eq("id", "about").maybeSingle(),
+        supabaseClient.from("home_page_settings").select("config_json, updated_at").eq("id", "about").maybeSingle(),
         "Hakkimizda ayarlarini yukleme"
       );
       if (response.error) {
@@ -3784,6 +3839,7 @@ async function loadAboutPageSettings() {
       }
       if (response.data && response.data.config_json) {
         rawSettings = response.data.config_json;
+        updatedAt = response.data.updated_at || null;
       }
     } catch (error) {
       console.warn("Hakkimizda ayarlari okunamadi:", error.message);
@@ -3793,8 +3849,7 @@ async function loadAboutPageSettings() {
     rawSettings = readJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", DEFAULT_ABOUT_PAGE_SETTINGS);
   }
 
-  aboutPageSettingsStore = buildResponsiveSettingsStore(rawSettings, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
-  applyAboutPageSettings(resolveResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+  commitAboutPageSettingsStore(rawSettings, updatedAt);
 }
 
 async function saveAboutPageSettings() {
@@ -3815,28 +3870,24 @@ async function saveAboutPageSettings() {
           id: "about",
           config_json: nextStore,
           updated_at: new Date().toISOString()
-        }).select("config_json").single(),
+        }).select("config_json, updated_at").single(),
         "Hakkimizda ayarlarini kaydetme"
       );
       if (response.error) {
         throw response.error;
       }
 
-      aboutPageSettingsStore = buildResponsiveSettingsStore(response.data?.config_json || nextStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
+      commitAboutPageSettingsStore(response.data?.config_json || nextStore, response.data?.updated_at || new Date().toISOString());
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
-      aboutPageSettingsStore = nextStore;
+      commitAboutPageSettingsStore(nextStore);
     }
 
-    aboutPageSettings = sanitizeAboutPageSettings(nextSettings);
-    applyAboutPageSettings(nextSettings);
     setAboutPageEditMode(false, { restoreSaved: false });
   } catch (error) {
     console.warn("Hakkimizda ayarlari kaydedilemedi:", error.message);
     writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
-    aboutPageSettingsStore = nextStore;
-    aboutPageSettings = sanitizeAboutPageSettings(nextSettings);
-    applyAboutPageSettings(nextSettings);
+    commitAboutPageSettingsStore(nextStore);
     setAboutPageEditMode(false, { restoreSaved: false });
     window.alert("Ortak kayit alinamadi. Hakkimizda ayarlari bu tarayicida saklandi.");
   } finally {
@@ -3918,8 +3969,7 @@ function subscribeAboutPageSettings() {
           return;
         }
         if (payload.new && payload.new.config_json) {
-          aboutPageSettingsStore = buildResponsiveSettingsStore(payload.new.config_json, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
-          applyAboutPageSettings(resolveResponsiveSettingsVariant(aboutPageSettingsStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+          commitAboutPageSettingsStore(payload.new.config_json, payload.new.updated_at || null);
         } else {
           loadAboutPageSettings();
         }
@@ -3945,8 +3995,7 @@ function subscribeToHomePageSettings() {
         }
 
         if (payload.new && payload.new.config_json) {
-          homePageSettingsStore = buildResponsiveSettingsStore(payload.new.config_json, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
-          applyHomePageSettings(resolveResponsiveSettingsVariant(homePageSettingsStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings, currentResponsiveLayoutVariant || getResponsiveLayoutVariant()));
+          commitHomePageSettingsStore(payload.new.config_json, payload.new.updated_at || null);
         } else {
           loadHomePageSettings();
         }
@@ -4101,22 +4150,39 @@ function loadLocalMessages() {
     .forEach((message) => addChatMessage(message.channel_id, message, { notify: false }));
 }
 
-async function upsertAppUser(user) {
+async function upsertAppUser(user, options = {}) {
   if (!supabaseClient || !user?.id) {
     return false;
   }
 
   try {
+    const shouldPreserveRoles = options.allowRoleOverwrite !== true;
+    const shouldPreserveModeration = options.allowModerationOverwrite !== true;
+    const existingRecord =
+      shouldPreserveRoles || shouldPreserveModeration
+        ? await fetchAppUserRecord(user.id)
+        : null;
+    const resolvedRoleIds =
+      shouldPreserveRoles && existingRecord
+        ? normalizeRoleIds(existingRecord.role_ids || existingRecord.role_id, existingRecord.role_id || user.roleId || DEFAULT_MEMBER_ROLE_ID)
+        : normalizeRoleIds(user.roleIds || user.roleId, user.roleId || DEFAULT_MEMBER_ROLE_ID);
+    const resolvedRoleId = getPrimaryRoleIdFromRoleIds(
+      resolvedRoleIds,
+      (shouldPreserveRoles && existingRecord ? existingRecord.role_id : user.roleId) || DEFAULT_MEMBER_ROLE_ID
+    );
+    const resolvedMuted = shouldPreserveModeration && existingRecord ? Boolean(existingRecord.is_muted) : Boolean(user.isMuted);
+    const resolvedBanned = shouldPreserveModeration && existingRecord ? Boolean(existingRecord.is_banned) : Boolean(user.isBanned);
+
     const { error } = await withTimeout(
       supabaseClient.from("app_users").upsert({
         id: user.id,
         display_name: user.displayName,
-        role_id: getPrimaryRoleIdFromRoleIds(user.roleIds || user.roleId, user.roleId || "student"),
-        role_ids: normalizeRoleIds(user.roleIds || user.roleId, user.roleId || "student"),
-        is_guest: normalizeRoleIds(user.roleIds || user.roleId, user.roleId || "student").includes("guest"),
+        role_id: resolvedRoleId,
+        role_ids: resolvedRoleIds,
+        is_guest: Boolean(user.isGuest ?? user.is_guest ?? resolvedRoleIds.includes("guest")),
         avatar_image: user.avatarImage || null,
-        is_muted: user.isMuted || false,
-        is_banned: user.isBanned || false,
+        is_muted: resolvedMuted,
+        is_banned: resolvedBanned,
         is_online: user.isOnline || false,
         last_seen: new Date().toISOString()
       }),
@@ -4134,8 +4200,9 @@ async function upsertAppUser(user) {
         supabaseClient.from("app_users").upsert({
           id: user.id,
           display_name: user.displayName,
-          role_id: user.roleId,
-          is_guest: user.roleId === "guest",
+          role_id: getPrimaryRoleIdFromRoleIds(user.roleIds || user.roleId, user.roleId || DEFAULT_MEMBER_ROLE_ID),
+          role_ids: normalizeRoleIds(user.roleIds || user.roleId, user.roleId || DEFAULT_MEMBER_ROLE_ID),
+          is_guest: Boolean(user.isGuest ?? normalizeRoleIds(user.roleIds || user.roleId, user.roleId || DEFAULT_MEMBER_ROLE_ID).includes("guest")),
           is_online: user.isOnline || false,
           last_seen: new Date().toISOString()
         }),
@@ -6009,16 +6076,38 @@ async function assignUserRoles(userId, roleIds) {
 
   if (supabaseClient) {
     try {
-      const { error } = await withTimeout(
-        supabaseClient
-          .from("app_users")
-          .update({ role_id: primaryRoleId, role_ids: nextRoleIds, is_guest: nextRoleIds.includes("guest") })
-          .eq("id", userId),
-        "Rol atama"
-      );
+      const knownUser =
+        adminKnownUsers.find((user) => user.id === userId) ||
+        directoryUsers.find((user) => user.id === userId) ||
+        members.find((user) => user.id === userId) ||
+        ephemeralMembers.find((user) => user.id === userId) ||
+        (authState.userId === userId
+          ? {
+              id: authState.userId,
+              display_name: authState.name,
+              avatar_image: authState.avatarImage || null,
+              is_muted: authState.isMuted,
+              is_banned: authState.isBanned
+            }
+          : null);
 
-      if (error) {
-        throw error;
+      const saved = await upsertAppUser({
+        id: userId,
+        displayName: knownUser?.display_name || knownUser?.displayName || knownUser?.name || "Line Uyesi",
+        roleId: primaryRoleId,
+        roleIds: nextRoleIds,
+        isGuest: nextRoleIds.includes("guest"),
+        avatarImage: knownUser?.avatar_image || knownUser?.avatarImage || null,
+        isMuted: Boolean(knownUser?.is_muted ?? knownUser?.isMuted),
+        isBanned: Boolean(knownUser?.is_banned ?? knownUser?.isBanned),
+        isOnline: Boolean(knownUser?.is_online ?? knownUser?.isOnline ?? true)
+      }, {
+        allowRoleOverwrite: true,
+        allowModerationOverwrite: true
+      });
+
+      if (!saved) {
+        throw new Error("Rol kaydi dogrulanamadi.");
       }
     } catch (error) {
       console.warn("Supabase rol atamasi kaydedilemedi:", error.message);
