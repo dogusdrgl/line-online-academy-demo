@@ -158,7 +158,7 @@ const supabaseClient =
   window.supabase && supabaseConfig.url && supabaseConfig.anonKey
     ? window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey)
     : null;
-const SUPABASE_TIMEOUT_MS = 3500;
+const SUPABASE_TIMEOUT_MS = 8000;
 const ADMIN_PASSWORD = "Line5367";
 const LOCAL_MESSAGES_KEY = "line-online-academy-messages";
 const LOCAL_SESSION_KEY = "line-online-academy-session";
@@ -3515,18 +3515,22 @@ async function saveHomePageSettings() {
             id: "dashboard",
             config_json: nextStore,
             updated_at: new Date().toISOString()
-          }),
+          })
+          .select("config_json")
+          .single(),
         "Anasayfa ayarlarini kaydetme"
       );
 
       if (response.error) {
         throw response.error;
       }
+
+      homePageSettingsStore = buildResponsiveSettingsStore(response.data?.config_json || nextStore, DEFAULT_HOME_PAGE_SETTINGS, sanitizeHomePageSettings);
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
+      homePageSettingsStore = nextStore;
     }
 
-    homePageSettingsStore = nextStore;
     homePageSettings = sanitizeHomePageSettings(nextSettings);
     applyHomePageSettings(nextSettings);
     setHomePageEditMode(false, { restoreSaved: false });
@@ -3811,17 +3815,19 @@ async function saveAboutPageSettings() {
           id: "about",
           config_json: nextStore,
           updated_at: new Date().toISOString()
-        }),
+        }).select("config_json").single(),
         "Hakkimizda ayarlarini kaydetme"
       );
       if (response.error) {
         throw response.error;
       }
+
+      aboutPageSettingsStore = buildResponsiveSettingsStore(response.data?.config_json || nextStore, DEFAULT_ABOUT_PAGE_SETTINGS, sanitizeAboutPageSettings);
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
+      aboutPageSettingsStore = nextStore;
     }
 
-    aboutPageSettingsStore = nextStore;
     aboutPageSettings = sanitizeAboutPageSettings(nextSettings);
     applyAboutPageSettings(nextSettings);
     setAboutPageEditMode(false, { restoreSaved: false });
@@ -4329,6 +4335,32 @@ async function getStoredUserProfile(userId) {
       console.warn("Kullanici rolu okunamadi:", fallbackError.message);
       return getUserModeration(userId);
     }
+  }
+}
+
+async function fetchAppUserRecord(userId) {
+  if (!supabaseClient || !userId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await withTimeout(
+      supabaseClient
+        .from("app_users")
+        .select("id, display_name, role_id, role_ids, is_guest, is_muted, is_banned, is_online, last_seen, avatar_image, created_at")
+        .eq("id", userId)
+        .maybeSingle(),
+      "Kullanici kaydini dogrulama"
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    return data || null;
+  } catch (error) {
+    console.warn("Kullanici kaydi geri okunamadi:", error.message);
+    return null;
   }
 }
 
@@ -5990,6 +6022,30 @@ async function assignUserRoles(userId, roleIds) {
       }
     } catch (error) {
       console.warn("Supabase rol atamasi kaydedilemedi:", error.message);
+    }
+  }
+
+  const confirmedRecord = await fetchAppUserRecord(userId);
+  if (confirmedRecord) {
+    adminKnownUsers = adminKnownUsers.map((user) => (
+      user.id === userId
+        ? {
+            ...user,
+            ...confirmedRecord,
+            isMuted: Boolean(confirmedRecord.is_muted),
+            isBanned: Boolean(confirmedRecord.is_banned),
+            isOnline: Boolean(confirmedRecord.is_online),
+            avatarImage: confirmedRecord.avatar_image || null
+          }
+        : user
+    ));
+
+    directoryUsers = directoryUsers.map((user) => (
+      user.id === userId ? { ...user, ...confirmedRecord, roleId: confirmedRecord.role_id, roleIds: confirmedRecord.role_ids } : user
+    ));
+
+    if (authState.userId === userId) {
+      syncAuthStateFromDirectoryRecord(confirmedRecord);
     }
   }
 
