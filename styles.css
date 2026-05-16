@@ -1,4 +1,4 @@
-@import "../styles.css";
+@import "./base-styles.css";
 
 .members-sidebar-inner {
   display: grid;
