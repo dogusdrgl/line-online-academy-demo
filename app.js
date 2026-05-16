@@ -2726,6 +2726,16 @@ function getVisibleMembers() {
   });
 }
 
+function getMemberRecency(member) {
+  const rawValue = member?.lastSeen || member?.last_seen || member?.createdAt || member?.created_at || null;
+  if (!rawValue) {
+    return 0;
+  }
+
+  const timestamp = new Date(rawValue).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 function findMemberById(memberId) {
   return getAllMembers().find((member) => member.id === memberId);
 }
