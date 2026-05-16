@@ -456,7 +456,10 @@
     elements.membersGroups.innerHTML = groups.length
       ? groups.map((group) => `
           <section class="member-group" data-group="${group.id}">
-            <h3>${escapeHtml(group.title)} • ${group.items.length}</h3>
+            <div class="member-group-head">
+              <h3>${escapeHtml(group.title)}</h3>
+              <span class="member-group-count">${group.items.length}</span>
+            </div>
             <div class="member-list">
               ${group.items.map(renderMemberRow).join("")}
             </div>
