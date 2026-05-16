@@ -13,6 +13,7 @@ const elements = {
   sessionSummary: document.getElementById("session-summary"),
   membersGroups: document.getElementById("members-groups"),
   memberCount: document.getElementById("member-count"),
+  identityMemberCount: document.getElementById("identity-member-count"),
   refreshMembers: document.getElementById("refresh-members"),
   guestCard: document.getElementById("guest-card"),
   identityCard: document.getElementById("identity-card"),
@@ -137,32 +138,53 @@ export function renderMembers() {
   }
 
   const members = [...state.members];
+  const onlineGroupsMap = new Map();
+  members
+    .filter((member) => member.isOnline)
+    .sort(compareMembers)
+    .forEach((member) => {
+      const primaryRoleId = member.primaryRoleId || getPrimaryRoleId(member.roleIds);
+      const primaryRole = getRole(primaryRoleId);
+      const groupId = primaryRoleId || "member";
+      const groupTitle = (primaryRole?.name || "Uye").toUpperCase();
+      const existing = onlineGroupsMap.get(groupId) || {
+        id: `online-${groupId}`,
+        title: groupTitle,
+        items: []
+      };
+      existing.items.push(member);
+      onlineGroupsMap.set(groupId, existing);
+    });
+
+  const onlineGroups = Array.from(onlineGroupsMap.values()).sort((first, second) => {
+    const firstRoleId = first.items[0]?.primaryRoleId || getPrimaryRoleId(first.items[0]?.roleIds || ["member"]);
+    const secondRoleId = second.items[0]?.primaryRoleId || getPrimaryRoleId(second.items[0]?.roleIds || ["member"]);
+    const firstOrder = getRole(firstRoleId)?.sortOrder ?? 999;
+    const secondOrder = getRole(secondRoleId)?.sortOrder ?? 999;
+    return firstOrder - secondOrder || first.title.localeCompare(second.title, "tr");
+  });
+
+  const offlineMembers = members.filter((member) => !member.isOnline).sort(compareMembers);
   const groups = [
-    {
-      id: "online-roles",
-      title: "Cevrimici Uyeler",
-      items: members.filter((member) => member.isOnline && !member.isGuest).sort(compareMembers)
-    },
-    {
-      id: "online-guests",
-      title: "Cevrimici Misafirler",
-      items: members.filter((member) => member.isOnline && member.isGuest).sort(compareMembers)
-    },
-    {
+    ...onlineGroups,
+    ...(offlineMembers.length ? [{
       id: "offline",
-      title: "Cevrimdisi",
-      items: members.filter((member) => !member.isOnline).sort(compareMembers)
-    }
-  ].filter((group) => group.items.length);
+      title: "CEVRIMDISI",
+      items: offlineMembers
+    }] : [])
+  ];
 
   if (elements.memberCount) {
     elements.memberCount.textContent = String(members.length);
+  }
+  if (elements.identityMemberCount) {
+    elements.identityMemberCount.textContent = String(members.length);
   }
 
   elements.membersGroups.innerHTML = groups.length
     ? groups.map((group) => `
         <section class="member-group" data-group="${group.id}">
-          <h3>${escapeHtml(group.title)} · ${group.items.length}</h3>
+          <h3>${escapeHtml(group.title)} • ${group.items.length}</h3>
           <div class="member-list">
             ${group.items.map(renderMemberRow).join("")}
           </div>
@@ -174,15 +196,17 @@ export function renderMembers() {
 function renderMemberRow(member) {
   const primaryRoleId = member.primaryRoleId || getPrimaryRoleId(member.roleIds);
   const primaryRole = getRole(primaryRoleId);
-  const roleLabels = normalizeRoleIds(member.roleIds)
-    .map((roleId) => {
-      const role = getRole(roleId);
-      return `<span class="role-${escapeHtml(roleId)}">${escapeHtml(role?.name || roleId)}</span>`;
-    })
-    .join("");
+  const roleLabels = member.isOnline
+    ? normalizeRoleIds(member.roleIds)
+        .map((roleId) => {
+          const role = getRole(roleId);
+          return `<span class="role-${escapeHtml(roleId)}">${escapeHtml(role?.name || roleId)}</span>`;
+        })
+        .join("")
+    : '<span class="role-offline">Cevrimdisi</span>';
 
   return `
-    <article class="member-row">
+    <article class="member-row ${member.isOnline ? "" : "is-offline"}">
       <div class="member-avatar" style="background:${escapeHtml(primaryRole?.color || "#6e80ff")}">
         ${escapeHtml((member.name || "U").slice(0, 1).toUpperCase())}
       </div>

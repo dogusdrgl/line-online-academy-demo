@@ -12,6 +12,23 @@
   letter-spacing: 0.04em;
 }
 
+.members-topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.members-count-badge {
+  min-width: 30px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d7cfc4;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 #members-groups {
   padding: 10px 14px 18px;
   overflow: auto;
@@ -24,14 +41,14 @@
 .member-group h3 {
   margin: 0 0 10px;
   color: #efe2cb;
-  font-size: 0.98rem;
-  letter-spacing: 0.14em;
+  font-size: 0.86rem;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .member-list {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .member-row {
@@ -58,9 +75,14 @@
   color: #f1ece5;
 }
 
+.member-row.is-offline .member-name {
+  color: rgba(241, 236, 229, 0.52);
+}
+
 .member-roles {
   margin: 4px 0 0;
   font-size: 0.88rem;
+  line-height: 1.25;
 }
 
 .member-roles span + span::before {
@@ -86,6 +108,10 @@
 
 .role-assistant {
   color: #9c8cff;
+}
+
+.role-offline {
+  color: rgba(255, 255, 255, 0.32);
 }
 
 .profile-card.identity-card,
@@ -115,6 +141,10 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 14px;
+}
+
+#identity-role-summary {
+  color: #8aa0ff;
 }
 
 .profile-card-footer {

@@ -169,7 +169,10 @@
         <div class="members-sidebar-inner">
           <div class="members-topbar">
             <h3>Kullanicilar</h3>
-            <span class="members-region">LINE • TR</span>
+            <div class="members-topbar-meta">
+              <span class="members-region">LINE • TR</span>
+              <span id="member-count" class="members-count-badge">0</span>
+            </div>
           </div>
           <div id="members-groups"></div>
           <div class="profile-card guest-card" id="guest-card">
@@ -191,7 +194,7 @@
               </div>
             </div>
             <div class="profile-card-actions">
-              <span class="chip muted" id="member-count">0</span>
+              <span class="chip muted" id="identity-member-count">0</span>
               <span class="chip mic">MIC</span>
               <span class="chip success">SES</span>
               <span class="chip danger">CAM</span>
