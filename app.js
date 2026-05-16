@@ -482,6 +482,7 @@ let adminKnownUsers = [];
 let directoryUsers = [];
 let livePresenceMembers = [];
 let presenceChannel = null;
+let presenceChannelKey = null;
 let directoryRealtimeChannel = null;
 let messageRealtimeChannel = null;
 let directMessageRealtimeChannel = null;
@@ -4642,15 +4643,59 @@ async function trackRealtimePresence() {
   }
 }
 
-function subscribeToPresence() {
-  if (!supabaseClient || presenceChannel) {
+async function resetPresenceSubscription() {
+  if (!presenceChannel) {
+    presenceChannelKey = null;
     return;
   }
 
+  try {
+    await presenceChannel.untrack();
+  } catch (error) {
+    console.warn("Canli uye durumu kapatilamadi:", error.message);
+  }
+
+  try {
+    if (typeof supabaseClient?.removeChannel === "function") {
+      await supabaseClient.removeChannel(presenceChannel);
+    }
+  } catch (error) {
+    console.warn("Canli uye kanali kaldirilamadi:", error.message);
+  }
+
+  presenceChannel = null;
+  presenceChannelKey = null;
+  livePresenceMembers = [];
+}
+
+function subscribeToPresence() {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const desiredKey = authState.userId && authState.mode !== "visitor"
+    ? authState.userId
+    : null;
+
+  if (!desiredKey) {
+    resetPresenceSubscription().catch(() => {});
+    renderMembersSidebar();
+    return;
+  }
+
+  if (presenceChannel && presenceChannelKey === desiredKey) {
+    return;
+  }
+
+  if (presenceChannel && presenceChannelKey !== desiredKey) {
+    resetPresenceSubscription().catch(() => {});
+  }
+
+  presenceChannelKey = desiredKey;
   presenceChannel = supabaseClient.channel("line-online-academy-presence", {
     config: {
       presence: {
-        key: authState.userId || `visitor-${Date.now()}`
+        key: desiredKey
       }
     }
   });
@@ -4667,15 +4712,7 @@ function subscribeToPresence() {
 }
 
 async function untrackRealtimePresence() {
-  if (!presenceChannel) {
-    return;
-  }
-
-  try {
-    await presenceChannel.untrack();
-  } catch (error) {
-    console.warn("Canli uye durumu kapatilamadi:", error.message);
-  }
+  await resetPresenceSubscription();
 }
 
 function subscribeToDirectoryRealtime() {
@@ -5549,9 +5586,35 @@ async function loadAdminUsers() {
       avatarImage: member.avatarImage || null,
       ...getUserModeration(member.id)
     }));
+  const mergeAdminUsers = (primaryUsers = [], fallbackUsers = []) => {
+    const merged = new Map();
+
+    [...fallbackUsers, ...primaryUsers].forEach((user) => {
+      if (!user?.id) {
+        return;
+      }
+
+      const existing = merged.get(user.id) || {};
+      merged.set(user.id, {
+        ...existing,
+        ...user,
+        avatarImage: user.avatarImage || user.avatar_image || existing.avatarImage || existing.avatar_image || null,
+        isMuted: Boolean(user.isMuted ?? user.is_muted ?? existing.isMuted ?? existing.is_muted),
+        isBanned: Boolean(user.isBanned ?? user.is_banned ?? existing.isBanned ?? existing.is_banned),
+        isOnline: Boolean(user.isOnline ?? user.is_online ?? existing.isOnline ?? existing.is_online),
+        role_ids: normalizeRoleIds(user.role_ids || user.roleIds || user.role_id || user.roleId, user.role_id || user.roleId || existing.role_id || DEFAULT_MEMBER_ROLE_ID),
+        role_id: getPrimaryRoleIdFromRoleIds(
+          user.role_ids || user.roleIds || user.role_id || user.roleId,
+          user.role_id || user.roleId || existing.role_id || DEFAULT_MEMBER_ROLE_ID
+        )
+      });
+    });
+
+    return Array.from(merged.values());
+  };
 
   if (!supabaseClient) {
-    adminKnownUsers = localUsers;
+    adminKnownUsers = mergeAdminUsers(localUsers, adminKnownUsers);
     renderAdminUsers();
     return;
   }
@@ -5570,17 +5633,18 @@ async function loadAdminUsers() {
       throw error;
     }
 
-    adminKnownUsers = (data || []).map((user) => ({
+    const remoteUsers = (data || []).map((user) => ({
       ...user,
       avatarImage: user.avatar_image || null,
       isMuted: Boolean(user.is_muted),
       isBanned: Boolean(user.is_banned),
       isOnline: Boolean(user.is_online)
     }));
+    adminKnownUsers = mergeAdminUsers(remoteUsers, localUsers);
     renderAdminUsers();
   } catch (error) {
     console.warn("Uyeler yuklenemedi:", error.message);
-    adminKnownUsers = localUsers;
+    adminKnownUsers = mergeAdminUsers(localUsers, adminKnownUsers);
     renderAdminUsers();
   }
 }
@@ -5647,7 +5711,21 @@ function renderAdminUsers() {
     return;
   }
 
-  const sortedUsers = [...adminKnownUsers].sort((firstUser, secondUser) => {
+  const fallbackUsers = getAllMembers()
+    .filter((member) => !member.bot)
+    .map((member) => ({
+      id: member.id,
+      display_name: member.name,
+      role_id: getPrimaryRoleIdFromRoleIds(member.roleIds || member.roleId, member.roleId || DEFAULT_MEMBER_ROLE_ID),
+      role_ids: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || DEFAULT_MEMBER_ROLE_ID),
+      is_guest: normalizeRoleIds(member.roleIds || member.roleId, member.roleId || DEFAULT_MEMBER_ROLE_ID).includes("guest"),
+      is_online: Boolean(member.isOnline),
+      last_seen: member.lastSeen || null,
+      avatarImage: member.avatarImage || null,
+      ...getUserModeration(member.id)
+    }));
+  const sourceUsers = adminKnownUsers.length ? adminKnownUsers : fallbackUsers;
+  const sortedUsers = [...sourceUsers].sort((firstUser, secondUser) => {
     const firstBanned = Boolean(firstUser.isBanned ?? firstUser.is_banned);
     const secondBanned = Boolean(secondUser.isBanned ?? secondUser.is_banned);
     const firstOnline = Boolean(firstUser.isOnline ?? firstUser.is_online);
