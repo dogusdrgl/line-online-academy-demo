@@ -3554,6 +3554,27 @@ async function loadHomePageSettings() {
   commitHomePageSettingsStore(rawSettings, updatedAt);
 }
 
+async function persistSharedPageSettings(recordId, nextStore, label) {
+  const updatedAt = new Date().toISOString();
+
+  const response = await withTimeout(
+    supabaseClient
+      .from("home_page_settings")
+      .upsert({
+        id: recordId,
+        config_json: nextStore,
+        updated_at: updatedAt
+      }),
+    label
+  );
+
+  if (response?.error) {
+    throw response.error;
+  }
+
+  return updatedAt;
+}
+
 async function saveHomePageSettings() {
   if (!isAdminUser()) {
     return;
@@ -3567,24 +3588,11 @@ async function saveHomePageSettings() {
 
   try {
     if (supabaseClient) {
-      const response = await withTimeout(
-        supabaseClient
-          .from("home_page_settings")
-          .upsert({
-            id: "dashboard",
-            config_json: nextStore,
-            updated_at: new Date().toISOString()
-          })
-          .select("config_json, updated_at")
-          .single(),
-        "Anasayfa ayarlarini kaydetme"
-      );
-
-      if (response.error) {
-        throw response.error;
-      }
-
-      commitHomePageSettingsStore(response.data?.config_json || nextStore, response.data?.updated_at || new Date().toISOString());
+      const updatedAt = await persistSharedPageSettings("dashboard", nextStore, "Anasayfa ayarlarini kaydetme");
+      commitHomePageSettingsStore(nextStore, updatedAt);
+      window.setTimeout(() => {
+        loadHomePageSettings().catch(() => {});
+      }, 250);
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY, nextStore);
       commitHomePageSettingsStore(nextStore);
@@ -3866,19 +3874,11 @@ async function saveAboutPageSettings() {
 
   try {
     if (supabaseClient) {
-      const response = await withTimeout(
-        supabaseClient.from("home_page_settings").upsert({
-          id: "about",
-          config_json: nextStore,
-          updated_at: new Date().toISOString()
-        }).select("config_json, updated_at").single(),
-        "Hakkimizda ayarlarini kaydetme"
-      );
-      if (response.error) {
-        throw response.error;
-      }
-
-      commitAboutPageSettingsStore(response.data?.config_json || nextStore, response.data?.updated_at || new Date().toISOString());
+      const updatedAt = await persistSharedPageSettings("about", nextStore, "Hakkimizda ayarlarini kaydetme");
+      commitAboutPageSettingsStore(nextStore, updatedAt);
+      window.setTimeout(() => {
+        loadAboutPageSettings().catch(() => {});
+      }, 250);
     } else {
       writeJson(LOCAL_HOME_PAGE_SETTINGS_KEY + "-about", nextStore);
       commitAboutPageSettingsStore(nextStore);
@@ -7569,6 +7569,13 @@ window.setInterval(() => {
 }, 15000);
 
 window.setInterval(() => {
+  if (supabaseClient && authState.userId && authState.mode !== "visitor") {
+    trackRealtimePresence();
+    updatePresence(true);
+  }
+}, 12000);
+
+window.setInterval(() => {
   if (supabaseClient) {
     loadDirectoryUsers();
   }
@@ -7576,12 +7583,20 @@ window.setInterval(() => {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && supabaseClient) {
+    if (authState.userId && authState.mode !== "visitor") {
+      trackRealtimePresence();
+      updatePresence(true);
+    }
     scheduleDirectoryRefresh(120);
   }
 });
 
 window.addEventListener("focus", () => {
   if (supabaseClient) {
+    if (authState.userId && authState.mode !== "visitor") {
+      trackRealtimePresence();
+      updatePresence(true);
+    }
     scheduleDirectoryRefresh(120);
   }
 });
