@@ -1,229 +1,87 @@
-create table if not exists public.app_users (
+create table if not exists public.roles_v2 (
+  id text primary key,
+  name text not null,
+  color text not null default '#f1a126',
+  sort_order integer not null default 100,
+  is_system boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+insert into public.roles_v2 (id, name, color, sort_order, is_system)
+values
+  ('admin', 'Admin', '#ff6961', 10, true),
+  ('teacher', 'Ogretmen', '#f1a126', 20, true),
+  ('member', 'Uye', '#6e80ff', 40, true),
+  ('guest', 'Misafir', '#63df63', 90, true),
+  ('assistant', 'Asistan', '#9c8cff', 95, true)
+on conflict (id) do update
+set
+  name = excluded.name,
+  color = excluded.color,
+  sort_order = excluded.sort_order,
+  is_system = excluded.is_system;
+
+create table if not exists public.profiles_v2 (
   id text primary key,
   display_name text not null,
-  role_id text not null default 'member',
-  role_ids text[] not null default array['member'],
+  email text,
   is_guest boolean not null default false,
-  is_muted boolean not null default false,
-  is_banned boolean not null default false,
   is_online boolean not null default false,
   last_seen timestamptz,
-  created_at timestamptz not null default now()
-);
-
-alter table public.app_users
-add column if not exists is_muted boolean not null default false;
-
-alter table public.app_users
-add column if not exists is_banned boolean not null default false;
-
-alter table public.app_users
-add column if not exists is_online boolean not null default false;
-
-alter table public.app_users
-add column if not exists last_seen timestamptz;
-
-alter table public.app_users
-add column if not exists avatar_image text;
-
-create table if not exists public.messages (
-  id uuid primary key default gen_random_uuid(),
-  channel_id text not null,
-  author_id text references public.app_users(id) on delete set null,
-  author_name text not null,
-  author_role text not null default 'Uye',
-  author_avatar text,
-  content text not null check (char_length(content) <= 240),
-  created_at timestamptz not null default now()
-);
-
-alter table public.messages
-add column if not exists author_avatar text;
-
-create table if not exists public.direct_messages (
-  id uuid primary key default gen_random_uuid(),
-  conversation_id text not null,
-  sender_id text not null,
-  receiver_id text not null,
-  sender_name text not null,
-  receiver_name text not null,
-  content text not null check (char_length(content) <= 500),
-  created_at timestamptz not null default now()
-);
-
-alter table public.app_users enable row level security;
-alter table public.messages enable row level security;
-alter table public.direct_messages enable row level security;
-
-drop policy if exists "Public can read app users" on public.app_users;
-create policy "Public can read app users"
-on public.app_users
-for select
-to anon, authenticated
-using (true);
-
-drop policy if exists "Public can create app users" on public.app_users;
-create policy "Public can create app users"
-on public.app_users
-for insert
-to anon, authenticated
-with check (true);
-
-drop policy if exists "Users can update own app profile" on public.app_users;
-create policy "Users can update own app profile"
-on public.app_users
-for update
-to anon, authenticated
-using (true)
-with check (true);
-
-drop policy if exists "Public can delete app users" on public.app_users;
-create policy "Public can delete app users"
-on public.app_users
-for delete
-to anon, authenticated
-using (true);
-
-drop policy if exists "Public can read messages" on public.messages;
-create policy "Public can read messages"
-on public.messages
-for select
-to anon, authenticated
-using (true);
-
-drop policy if exists "Public can create messages" on public.messages;
-create policy "Public can create messages"
-on public.messages
-for insert
-to anon, authenticated
-with check (true);
-
-drop policy if exists "Public can delete messages" on public.messages;
-create policy "Public can delete messages"
-on public.messages
-for delete
-to anon, authenticated
-using (true);
-
-drop policy if exists "Public can read direct messages" on public.direct_messages;
-create policy "Public can read direct messages"
-on public.direct_messages
-for select
-to anon, authenticated
-using (true);
-
-drop policy if exists "Public can create direct messages" on public.direct_messages;
-create policy "Public can create direct messages"
-on public.direct_messages
-for insert
-to anon, authenticated
-with check (true);
-
-drop policy if exists "Public can delete direct messages" on public.direct_messages;
-create policy "Public can delete direct messages"
-on public.direct_messages
-for delete
-to anon, authenticated
-using (true);
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'app_users'
-  ) then
-    alter publication supabase_realtime add table public.app_users;
-  end if;
-
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'messages'
-  ) then
-    alter publication supabase_realtime add table public.messages;
-  end if;
-
-  if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'direct_messages'
-  ) then
-    alter publication supabase_realtime add table public.direct_messages;
-  end if;
-end $$;
-
--- Tek seferlik temizlik:
--- Dogus/Doğuş disindaki tum kullanicilari sifirlamak icin asagidaki sorguyu SQL Editor'da calistir.
--- delete from public.app_users
--- where lower(display_name) not in ('dogus', 'doğuş');
-
-
-create table if not exists public.home_page_settings (
-  id text primary key,
-  config_json jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-alter table public.home_page_settings enable row level security;
+create table if not exists public.user_roles_v2 (
+  user_id text not null references public.profiles_v2(id) on delete cascade,
+  role_id text not null references public.roles_v2(id) on delete cascade,
+  assigned_at timestamptz not null default now(),
+  primary key (user_id, role_id)
+);
 
-drop policy if exists "Public can read homepage settings" on public.home_page_settings;
-create policy "Public can read homepage settings"
-on public.home_page_settings
-for select
-to anon, authenticated
-using (true);
+create table if not exists public.home_content_v2 (
+  id text primary key,
+  content jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
 
-drop policy if exists "Public can create homepage settings" on public.home_page_settings;
-create policy "Public can create homepage settings"
-on public.home_page_settings
-for insert
-to anon, authenticated
-with check (true);
+alter table public.roles_v2 enable row level security;
+alter table public.profiles_v2 enable row level security;
+alter table public.user_roles_v2 enable row level security;
+alter table public.home_content_v2 enable row level security;
 
-drop policy if exists "Public can update homepage settings" on public.home_page_settings;
-create policy "Public can update homepage settings"
-on public.home_page_settings
-for update
-to anon, authenticated
-using (true)
-with check (true);
+drop policy if exists "roles v2 read" on public.roles_v2;
+create policy "roles v2 read" on public.roles_v2 for select to anon, authenticated using (true);
+
+drop policy if exists "profiles v2 all" on public.profiles_v2;
+create policy "profiles v2 all" on public.profiles_v2 for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "user roles v2 all" on public.user_roles_v2;
+create policy "user roles v2 all" on public.user_roles_v2 for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "home content v2 all" on public.home_content_v2;
+create policy "home content v2 all" on public.home_content_v2 for all to anon, authenticated using (true) with check (true);
 
 do $$
 begin
   if not exists (
-    select 1
-    from pg_publication_tables
-    where pubname = 'supabase_realtime'
-      and schemaname = 'public'
-      and tablename = 'home_page_settings'
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'profiles_v2'
   ) then
-    alter publication supabase_realtime add table public.home_page_settings;
+    alter publication supabase_realtime add table public.profiles_v2;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_roles_v2'
+  ) then
+    alter publication supabase_realtime add table public.user_roles_v2;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'home_content_v2'
+  ) then
+    alter publication supabase_realtime add table public.home_content_v2;
   end if;
 end $$;
-
-
-alter table public.app_users
-add column if not exists role_ids text[] not null default array['member'];
-
-alter table public.app_users
-alter column role_id set default 'member';
-
-alter table public.app_users
-alter column role_ids set default array['member'];
-
-update public.app_users
-set role_id = 'member'
-where role_id = 'student';
-
-update public.app_users
-set role_ids = case
-  when role_ids is null or cardinality(role_ids) = 0 then array[coalesce(role_id, 'member')]
-  else array_replace(role_ids, 'student', 'member')
-end;
